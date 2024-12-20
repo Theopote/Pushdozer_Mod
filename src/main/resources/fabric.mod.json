@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "pushdozer",
+	"version": "1.0.0",
+	"name": "Pushdozer",
+	"description": "A tool that allows players to destroy blocks in a specified geometric range.",
+	"authors": [
+		"Theopote!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.pushdozer.PushdozerMod"
+		],
+		"client": [
+			"com.pushdozer.PushdozerClient"
+		],
+		"modmenu": [
+			"com.pushdozer.config.ModMenuIntegration"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.14.21",
+		"minecraft": "~1.21.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": ">=11.0.3"
+	}
+}
