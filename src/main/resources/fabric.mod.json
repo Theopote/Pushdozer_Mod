@@ -3,15 +3,15 @@
 	"id": "pushdozer",
 	"version": "1.0.0",
 	"name": "Pushdozer",
-	"description": "A tool that allows players to destroy blocks in a specified geometric range.",
+	"description": "Pushdozer is a simple and easy-to-use terrain editing mod that provides Minecraft builders and creators with intuitive tools for large-scale terrain modifications. Whether it's leveling mountains, digging tunnels, removing trees, or clearing specific blocks in the world, Pushdozer makes these tasks effortless. Its main feature is the ability to quickly level terrain like a bulldozer, fill empty spaces, and smooth terrain boundaries for a more natural appearance.",
 	"authors": [
-		"Theopote!"
+		"Theopote"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/",
+		"sources": "https://github.com/Theopote/Pushdozer-Introduction"
 	},
-	"license": "MIT",
+	"license": "CC0 1.0",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
