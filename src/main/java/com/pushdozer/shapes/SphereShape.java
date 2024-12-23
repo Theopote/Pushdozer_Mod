@@ -3,9 +3,6 @@ package com.pushdozer.shapes;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import com.pushdozer.PushdozerMod;
-
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;

@@ -3,7 +3,6 @@ package com.pushdozer.ui.panels;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.text.Text;
 
 /**

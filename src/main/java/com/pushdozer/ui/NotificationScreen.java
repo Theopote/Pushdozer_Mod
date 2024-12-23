@@ -8,7 +8,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
-import net.minecraft.client.MinecraftClient;
 
 // NotificationScreen 类用于创建一个通知界面
 public class NotificationScreen extends Screen {
@@ -17,11 +16,6 @@ public class NotificationScreen extends Screen {
     private final Screen parent;
     // 存储要显示的消息
     private final Text message;
-    private TextFieldWidget lengthField;
-    private TextFieldWidget widthField;
-    private TextFieldWidget heightField;
-    private TextFieldWidget radiusField;
-    private TextFieldWidget distanceField;
     private ButtonWidget shapeButton;
     private ButtonWidget displayModeButton;
 
