@@ -5,6 +5,10 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.network.codec.PacketCodec;
 
+/**
+ * 撤销/重做网络包
+ * 用于客户端向服务器发送撤销或重做请求
+ */
 public record UndoRedoPayload(boolean isUndo) implements CustomPayload {
     public static final CustomPayload.Id<UndoRedoPayload> ID = 
         new CustomPayload.Id<>(Identifier.of("pushdozer", "undo_redo"));

@@ -17,7 +17,7 @@ public class ShapeUtil {
             return null;
         }
 
-        return GeometryShapeFactory.createShape(config.getShape(), config, basePos);
+        return GeometryShapeFactory.createShape(config.getGeometryType(), config, basePos);
     }
 
     public static BlockPos getTargetBlockPos(PlayerEntity player, PushdozerConfig config) {

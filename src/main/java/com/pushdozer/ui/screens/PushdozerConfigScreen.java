@@ -4,14 +4,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.gui.screen.Screen;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.PushdozerItem;
-import com.pushdozer.ui.panels.BoxSubPanel;
-import com.pushdozer.ui.panels.GeometrySubPanel;
-import com.pushdozer.ui.panels.SphereSubPanel;
+import com.pushdozer.ui.panels.*;
+import com.pushdozer.ui.panels.brushgeometry.BoxSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.ConeSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.CylinderSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.EllipsoidSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.GeometrySelectionPanel;
+import com.pushdozer.ui.panels.brushgeometry.GeometrySubPanel;
+import com.pushdozer.ui.panels.brushgeometry.OctahedronSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.SphereSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.TetrahedronSubPanel;
+import com.pushdozer.ui.panels.brushgeometry.TriangularPrismSubPanel;
+import com.pushdozer.ui.panels.workmode.BatchPlantConfigPanel;
+import com.pushdozer.ui.panels.workmode.BoneMealConfigPanel;
+import com.pushdozer.ui.panels.workmode.ExcavateConfigPanel;
+import com.pushdozer.ui.panels.workmode.PlaceConfigPanel;
+import com.pushdozer.ui.panels.workmode.ShorelineProcessConfigPanel;
+import com.pushdozer.ui.panels.workmode.SurfaceConvertConfigPanel;
+import com.pushdozer.ui.panels.workmode.WorkModeConfigPanel;
+import com.pushdozer.ui.panels.workmode.SmoothConfigPanel;
+import com.pushdozer.ui.panels.workmode.SurfaceRoughenConfigPanel;
+import com.pushdozer.ui.panels.workmode.WorkModeSelectionPanel;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -35,16 +54,13 @@ public class PushdozerConfigScreen extends Screen {
     
     // UI 组件
     private ButtonWidget applyAndCloseButton;      // 应用并关闭按钮
-    private ButtonWidget geometryTypeButton;       // 几何类型按钮
     private ButtonWidget displayModeButton;        // 显示模式按钮
-    private ButtonWidget selectBlocksButton;       // 选择方块按钮
     private GeometrySubPanel currentSubPanel;      // 当前显示的几何子面板
 
     // 面板尺寸常量
-    private static final int PANEL_WIDTH = 240;    // 
+    private static final int PANEL_WIDTH = 280;    // 主面板加宽40
     private static final int TITLE_HEIGHT = 20;    // 标题高度
-    private static final int SCREEN_MARGIN = 30;   // 屏幕边距
-    private static final int GEOMETRY_TYPE_HEIGHT = 20; // 几何类型选项高度
+    private static final int SCREEN_MARGIN = 10;   // 屏幕边距
 
     // 面板位置
     public int panelLeft, panelTop;
@@ -55,8 +71,7 @@ public class PushdozerConfigScreen extends Screen {
     private static final long CLOSE_DELAY = 150;
 
     // 几何类型选项列表
-    private final List<ButtonWidget> geometryTypeOptions = new ArrayList<>();
-    private boolean isDropdownOpen = false;        // 列表是否打开
+    // 旧的几何体选择相关代码已移除
 
     private boolean mainPanelVisible = true;       // 主面板是否可见
 
@@ -64,25 +79,30 @@ public class PushdozerConfigScreen extends Screen {
     private CustomDistanceSlider distanceSlider;
     // 工作模式相关
     private ButtonWidget workModeButton;
+    private ButtonWidget workModeConfigButton;
+    private WorkModeSelectionPanel workModeSelectionPanel;
     private final List<ButtonWidget> workModeOptions = new ArrayList<>();
     private boolean isWorkModeDropdownOpen = false;
+    
+    // 工作模式配置面板
+    private WorkModeConfigPanel currentWorkModeConfigPanel;
 
-    // 几何体类型按钮
-    private ButtonWidget boxButton;
-    private ButtonWidget sphereButton;
-    private ButtonWidget boxConfigButton;
-    private ButtonWidget sphereConfigButton;
+    // 几何体类型选择组件
+    // 几何体按钮和选择面板
+    private ButtonWidget geometryButton;
+    private ButtonWidget geometryConfigButton;
+    private GeometrySelectionPanel geometrySelectionPanel;
 
-    // 标高锁定按钮
-    private ButtonWidget heightLockButton;
-    private boolean isHeightLocked = false;   // 标高锁定状态
+    // 标高配置按钮
+    private ButtonWidget heightConfigButton;
+    private HeightConfigPanel heightConfigPanel;
 
     /**
      * 构造函数
      * @param config Pushdozer配置对象
      */
     public PushdozerConfigScreen(PushdozerConfig config) {
-        super(Text.of("Pushdozer Configuration"));
+        super(Text.translatable("pushdozer.config.title"));
         this.config = config; // 初始化配置对象
         MinecraftClient client = MinecraftClient.getInstance();
         // 检查玩家是否手持 Pushdozer 物品
@@ -91,8 +111,7 @@ public class PushdozerConfigScreen extends Screen {
             return;
         }
         this.openTime = System.currentTimeMillis();
-        // 从配置中读取标高锁定状态
-        this.isHeightLocked = config.isHeightLocked();
+
     }
 
 
@@ -104,188 +123,329 @@ public class PushdozerConfigScreen extends Screen {
         super.init();
         // 检查配置是否正确初始化
         if (config == null) {
-            PushdozerMod.LOGGER.error("PushdozerConfigScreen: config is null");
+            PushdozerMod.LOGGER.error(Text.translatable("pushdozer.error.config_null").getString());
             return;
         }
         
         // 保存当前子面板状态
         GeometrySubPanel previousSubPanel = currentSubPanel;
         boolean wasSubPanelVisible = previousSubPanel != null && previousSubPanel.isVisible();
-        String previousPanelType = wasSubPanelVisible ? 
-            (previousSubPanel instanceof BoxSubPanel ? "Box" : "Sphere") : null;
+        String previousPanelType = getString(wasSubPanelVisible, previousSubPanel);
 
         // 初始化所有UI组件
         initializeComponents();
 
         // 如果之前有子面板在显示，恢复子面板状态
         if (wasSubPanelVisible && previousPanelType != null) {
-            if (previousPanelType.equals("Box")) {
-                showBoxConfigPanel();
-            } else if (previousPanelType.equals("Sphere")) {
-                showSphereConfigPanel();
+            switch (previousPanelType) {
+                case "Box":
+                    showBoxConfigPanel();
+                    break;
+                case "Sphere":
+                    showSphereConfigPanel();
+                    break;
+                case "Octahedron":
+                    showOctahedronConfigPanel();
+                    break;
+                case "Cylinder":
+                    showCylinderConfigPanel();
+                    break;
+                case "Cone":
+                    showConeConfigPanel();
+                    break;
+                case "Ellipsoid":
+                    showEllipsoidConfigPanel();
+                    break;
             }
         }
     }
 
+    private static @Nullable String getString(boolean wasSubPanelVisible, GeometrySubPanel previousSubPanel) {
+        String previousPanelType = null;
+        if (wasSubPanelVisible) {
+            switch (previousSubPanel) {
+                case BoxSubPanel boxSubPanel -> previousPanelType = "Box";
+                case SphereSubPanel sphereSubPanel -> previousPanelType = "Sphere";
+                case OctahedronSubPanel octahedronSubPanel -> previousPanelType = "Octahedron";
+                case CylinderSubPanel cylinderSubPanel -> previousPanelType = "Cylinder";
+                case ConeSubPanel coneSubPanel -> previousPanelType = "Cone";
+                case EllipsoidSubPanel ellipsoidSubPanel -> previousPanelType = "Ellipsoid";
+                default -> {
+                }
+            }
+        }
+        return previousPanelType;
+    }
+
     // 将init()方法中的UI组件初始化逻辑移到这个新方法中
     private void initializeComponents() {
+        // 确保显示模式有默认值
         if (config.getDisplayMode() == null) {
             PushdozerMod.LOGGER.error(Text.translatable("pushdozer.error.display_mode_null").getString());
-            return;
+            config.setDisplayMode(PushdozerConfig.DisplayMode.WIREFRAME);
         }
         
         // 设置默认工作模式
         if (config.getWorkMode() == null) {
-            config.setWorkMode(PushdozerConfig.WorkMode.DESTROY);
+            config.setWorkMode(PushdozerConfig.WorkMode.EXCAVATE);
         }
-        
-        Text currentWorkMode = config.getWorkMode().getDisplayText();
-        // 计算面板位置
-        panelLeft = (this.width - PANEL_WIDTH) / 2;
-        panelTop = SCREEN_MARGIN;
 
-        // 更新内容区域的位置和尺寸
-        int contentLeft = panelLeft + 10; // 从15改为20，给主面板多留10像素边距
-        int contentTop = panelTop + TITLE_HEIGHT + 10;
+        // 计算面板位置（水平+垂直居中）
+        panelLeft = (this.width - PANEL_WIDTH) / 2;
+        panelTop = (this.height - computeMainPanelHeight()) / 2;
+
+        // 更新内容区域的位置和尺寸（面板背景左右各20，控件再内缩5 → contentInset=25）
+        int contentInset = 25;
+        int contentLeft = panelLeft + contentInset; // 控件距面板背景左右各5
+        int contentTop = panelTop + TITLE_HEIGHT + 5; // 标题下方间距5
         int rowHeight = 20;
         int verticalGap = 5;
-        int buttonWidth = 60;
-        int configButtonWidth = 40;
+        int finalButtonSpacing = 10; // 按钮之间的间距
+
+        // 第一行：几何体类型下拉列表和配置按钮
+        int buttonSpacing = 10;
+        int availableWidth = PANEL_WIDTH - (contentInset * 2); // 可用宽度：面板宽度-左右控件边距
+        int geomConfigButtonWidth = 60; // 配置按钮固定宽度
+        int dropdownWidth = availableWidth - geomConfigButtonWidth - buttonSpacing; // 填满剩余
+        int totalWidth = availableWidth; // 行总宽度即可用宽度
+        int startX = contentLeft; // 从左侧开始铺满
         
-        // 计算按钮的位置
-        int availableWidth = PANEL_WIDTH - 40; // 从30改为40，因为面板边距增加了10像素
-        int totalButtonWidth = buttonWidth * 2 + configButtonWidth * 2 - 10; // 总按钮宽度保持不变
-        int leftMargin = (availableWidth - totalButtonWidth) / 2; // 计算居中边距
-        
-        // 计算按钮X坐标
-        int boxButtonX = contentLeft + leftMargin;
-        int boxConfigButtonX = boxButtonX + buttonWidth;
-        int sphereButtonX = boxConfigButtonX + configButtonWidth + 10;
-        int sphereConfigButtonX = sphereButtonX + buttonWidth;
-        
-        // 删除第一行的标签，直接添加按钮
-        boxButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.translatable("pushdozer.button.box_unchecked"), 
-            button -> toggleGeometryType("Box"))
-            .dimensions(boxButtonX, contentTop, buttonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.box")))
+        // 创建几何体按钮
+        geometryButton = this.addDrawableChild(ButtonWidget.builder(
+            getGeometryButtonText(),
+            button -> showGeometrySelectionPanel())
+            .dimensions(startX, contentTop, dropdownWidth, rowHeight)
+            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.brush_shape_selection")))
             .build());
         
-        // 长方体配置按钮
-        boxConfigButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.translatable("pushdozer.button.config"), 
-            button -> showBoxConfigPanel())
-            .dimensions(boxConfigButtonX, contentTop, configButtonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.box_config")))
+        // 创建几何体选择面板
+        geometrySelectionPanel = new GeometrySelectionPanel(this, config, this::onGeometryTypeChanged);
+        
+        // 创建工作模式选择面板
+        workModeSelectionPanel = new WorkModeSelectionPanel(this, config, this::onWorkModeChanged);
+        
+        // 创建配置按钮
+        geometryConfigButton = this.addDrawableChild(ButtonWidget.builder(
+            Text.translatable("pushdozer.button.config"),
+            button -> showGeometryConfigPanel())
+            .dimensions(startX + dropdownWidth + buttonSpacing, contentTop, geomConfigButtonWidth, rowHeight)
+            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.geometry_config")))
             .build());
 
-        // 球形按钮
-        sphereButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.of("☐ Sphere"), 
-            button -> toggleGeometryType("Sphere"))
-            .dimensions(sphereButtonX, contentTop, buttonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.sphere")))
-            .build());
-
-        // 球形配置按钮
-        sphereConfigButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.translatable("pushdozer.button.config"), 
-            button -> showSphereConfigPanel())
-            .dimensions(sphereConfigButtonX, contentTop, configButtonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.sphere_config")))
-            .build());
-
-        updateGeometryTypeButtons();
-
-        // 第二行：工作模式按钮（删除标签）
-        int workModeButtonWidth = sphereConfigButtonX + configButtonWidth - boxButtonX;
+        // 第二行：工作模式按钮和配置按钮
         workModeButton = this.addDrawableChild(ButtonWidget.builder(
             getWorkModeText(), 
-            button -> toggleWorkMode())
-            .dimensions(boxButtonX, contentTop + rowHeight + verticalGap, workModeButtonWidth, rowHeight)
+            button -> showWorkModeSelectionPanel())
+            .dimensions(startX, contentTop + rowHeight + verticalGap, dropdownWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.work_mode")))
             .build());
-
-        // 第三行：显示模式按钮（删除标签）
-        displayModeButton = this.addDrawableChild(ButtonWidget.builder(
-            config.getDisplayMode().getDisplayText(), 
-            button -> toggleDisplayMode())
-            .dimensions(boxButtonX, contentTop + (rowHeight + verticalGap) * 2, workModeButtonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.display_mode")))
+        
+        // 创建工作模式配置按钮
+        workModeConfigButton = this.addDrawableChild(ButtonWidget.builder(
+            Text.translatable("pushdozer.button.config"),
+            button -> showWorkModeConfigPanel())
+            .dimensions(startX + dropdownWidth + buttonSpacing, contentTop + rowHeight + verticalGap, geomConfigButtonWidth, rowHeight)
+            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.work_mode_config")))
             .build());
 
-        // 第四行：最大操作距离滑动条
-        distanceSlider = this.addDrawableChild(new CustomDistanceSlider(
-            boxButtonX,
+
+
+        // 第四行：最大操作距离滑动条（铺满可用宽度）
+        distanceSlider = new CustomDistanceSlider(
+            startX,
             contentTop + (rowHeight + verticalGap) * 3,
-            workModeButtonWidth,
+                availableWidth,
             rowHeight,
             Text.translatable("pushdozer.label.maximum_operation_distance", config.getMaxOperationDistance()),
             config.getMaxOperationDistance() / (float)PushdozerConfig.MAX_OPERATION_DISTANCE
-        ));
+        );
         distanceSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.distance_slider")));
+        this.addDrawableChild(distanceSlider);
 
-        // 第五行：选择允许被破坏的方块按钮
-        selectBlocksButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.translatable("pushdozer.config.block_selection"),
-            button -> openBlockSelectionScreen())
-            .dimensions(boxButtonX, contentTop + (rowHeight + verticalGap) * 4, workModeButtonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.block_selection")))
+        // 第三行：显示模式按钮（铺满可用宽度）
+        displayModeButton = this.addDrawableChild(ButtonWidget.builder(
+            getDisplayModeButtonText(), 
+            button -> toggleDisplayMode())
+            .dimensions(startX, contentTop + (rowHeight + verticalGap) * 2, availableWidth, rowHeight)
+            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.display_mode")))
             .build());
 
-        // 第六行：标高锁定按钮和应用并关闭按钮
-        int buttonSpacing = 10; // 按钮之间的间距
-        int totalAvailableWidth = workModeButtonWidth; // 总可用宽度与上面的按钮相同
-        int heightLockButtonWidth = (totalAvailableWidth - buttonSpacing) / 2; // 平均分配宽度
-        int applyCloseButtonWidth = totalAvailableWidth - buttonSpacing - heightLockButtonWidth; // 剩余宽度给应用关闭按钮
+        // 第五行：标高配置按钮和应用并关闭按钮
+        int heightConfigButtonWidth = (availableWidth - finalButtonSpacing) / 2; // 平均分配宽度
+        int applyCloseButtonWidth = availableWidth - finalButtonSpacing - heightConfigButtonWidth; // 剩余宽度给应用关闭按钮
 
-        // 添加标高锁定按钮 - 使用配置中的状态
-        heightLockButton = this.addDrawableChild(ButtonWidget.builder(
-            Text.translatable(isHeightLocked ? 
-                "pushdozer.config.height_lock" : "pushdozer.config.height_free"),
-            button -> toggleHeightLock())
-            .dimensions(boxButtonX, contentTop + (rowHeight + verticalGap) * 5, heightLockButtonWidth, rowHeight)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.height_lock")))
+        // 添加标高配置按钮
+        heightConfigButton = this.addDrawableChild(ButtonWidget.builder(
+            Text.translatable("pushdozer.config.height_config"),
+            button -> showHeightConfigPanel())
+            .dimensions(startX, contentTop + (rowHeight + verticalGap) * 4, heightConfigButtonWidth, rowHeight)
+            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.height_config")))
             .build());
 
         // 添加应用并关闭按钮
         applyAndCloseButton = this.addDrawableChild(ButtonWidget.builder(
             Text.translatable("pushdozer.config.save_and_close"),
             button -> applyAndClose())
-            .dimensions(boxButtonX + heightLockButtonWidth + buttonSpacing, 
-                       contentTop + (rowHeight + verticalGap) * 5, 
+            .dimensions(startX + heightConfigButtonWidth + finalButtonSpacing, 
+                       contentTop + (rowHeight + verticalGap) * 4, 
                        applyCloseButtonWidth, 
                        rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.save_close")))
             .build());
     }
 
-    /**
-     * 切换笔刷形状
-     */
-    private void toggleGeometryType(String shape) {
-        config.setShape(shape);
-        updateGeometryTypeButtons();
-        PushdozerMod.saveConfig();
-        
-        // 添加形状切换成功的提示
-        showErrorMessage(Text.translatable("pushdozer.message.shape_switch", shape).getString());
+    // 计算主面板理论高度，用于在初始化阶段进行垂直居中
+    private int computeMainPanelHeight() {
+        int rowHeight = 20;
+        int verticalGap = 5;
+        int numRows = 5; // 几何/模式/显示模式/距离滑条/底部按钮
+        int numGaps = numRows - 1;
+        int topMarginBelowTitle = 5;
+        int bottomMargin = 5;
+        return TITLE_HEIGHT + topMarginBelowTitle + (rowHeight * numRows) + (verticalGap * numGaps) + bottomMargin;
     }
 
     /**
-     * 更新笔刷形状按钮的显示状态
+     * 显示几何体选择面板
      */
-    private void updateGeometryTypeButtons() {
-        String currentShape = config.getShape();
+    private void showGeometrySelectionPanel() {
+        if (geometrySelectionPanel != null) {
+            geometrySelectionPanel.show();
+        }
+    }
+
+    /**
+     * 显示工作模式选择面板
+     */
+    private void showWorkModeSelectionPanel() {
+        if (workModeSelectionPanel != null) {
+            workModeSelectionPanel.show();
+        }
+    }
+
+    /**
+     * 显示工作模式配置面板
+     */
+    private void showWorkModeConfigPanel() {
+        // 隐藏工作模式选择面板
+        if (workModeSelectionPanel != null) {
+            workModeSelectionPanel.hide();
+        }
         
-        // 更新按钮状态
-        boxButton.setMessage(Text.translatable(currentShape.equals("Box") ? 
-            "pushdozer.button.box_checked" : "pushdozer.button.box_unchecked"));
-        sphereButton.setMessage(Text.translatable(currentShape.equals("Sphere") ? 
-            "pushdozer.button.sphere_checked" : "pushdozer.button.sphere_unchecked"));
+        // 根据当前工作模式显示不同的配置面板
+        PushdozerConfig.WorkMode currentMode = config.getWorkMode();
+        
+        switch (currentMode) {
+            case EXCAVATE:
+                currentWorkModeConfigPanel = new ExcavateConfigPanel(this, config);
+                break;
+            case PLACE:
+                currentWorkModeConfigPanel = new PlaceConfigPanel(this, config);
+                break;
+            case SMOOTH:
+                currentWorkModeConfigPanel = new SmoothConfigPanel(this, config);
+                break;
+            case SMOOTH_RAISE, ADAPTIVE_SMOOTH, SMOOTH_LOWER:
+                // 兼容旧平滑入口：直接打开统一平滑面板
+                currentWorkModeConfigPanel = new SmoothConfigPanel(this, config);
+                break;
+            case SURFACE_ROUGHEN:
+                currentWorkModeConfigPanel = new SurfaceRoughenConfigPanel(this, config);
+                break;
+            case SURFACE_CONVERT:
+                currentWorkModeConfigPanel = new SurfaceConvertConfigPanel(this, config);
+                break;
+            case BONE_MEAL:
+                currentWorkModeConfigPanel = new BoneMealConfigPanel(this, config);
+                break;
+            case BATCH_PLANT:
+                currentWorkModeConfigPanel = new BatchPlantConfigPanel(this, config);
+                break;
+            case SHORELINE_PROCESS:
+                currentWorkModeConfigPanel = new ShorelineProcessConfigPanel(this, config);
+                break;
+            default:
+                showErrorMessage(Text.translatable("pushdozer.error.unknown_work_mode", currentMode.getDisplayText().getString()).getString());
+                return;
+        }
+        
+            currentWorkModeConfigPanel.show();
+            hideMainPanel();
+    }
+
+    /**
+     * 几何体类型改变时的回调
+     */
+    private void onGeometryTypeChanged(PushdozerConfig.GeometryType geometryType) {
+        config.setGeometryType(geometryType);
+        PushdozerMod.saveConfig();
+        
+        // 更新按钮文本
+        if (geometryButton != null) {
+            geometryButton.setMessage(getGeometryButtonText());
+        }
+        
+        // 添加形状切换成功的提示
+        showErrorMessage(Text.translatable("pushdozer.message.shape_switch", geometryType.getDisplayText().getString()).getString());
         
         // 强制更新预览
         updatePreview();
+    }
+
+    /**
+     * 工作模式改变时的回调
+     */
+    private void onWorkModeChanged(PushdozerConfig.WorkMode workMode) {
+        config.setWorkMode(workMode);
+        PushdozerMod.saveConfig();
+        
+        // 更新按钮文本
+        if (workModeButton != null) {
+            workModeButton.setMessage(getWorkModeText());
+        }
+        
+        // 添加工作模式切换成功的提示
+        showErrorMessage(Text.translatable("pushdozer.message.working_mode_switch", workMode.getDisplayText().getString()).getString());
+        
+        // 强制更新预览
+        updatePreview();
+    }
+
+    /**
+     * 显示几何体配置面板
+     */
+    private void showGeometryConfigPanel() {
+        PushdozerConfig.GeometryType currentType = config.getGeometryType();
+        switch (currentType) {
+            case BOX:
+                showBoxConfigPanel();
+                break;
+            case SPHERE:
+                showSphereConfigPanel();
+                break;
+            case OCTAHEDRON:
+                showOctahedronConfigPanel();
+                break;
+            case CYLINDER:
+                showCylinderConfigPanel();
+                break;
+            case CONE:
+                showConeConfigPanel();
+                break;
+            case ELLIPSOID:
+                showEllipsoidConfigPanel();
+                break;
+            case TETRAHEDRON:
+                showTetrahedronConfigPanel();
+                break;
+            case TRIANGULAR_PRISM:
+                showTriangularPrismConfigPanel();
+                break;
+            default:
+                // 默认显示长方体配置面板
+                showBoxConfigPanel();
+                break;
+        }
     }
 
 
@@ -306,11 +466,59 @@ public class PushdozerConfigScreen extends Screen {
     }
 
     /**
+     * 显示正八面体配置面板
+     */
+    private void showOctahedronConfigPanel() {
+        currentSubPanel = new OctahedronSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
+     * 显示圆柱体配置面板
+     */
+    private void showCylinderConfigPanel() {
+        currentSubPanel = new CylinderSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
+     * 显示圆锥体配置面板
+     */
+    private void showConeConfigPanel() {
+        currentSubPanel = new ConeSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
+     * 显示椭球体配置面板
+     */
+    private void showEllipsoidConfigPanel() {
+        currentSubPanel = new EllipsoidSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
+     * 显示正四面体配置面板
+     */
+    private void showTetrahedronConfigPanel() {
+        currentSubPanel = new TetrahedronSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
+     * 显示三棱柱配置面板
+     */
+    private void showTriangularPrismConfigPanel() {
+        currentSubPanel = new TriangularPrismSubPanel(this, config);
+        showSubPanel();
+    }
+
+    /**
      * 显示子面板
      */
     private void showSubPanel() {
         if (currentSubPanel != null) {
-            currentSubPanel.initPanel();
+            currentSubPanel.init();
             currentSubPanel.show();
             hideMainPanel();
         }
@@ -322,16 +530,18 @@ public class PushdozerConfigScreen extends Screen {
     private void hideMainPanel() {
         mainPanelVisible = false;
         // 隐藏主界面上的所有组件
-        if (boxButton != null) boxButton.visible = false;
-        if (sphereButton != null) sphereButton.visible = false;
-        if (boxConfigButton != null) boxConfigButton.visible = false;
-        if (sphereConfigButton != null) sphereConfigButton.visible = false;
+        if (geometryButton != null) geometryButton.visible = false;
+        if (geometryConfigButton != null) geometryConfigButton.visible = false;
         if (workModeButton != null) workModeButton.visible = false;
+        if (workModeConfigButton != null) workModeConfigButton.visible = false;
         if (displayModeButton != null) displayModeButton.visible = false;
         if (distanceSlider != null) distanceSlider.visible = false;
-        if (selectBlocksButton != null) selectBlocksButton.visible = false;
-        if (heightLockButton != null) heightLockButton.visible = false;
         if (applyAndCloseButton != null) applyAndCloseButton.visible = false;
+        if (heightConfigButton != null) heightConfigButton.visible = false;
+        // 隐藏几何体选择面板
+        if (geometrySelectionPanel != null) geometrySelectionPanel.hide();
+        // 隐藏工作模式选择面板
+        if (workModeSelectionPanel != null) workModeSelectionPanel.hide();
     }
 
     /**
@@ -354,8 +564,40 @@ public class PushdozerConfigScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            if (currentSubPanel != null) {
+            // 优先处理标高配置面板
+            if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
+                heightConfigPanel.hide();
+                showMainPanel();
+                return true;
+            }
+            
+            // 优先处理几何体选择面板
+            if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
+                geometrySelectionPanel.hide(); // 取消选择，保持原来的几何体
+                return true;
+            }
+            
+            // 处理工作模式选择面板
+            if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
+                workModeSelectionPanel.hide(); // 取消选择，保持原来的工作模式
+                return true;
+            }
+
+            // 处理工作模式配置面板
+            if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
+                // 相当于按下确定键：保存配置并关闭
+                currentWorkModeConfigPanel.saveConfig();
+                currentWorkModeConfigPanel.hide();
+                showMainPanel();
+                return true;
+            }
+            
+            // 处理几何体配置面板
+            if (currentSubPanel != null && currentSubPanel.isVisible()) {
+                // 相当于按下确定键：保存配置并关闭
+                currentSubPanel.saveConfig();
                 hideSubPanel();
+                showMainPanel();
                 return true;
             }
         }
@@ -364,7 +606,7 @@ public class PushdozerConfigScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_UP || keyCode == GLFW.GLFW_KEY_DOWN) {
             if (this.client != null && this.client.player != null) {
                 int currentDistance = config.getMaxOperationDistance();
-                int newDistance = currentDistance;
+                int newDistance;
                 
                 // 上箭头增加距离，下箭头减少距离
                 if (keyCode == GLFW.GLFW_KEY_UP) {
@@ -400,18 +642,26 @@ public class PushdozerConfigScreen extends Screen {
      */
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (mainPanelVisible) {
+        // 检查是否有任何子面板可见
+        boolean geometryPanelVisible = geometrySelectionPanel != null && geometrySelectionPanel.isVisible();
+        boolean workModePanelVisible = workModeSelectionPanel != null && workModeSelectionPanel.isVisible();
+        boolean workModeConfigPanelVisible = currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible();
+        boolean configSubPanelVisible = currentSubPanel != null && currentSubPanel.isVisible();
+        boolean heightConfigPanelVisible = heightConfigPanel != null && heightConfigPanel.isVisible();
+        
+        // 只有在所有子面板都不可见时才渲染主界面
+        if (!geometryPanelVisible && !workModePanelVisible && !workModeConfigPanelVisible && !configSubPanelVisible && !heightConfigPanelVisible) {
             // 计算新板高度
-            int panelHeight = applyAndCloseButton.getY() + applyAndCloseButton.getHeight() + 10 - panelTop;
+            int panelHeight = applyAndCloseButton.getY() + applyAndCloseButton.getHeight() + 5 - panelTop; // 减少底部间距到5像素
             
             // 绘制半透明主面板背景
-            context.fill(panelLeft + 5, panelTop, panelLeft + PANEL_WIDTH - 5, panelTop + panelHeight, 0x80000000);
+            context.fill(panelLeft + 20, panelTop, panelLeft + PANEL_WIDTH - 20, panelTop + panelHeight, 0x80000000);
             
             // 绘制半透明标题背景
-            context.fill(panelLeft + 5, panelTop, panelLeft + PANEL_WIDTH - 5, panelTop + TITLE_HEIGHT, 0xE0303030);
+            context.fill(panelLeft + 20, panelTop, panelLeft + PANEL_WIDTH - 20, panelTop + TITLE_HEIGHT, 0xE0303030);
             
             // 绘制边框
-            context.drawBorder(panelLeft + 5, panelTop, PANEL_WIDTH - 10, panelHeight, 0xFFFFFFFF);
+            context.drawBorder(panelLeft + 20, panelTop, PANEL_WIDTH - 40, panelHeight, 0xFFFFFFFF);
             
             // 绘制标题
             if (this.textRenderer != null) {
@@ -424,23 +674,17 @@ public class PushdozerConfigScreen extends Screen {
                     0xFFFFFF, false);
             }
 
-            // 渲染他UI元素
+            // 渲染所有UI元素
             for (Element child : this.children()) {
                 if (child instanceof Drawable) {
                     ((Drawable) child).render(context, mouseX, mouseY, delta);
-                    
-                    // 如果是按钮，额外渲染文字
-                    if (child instanceof ButtonWidget button) {
-                        renderButtonText(context, button, mouseX, mouseY);
-                    }
                 }
             }
-
-            // ... 渲染其他主界面元素 ...
-            boxButton.render(context, mouseX, mouseY, delta);
-            sphereButton.render(context, mouseX, mouseY, delta);
-            boxConfigButton.render(context, mouseX, mouseY, delta);
-            sphereConfigButton.render(context, mouseX, mouseY, delta);
+            
+            // 渲染下拉列表选项
+            if (isWorkModeDropdownOpen) {
+                renderWorkModeOptions(context, mouseX, mouseY, delta);
+            }
         }
 
         // 只在子面板显示时渲染它
@@ -448,85 +692,54 @@ public class PushdozerConfigScreen extends Screen {
             currentSubPanel.render(context, mouseX, mouseY, delta);
         }
 
-        // 始终渲染应用并关闭按钮
-        applyAndCloseButton.render(context, mouseX, mouseY, delta);
-
-        // 在最后渲染下拉列表选项，确保它们显示在其他所有元素之上
-        if (mainPanelVisible) {
-            if (isDropdownOpen) {
-                renderDropdownOptions(context, mouseX, mouseY, delta);
-            }
-
-            if (isWorkModeDropdownOpen) {
-                renderWorkModeOptions(context, mouseX, mouseY, delta);
-            }
+        // 最后渲染几何体选择面板，确保它在最上层
+        if (geometryPanelVisible) {
+            geometrySelectionPanel.render(context, mouseX, mouseY, delta);
         }
-    }
 
-    private void renderButtonText(DrawContext context, ButtonWidget button, int mouseX, int mouseY) {
-        // 移除这个方法，因为它可能导致重复渲染文字
-    }
+        // 渲染工作模式选择面板
+        if (workModePanelVisible) {
+            workModeSelectionPanel.render(context, mouseX, mouseY, delta);
+        }
 
-    private void renderDropdownOptions(DrawContext context, int mouseX, int mouseY, float delta) {
-        int dropdownHeight = geometryTypeOptions.size() * GEOMETRY_TYPE_HEIGHT;
-        context.fill(geometryTypeButton.getX(), geometryTypeButton.getY() + GEOMETRY_TYPE_HEIGHT,
-                     geometryTypeButton.getX() + geometryTypeButton.getWidth(), 
-                     geometryTypeButton.getY() + GEOMETRY_TYPE_HEIGHT + dropdownHeight,
-                     0xE0303030);
+        // 渲染工作模式配置面板
+        if (workModeConfigPanelVisible) {
+            currentWorkModeConfigPanel.render(context, mouseX, mouseY, delta);
+        }
 
-        for (ButtonWidget option : geometryTypeOptions) {
-            option.render(context, mouseX, mouseY, delta);
-            renderButtonText(context, option, mouseX, mouseY);
+        // 渲染标高配置面板
+        if (heightConfigPanelVisible) {
+            heightConfigPanel.render(context, mouseX, mouseY, delta);
         }
     }
 
     private String getDisplayModeText() {
+        // 确保显示模式不为null
+        if (config.getDisplayMode() == null) {
+            config.setDisplayMode(PushdozerConfig.DisplayMode.WIREFRAME);
+        }
         return config.getDisplayMode().getDisplayText().getString();
     }
 
     private void toggleDisplayMode() {
+        // 确保显示模式不为null
+        if (config.getDisplayMode() == null) {
+            config.setDisplayMode(PushdozerConfig.DisplayMode.WIREFRAME);
+        }
+        
         PushdozerConfig.DisplayMode[] modes = PushdozerConfig.DisplayMode.values();
         int nextIndex = (config.getDisplayMode().ordinal() + 1) % modes.length;
         PushdozerConfig.DisplayMode newMode = modes[nextIndex];
         config.setDisplayMode(newMode);
-        displayModeButton.setMessage(Text.of(getDisplayModeText()));
+        displayModeButton.setMessage(getDisplayModeButtonText());
         PushdozerMod.saveConfig();
         showErrorMessage(Text.translatable("pushdozer.message.display_mode_switch", getDisplayModeText()).getString());
     }
 
-    private void toggleWorkModeDropdown(boolean open) {
-        isWorkModeDropdownOpen = open;
-        if (isWorkModeDropdownOpen) {
-            for (PushdozerConfig.WorkMode mode : PushdozerConfig.WorkMode.values()) {
-                addWorkModeOption(mode.getDisplayText().getString(), mode.ordinal());
-            }
-        } else {
-            workModeOptions.forEach(this::remove);
-            workModeOptions.clear();
-        }
-    }
-
-    private void addWorkModeOption(String mode, int index) {
-        ButtonWidget option = this.addDrawableChild(ButtonWidget.builder(Text.of(mode), button -> {
-            selectWorkMode(mode);
-            toggleWorkModeDropdown(false);
-        })
-        .dimensions(workModeButton.getX(), 
-                    workModeButton.getY() + 20 + (index * 20), 
-                    workModeButton.getWidth(), 
-                    20)
-        .build());
-        workModeOptions.add(option);
-    }
-
-    private void selectWorkMode(String mode) {
-        for (PushdozerConfig.WorkMode workMode : PushdozerConfig.WorkMode.values()) {
-            if (workMode.getDisplayText().getString().equals(mode)) {
-                config.setWorkMode(workMode);
-                workModeButton.setMessage(Text.of(mode));
-                break;
-            }
-        }
+    private void toggleWorkModeDropdown() {
+        isWorkModeDropdownOpen = false;
+        workModeOptions.forEach(this::remove);
+        workModeOptions.clear();
     }
 
     private void renderWorkModeOptions(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -567,86 +780,68 @@ public class PushdozerConfigScreen extends Screen {
         return this.height;
     }
 
-    private void openBlockSelectionScreen() {
-        if (this.client != null) {
-            BlockSelectionScreen blockSelectionScreen = new BlockSelectionScreen(this, config);
-            this.client.setScreen(blockSelectionScreen);
-        }
-    }
-
     private void applyAndClose() {
         // 确保在关闭前保存所有配置
-        config.setHeightLocked(isHeightLocked);
-        if (isHeightLocked && this.client != null && this.client.player != null) {
-            config.setLockedHeight(this.client.player.getBlockY());
-        }
         config.save();
         this.close();
     }
 
+    private Text getGeometryButtonText() {
+        return Text.translatable("pushdozer.button.geometry_format", config.getGeometryType().getDisplayText());
+    }
+
     private Text getWorkModeText() {
-        return config.getWorkMode().getDisplayText();
+        return Text.translatable("pushdozer.button.work_mode_format", config.getWorkMode().getDisplayText());
     }
 
-
-    private void toggleWorkMode() {
-        PushdozerConfig.WorkMode[] modes = PushdozerConfig.WorkMode.values();
-        int nextIndex = (config.getWorkMode().ordinal() + 1) % modes.length;
-        PushdozerConfig.WorkMode newMode = modes[nextIndex];
-        config.setWorkMode(newMode);
-        workModeButton.setMessage(getWorkModeText());
-        PushdozerMod.saveConfig();
-        showErrorMessage(Text.translatable("pushdozer.message.working_mode_switch", getWorkModeText().getString()).getString());
-    }
-
-
-    private void toggleDropdown(boolean open) {
-        isDropdownOpen = open;
-        if (isDropdownOpen) {
-            // 显示下拉选
-            geometryTypeOptions.forEach(option -> option.visible = true);
-        } else {
-            // 藏下拉选项
-            geometryTypeOptions.forEach(option -> option.visible = false);
+    private Text getDisplayModeButtonText() {
+        // 确保显示模式不为null
+        if (config.getDisplayMode() == null) {
+            config.setDisplayMode(PushdozerConfig.DisplayMode.WIREFRAME);
         }
+        return Text.translatable("pushdozer.button.display_mode_format", config.getDisplayMode().getDisplayText());
     }
-
 
     /**
-     * 示主面板
+     * 显示主面板
      */
     public void showMainPanel() {
         mainPanelVisible = true;
-        // 显示主面上的所有组件
-        boxButton.visible = true;
-        sphereButton.visible = true;
-        boxConfigButton.visible = true;
-        sphereConfigButton.visible = true;
-        workModeButton.visible = true;
-        displayModeButton.visible = true;
-        distanceSlider.visible = true;
-        selectBlocksButton.visible = true;
-        heightLockButton.visible = true;      // 添加这行
-        applyAndCloseButton.visible = true;
+        // 显示主界面上的所有组件
+        if (geometryButton != null) geometryButton.visible = true;
+        if (geometryConfigButton != null) geometryConfigButton.visible = true;
+        if (workModeButton != null) workModeButton.visible = true;
+        if (workModeConfigButton != null) workModeConfigButton.visible = true;
+        if (displayModeButton != null) displayModeButton.visible = true;
+        if (distanceSlider != null) distanceSlider.visible = true;
+        if (applyAndCloseButton != null) applyAndCloseButton.visible = true;
+        if (heightConfigButton != null) heightConfigButton.visible = true;
+
+        // 隐藏子面板
+        hideSubPanel();
+        // 隐藏几何体选择面板
+        if (geometrySelectionPanel != null) geometrySelectionPanel.hide();
+        // 隐藏工作模式选择面板
+        if (workModeSelectionPanel != null) workModeSelectionPanel.hide();
+        // 隐藏工作模式配置面板
+        if (currentWorkModeConfigPanel != null) currentWorkModeConfigPanel.hide();
+        // 隐藏标高配置面板
+        if (heightConfigPanel != null) heightConfigPanel.hide();
     }
 
-    private void toggleHeightLock() {
-        isHeightLocked = !isHeightLocked;
-        heightLockButton.setMessage(Text.translatable(isHeightLocked ? 
-            "pushdozer.config.height_lock" : "pushdozer.config.height_free"));
-        
-        // 如果切换到锁定状态，记录当前玩家的Y坐标
-        if (isHeightLocked && this.client != null && this.client.player != null) {
-            config.setLockedHeight(this.client.player.getBlockY());
-            // 使用翻译键显示提示消息
-            this.client.player.sendMessage(
-                Text.translatable("pushdozer.message.locked_height", config.getLockedHeight()), 
-                true
-            );
+
+
+
+
+    /**
+     * 显示标高配置面板
+     */
+    private void showHeightConfigPanel() {
+        if (heightConfigPanel == null) {
+            heightConfigPanel = new HeightConfigPanel(this, config);
         }
-        
-        config.setHeightLocked(isHeightLocked);
-        PushdozerMod.saveConfig();
+        heightConfigPanel.show();
+        hideMainPanel();
     }
 
     /**
@@ -675,15 +870,35 @@ public class PushdozerConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (isDropdownOpen) {
-            for (ButtonWidget option : geometryTypeOptions) {
-                if (option.isMouseOver(mouseX, mouseY)) {
-                    option.onPress();
-                    return true;
-                }
+        // 如果标高配置面板打开，优先处理它的事件
+        if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
+            if (heightConfigPanel.mouseClicked(mouseX, mouseY, button)) {
+                return true;
             }
-            toggleDropdown(false);
         }
+
+        // 如果几何体选择面板打开，优先处理它的事件
+        if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
+            if (geometrySelectionPanel.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 如果工作模式配置面板打开，优先处理它的事件
+        if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
+            if (currentWorkModeConfigPanel.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 如果工作模式选择面板打开，优先处理它的事件
+        if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
+            if (workModeSelectionPanel.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 处理工作模式下拉列表
         if (isWorkModeDropdownOpen) {
             for (ButtonWidget option : workModeOptions) {
                 if (option.isMouseOver(mouseX, mouseY)) {
@@ -691,8 +906,10 @@ public class PushdozerConfigScreen extends Screen {
                     return true;
                 }
             }
-            toggleWorkModeDropdown(false);
+            toggleWorkModeDropdown();
         }
+        
+        // 处理子面板事件
         if (currentSubPanel != null && currentSubPanel.isVisible()) {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {
@@ -702,11 +919,40 @@ public class PushdozerConfigScreen extends Screen {
                 }
             }
         }
+        
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        // 处理标高配置面板事件
+        if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
+            if (heightConfigPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+                return true;
+            }
+        }
+
+        // 处理几何体选择面板事件
+        if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
+            if (geometrySelectionPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+                return true;
+            }
+        }
+
+        // 处理工作模式配置面板事件
+        if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
+            if (currentWorkModeConfigPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+                return true;
+            }
+        }
+
+        // 处理工作模式选择面板事件
+        if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
+            if (workModeSelectionPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+                return true;
+            }
+        }
+        
         if (currentSubPanel != null && currentSubPanel.isVisible()) {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {
@@ -721,6 +967,34 @@ public class PushdozerConfigScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        // 处理标高配置面板事件
+        if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
+            if (heightConfigPanel.mouseReleased(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 处理几何体选择面板事件
+        if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
+            if (geometrySelectionPanel.mouseReleased(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 处理工作模式配置面板事件
+        if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
+            if (currentWorkModeConfigPanel.mouseReleased(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+
+        // 处理工作模式选择面板事件
+        if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
+            if (workModeSelectionPanel.mouseReleased(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+        
         if (currentSubPanel != null && currentSubPanel.isVisible()) {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {

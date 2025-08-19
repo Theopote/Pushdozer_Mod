@@ -5,8 +5,11 @@ import com.pushdozer.items.PushdozerItem.DisplayMode;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.config.PushdozerConfig;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
 
 public class ShapeRenderer {
     
@@ -19,8 +22,13 @@ public class ShapeRenderer {
     
     public static void renderShape(GeometryShape shape, PushdozerConfig config) {
         if (shouldRenderShape()) {
-            DisplayMode displayMode = getCurrentDisplayMode(MinecraftClient.getInstance().player);
-            renderShapeAccordingToMode(shape, displayMode, config);
+            DisplayMode displayMode = null;
+            if (MinecraftClient.getInstance().player != null) {
+                displayMode = getCurrentDisplayMode(MinecraftClient.getInstance().player);
+            }
+            if (displayMode != null) {
+                renderShapeAccordingToMode(shape, displayMode, config);
+            }
         }
     }
     
@@ -37,9 +45,9 @@ public class ShapeRenderer {
         ItemStack offHand = player.getOffHandStack();
         
         if (mainHand.getItem() instanceof PushdozerItem) {
-            return ((PushdozerItem) mainHand.getItem()).getDisplayMode();
+            return ((PushdozerItem) mainHand.getItem()).getDisplayMode(mainHand);
         } else if (offHand.getItem() instanceof PushdozerItem) {
-            return ((PushdozerItem) offHand.getItem()).getDisplayMode();
+            return ((PushdozerItem) offHand.getItem()).getDisplayMode(offHand);
         }
         
         return DisplayMode.NONE;
@@ -50,8 +58,8 @@ public class ShapeRenderer {
             case WIREFRAME:
                 renderWireframe(shape, config);
                 break;
-            case SURFACE:
-                renderSurface(shape, config);
+            case POINT_CLOUD:
+                renderPointCloud(shape, config);
                 break;
             default:
                 // 不渲染任何内容
@@ -60,10 +68,26 @@ public class ShapeRenderer {
     }
 
     private static void renderWireframe(GeometryShape shape, PushdozerConfig config) {
-        // 实现线框渲染逻辑
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            MatrixStack matrices = new MatrixStack();
+            VertexConsumerProvider vertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
+            BlockPos basePos = client.player.getBlockPos();
+            
+            WireframeRenderer.render(matrices, vertexConsumers, shape, basePos);
+        }
     }
 
-    private static void renderSurface(GeometryShape shape, PushdozerConfig config) {
-        // 实现表面渲染逻辑
+
+
+    private static void renderPointCloud(GeometryShape shape, PushdozerConfig config) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            MatrixStack matrices = new MatrixStack();
+            VertexConsumerProvider vertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
+            BlockPos basePos = client.player.getBlockPos();
+            
+            PointCloudRenderer.render(matrices, vertexConsumers, shape, basePos);
+        }
     }
 }

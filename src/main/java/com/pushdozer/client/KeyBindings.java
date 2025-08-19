@@ -5,24 +5,20 @@ import com.pushdozer.items.PushdozerItem;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.pushdozer.network.UndoRedoPayload;
+import com.pushdozer.network.ClientNetworkHandler;
 
 /**
  * KeyBindings 类负责注册和处理 Pushdozer 模组的按键绑定
  */
 public class KeyBindings {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KeyBindings.class);
 
     // 定义按键类和各个按键的标识符
     public static final String KEY_CATEGORY_PUSHDOZER = "key.category.pushdozer";
@@ -86,7 +82,7 @@ public class KeyBindings {
         decreaseDistanceKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             KEY_DECREASE_DISTANCE,
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_DOWN, // 默认按���为下箭头
+            GLFW.GLFW_KEY_DOWN, // 默认按键为下箭头
             KEY_CATEGORY_PUSHDOZER
         ));
 
@@ -166,12 +162,12 @@ public class KeyBindings {
 
                 // 处理撤销操作的检测逻辑
                 if (undoKey.wasPressed() && Screen.hasControlDown() && isHoldingPushdozer(client)) {
-                    ClientPlayNetworking.send(new UndoRedoPayload(true));
+                    ClientNetworkHandler.sendUndoRedoRequest(true);
                 }
 
                 // 处理重做操作的检测逻辑
                 if (redoKey.wasPressed() && Screen.hasControlDown() && isHoldingPushdozer(client)) {
-                    ClientPlayNetworking.send(new UndoRedoPayload(false));
+                    ClientNetworkHandler.sendUndoRedoRequest(false);
                 }
             }
         });
@@ -207,16 +203,52 @@ public class KeyBindings {
      * @param client Minecraft 客户端实例
      */
     private static void toggleDisplayMode(MinecraftClient client) {
+        if (client.player == null) return;
+        
+        // 更新配置级别的显示模式
         PushdozerConfig config = PushdozerConfig.getInstance();
+        // 确保显示模式不为null
+        if (config.getDisplayMode() == null) {
+            config.setDisplayMode(PushdozerConfig.DisplayMode.WIREFRAME);
+        }
         PushdozerConfig.DisplayMode[] modes = PushdozerConfig.DisplayMode.values();
         int nextIndex = (config.getDisplayMode().ordinal() + 1) % modes.length;
-        PushdozerConfig.DisplayMode newMode = modes[nextIndex];
-        config.setDisplayMode(newMode);
-        PushdozerConfig.getInstance().save();
-        client.player.sendMessage(
-            Text.translatable("pushdozer.message.display_mode_switch", newMode.getDisplayText()),
-            true
-        );
+        PushdozerConfig.DisplayMode newConfigMode = modes[nextIndex];
+        config.setDisplayMode(newConfigMode);
+        config.save();
+        
+        // 同时更新物品级别的显示模式，确保同步
+        ItemStack mainHand = client.player.getMainHandStack();
+        ItemStack offHand = client.player.getOffHandStack();
+        
+        PushdozerItem pushdozerItem = null;
+        ItemStack targetStack = null;
+        
+        if (mainHand.getItem() instanceof PushdozerItem) {
+            pushdozerItem = (PushdozerItem) mainHand.getItem();
+            targetStack = mainHand;
+        } else if (offHand.getItem() instanceof PushdozerItem) {
+            pushdozerItem = (PushdozerItem) offHand.getItem();
+            targetStack = offHand;
+        }
+        
+        if (pushdozerItem != null) {
+            // 将配置级别的显示模式同步到物品级别
+            PushdozerItem.DisplayMode newItemMode = PushdozerItem.DisplayMode.values()[newConfigMode.ordinal()];
+            pushdozerItem.setDisplayMode(targetStack, newItemMode);
+            
+            // 使用配置级别的显示模式来显示提示消息
+            client.player.sendMessage(
+                Text.translatable("pushdozer.message.display_mode_switch", newConfigMode.getDisplayText().getString()),
+                true
+            );
+        } else {
+            // 如果没有手持推土机，只显示配置级别的提示
+            client.player.sendMessage(
+                Text.translatable("pushdozer.message.display_mode_switch", newConfigMode.getDisplayText().getString()),
+                true
+            );
+        }
     }
 
     private static void toggleWorkMode(MinecraftClient client) {
@@ -228,11 +260,24 @@ public class KeyBindings {
         }
 
         PushdozerConfig config = PushdozerConfig.getInstance();
-        PushdozerConfig.WorkMode[] modes = PushdozerConfig.WorkMode.values();
-        int nextIndex = (config.getWorkMode().ordinal() + 1) % modes.length;
-        PushdozerConfig.WorkMode newMode = modes[nextIndex];
+        // 仅循环可见工作模式（隐藏旧平滑三项）
+        java.util.List<PushdozerConfig.WorkMode> visibleModes = new java.util.ArrayList<>();
+        for (PushdozerConfig.WorkMode m : PushdozerConfig.WorkMode.values()) {
+            switch (m) {
+                case SMOOTH_RAISE, SMOOTH_LOWER, ADAPTIVE_SMOOTH -> {}
+                default -> visibleModes.add(m);
+            }
+        }
+        if (!visibleModes.contains(PushdozerConfig.WorkMode.SMOOTH)) {
+            visibleModes.add(PushdozerConfig.WorkMode.SMOOTH);
+        }
+        int currentIdx = visibleModes.indexOf(config.getWorkMode());
+        int nextIndex = (currentIdx + 1 + visibleModes.size()) % visibleModes.size();
+        PushdozerConfig.WorkMode newMode = visibleModes.get(nextIndex);
         config.setWorkMode(newMode);
         PushdozerConfig.getInstance().save();
+        
+        // 每个玩家的配置是独立的，不需要同步到服务器
 
         Text modeText = Text.translatable("pushdozer.mode." + newMode.name().toLowerCase());
         client.player.sendMessage(
@@ -242,23 +287,27 @@ public class KeyBindings {
     }
 
     /**
-     * 切换笔刷形状
+     * 切换笔刷形状 - 循环切换所有6种几何体形状
      * @param client Minecraft 客户端实例
      */
     private static void toggleShape(MinecraftClient client) {
         PushdozerConfig config = PushdozerConfig.getInstance();
-        String currentShape = config.getShape();
-        String newShape = currentShape.equals("Box") ? "Sphere" : "Box";
-
-        config.setShape(newShape);
+        PushdozerConfig.GeometryType[] geometryTypes = PushdozerConfig.GeometryType.values();
+        int currentIndex = config.getGeometryType().ordinal();
+        int nextIndex = (currentIndex + 1) % geometryTypes.length;
+        PushdozerConfig.GeometryType newGeometryType = geometryTypes[nextIndex];
+        
+        config.setGeometryType(newGeometryType);
         config.save();
 
         // 显示切换消息
-        Text shapeText = Text.translatable("pushdozer.shape." + newShape.toLowerCase());
-        client.player.sendMessage(
-            Text.translatable("pushdozer.message.shape_switch", shapeText),
-            true
-        );
+        Text shapeText = newGeometryType.getDisplayText();
+        if (client.player != null) {
+            client.player.sendMessage(
+                Text.translatable("pushdozer.message.shape_switch", shapeText),
+                true
+            );
+        }
     }
 
     /**
@@ -269,7 +318,7 @@ public class KeyBindings {
     private static void adjustOperationDistance(MinecraftClient client, boolean increase) {
         PushdozerConfig config = PushdozerConfig.getInstance();
         int currentDistance = config.getMaxOperationDistance();
-        int newDistance = currentDistance;
+        int newDistance;
 
         if (increase) {
             newDistance = Math.min(currentDistance + 1, PushdozerConfig.MAX_OPERATION_DISTANCE);
@@ -280,10 +329,12 @@ public class KeyBindings {
         if (newDistance != currentDistance) {
             config.setMaxOperationDistance(newDistance);
             config.save();
-            client.player.sendMessage(
-                Text.translatable("pushdozer.message.maximum_distance", newDistance),
-                true
-            );
+            if (client.player != null) {
+                client.player.sendMessage(
+                    Text.translatable("pushdozer.message.maximum_distance", newDistance),
+                    true
+                );
+            }
         }
     }
 }

@@ -37,11 +37,7 @@ public class UndoRedoService {
      * @param action 撤销操作
      */
     public void pushUndoAction(PlayerEntity player, UndoAction action) {
-        if (undoRedoManager != null) {
-            undoRedoManager.pushUndoAction(player, action);
-        } else {
-            LOGGER.error("无法添加撤销操作：UndoRedoManager 未初始化！");
-        }
+        undoRedoManager.pushUndoAction(player, action);
     }
 
     /**
@@ -51,12 +47,8 @@ public class UndoRedoService {
      */
     public void undoLastAction(PlayerEntity player, World world) {
         try {
-            if (undoRedoManager != null) {
-                undoRedoManager.undoLastAction(player, world);
-                updatePlayerPosition(player);
-            } else {
-                LOGGER.error("UndoRedoManager 未初始化！");
-            }
+            undoRedoManager.undoLastAction(player, world);
+            updatePlayerPosition(player);
         } catch (Exception e) {
             LOGGER.error("UndoRedoService: 撤销操作失败", e);
         }
@@ -69,15 +61,25 @@ public class UndoRedoService {
      */
     public void redoLastAction(PlayerEntity player, World world) {
         try {
-            if (undoRedoManager != null) {
-                undoRedoManager.redoLastAction(player, world);
-                updatePlayerPosition(player);
-            } else {
-                LOGGER.error("UndoRedoManager 未初始化！");
-            }
+            undoRedoManager.redoLastAction(player, world);
+            updatePlayerPosition(player);
         } catch (Exception e) {
             LOGGER.error("UndoRedoService: 重做操作失败", e);
         }
+    }
+
+    /**
+     * 调试方法：检查玩家的撤销栈状态
+     */
+    public void debugPlayerStacks(PlayerEntity player) {
+        undoRedoManager.debugPlayerStacks(player);
+    }
+
+    /**
+     * 获取玩家的撤销栈大小
+     */
+    public int getUndoStackSize(PlayerEntity player) {
+        return undoRedoManager.getUndoStackSize(player);
     }
 
     /**
@@ -88,12 +90,5 @@ public class UndoRedoService {
             ServerWorld serverWorld = serverPlayer.getServerWorld();
             serverWorld.getChunkManager().updatePosition(serverPlayer);
         }
-    }
-
-    /**
-     * 清理服务实例（用于测试或重载）
-     */
-    public static void cleanup() {
-        instance = null;
     }
 } 

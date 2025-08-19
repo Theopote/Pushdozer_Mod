@@ -1,17 +1,16 @@
 {
 	"schemaVersion": 1,
 	"id": "pushdozer",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"name": "Pushdozer",
 	"description": "Pushdozer is a simple and easy-to-use terrain editing mod that provides Minecraft builders and creators with intuitive tools for large-scale terrain modifications. Whether it's leveling mountains, digging tunnels, removing trees, or clearing specific blocks in the world, Pushdozer makes these tasks effortless. Its main feature is the ability to quickly level terrain like a bulldozer, fill empty spaces, and smooth terrain boundaries for a more natural appearance.",
 	"authors": [
 		"Theopote"
 	],
 	"contact": {
-		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/",
-		"sources": "https://github.com/Theopote/Pushdozer-Introduction"
+		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/"
 	},
-	"license": "CC0 1.0",
+	"license": "MIT",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
@@ -25,12 +24,24 @@
 		]
 	},
 	"depends": {
-		"fabricloader": ">=0.14.21",
-		"minecraft": "~1.21.1",
+		"fabricloader": ">=0.17.0",
+		"minecraft": "~1.21.5",
 		"java": ">=17",
 		"fabric-api": "*"
 	},
 	"suggests": {
-		"modmenu": ">=11.0.3"
-	}
+		"modmenu": ">=14.0.0-rc.2"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.discord": "https://discord.gg/jjr8WmPZ",
+				"modmenu.wiki": "https://theopote.github.io/Pushdozer-Introduction/#/en/"
+			}
+		}
+	},
+	"icon": "assets/pushdozer/textures/pushdozer_icon.png",
+	"mixins": [
+		"pushdozer.mixins.json"
+	]
 }

@@ -1,59 +1,25 @@
-# Pushdozer Mod - 地形编辑工具
+## Pushdozer — 让地形编辑像推土机一样简单高效
 
-## ✨ 概述
+Pushdozer 是一个专注高效大规模地形编辑的 Fabric 模组。它提供多种工作模式、8 种笔刷几何体与 4 套标高控制系统，配合 30 步撤销/重做与多人广播同步，帮助建筑玩家快速“推平/填充/平滑/改造”任何地形。
 
-Pushdozer是一个操作简单易用的地形编辑模组，为Minecraft建筑师和创作者提供了直观的工具来进行大规模地形修改。无论是平整山地、挖掘隧道，还是清除世界中特定的方块，Pushdozer都能让这些工作变得轻而易举；最大的特点是可以像推土机一样快速平整地形，填补空地；也能平滑地形边界，使其在视觉上更自然化。
+### 主要特性
+- 多工作模式：挖掘清理、批量铺设、平滑（含自适应/提升/降低）、表面粗糙、表层转换、骨粉生长、批量种植、水岸处理
+- 8 种笔刷几何体：球体、长方体、八面体、圆柱、圆锥、椭球体、四面体、三棱柱
+- 4 套标高系统：不限制、跟随玩家、一次性锁定、自定义高度
+- 显示模式：线框/点云/隐藏
+- 撤销/重做：每名玩家 30 步
+- 多人联机：服务端执行、批量同步、低开销广播
 
-## 🎯 主要特性
+### 适配与依赖
+- Minecraft 1.21.4（Fabric）
+- 需要 Fabric Loader、Fabric API（Java 17+）
+- 客户端与专用服务器均可使用
 
-### 三种工作模式：
-- **破坏模式** - 快速清除大范围区域，支持玩家可配置过滤系统，通过选择允许被破坏的方块，可以一次性删除操作区域内的特定方块，比如清除杂草、删除树叶、砍伐树木、清除水域等，当然也能像推土机一样在特定标高进行操作方块。
-- **铺设模式** - 高效放置大量方块，支持自动获取生物群落地形，通过推土机笔刷推进，可以快速铺设平整的地形。
-- **平滑模式** - 智能地形平滑，保留自然地貌特征，这是一个简单的平滑工具，主要用来处理突兀地形边界，或者平滑粗糙的地形表面。
+### 安装
+1. 安装 Fabric Loader 与 Fabric API
+2. 将 Pushdozer JAR 放入 `.minecraft/mods`
+3. 启动游戏即可
 
-### 两种笔刷形状：
-- **长方体模式** - 自定义长度、宽度、高度（范围为1-32格）。
-- **球形模式** - 可调节半径（范围为1-32格），体素球形算法。
-
-### 直观的显示系统：
-- 线框预览：笔刷以线框方式预览操作范围。
-- 表面显示：笔刷以表面方式显示操作范围。
-- 无干扰模式：笔刷不显示任何操作范围。
-
-### 标高控制（Y轴精确控制）：
-- 自由标高模式：无高度限制，适合复杂地形修改。
-- 锁定标高模式：精确控制操作高度，适合创建平整地形。
-
-### 撤销系统：
-- 支持30步撤销/重做
-- 实时保存操作历史
-
-## 🎮 简单易用：
-- 快捷键系统，可以在minecraft快捷键系统中配置快捷键。
-- 便捷的配置界面，可以快速配置工具参数。
-- 方块选择过滤系统，可以配置允许被破坏的方块。
-
-## ⚙️如何安装：
-确保你已经安装了：
-- 安装 [Fabric 模组加载器](https://fabricmc.net/use/) (版本 >= 0.15.0)
-- 下载并安装 [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api)
-- 从[发布页面](https://github.com/theopote/pushdozer/releases)下载最新版本的 Pushdozer
-- 将下载的 JAR 文件放入 `.minecraft/mods` 文件夹
-- 启动 Minecraft 并享受 Pushdozer！
-
-
-## 📖 使用教程
-详细的使用教程请查看我们的[Wiki页面](https://theopote.github.io/Pushdozer-Introduction/#/en/)
-
-### 🎥 展示视频
-[![Pushdozer展示视频](assets/video_thumbnail.png)](https://www.youtube.com/results?search_query=theopote)
-
-### 📸 截图展示
-![功能展示1](assets/screenshot1.png)
-*使用长方体模式进行地形编辑*
-
-![功能展示2](assets/screenshot2.png)
-*平滑模式效果展示*
-
-![功能展示3](assets/screenshot3.png)
-*配置��面预览*
+更多信息与历史介绍参考：
+- Modrinth（历史页/下载）：[https://modrinth.com/mod/pushdozer](https://modrinth.com/mod/pushdozer)
+- 旧版介绍/Wiki（历史文档）：[https://theopote.github.io/Pushdozer-Introduction/#/en/README.md](https://theopote.github.io/Pushdozer-Introduction/#/en/README.md)

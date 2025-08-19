@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:jagged_peaks",
+    "minecraft:frozen_peaks",
+    "minecraft:stony_peaks",
+    "minecraft:meadow",
+    "minecraft:grove",
+    "minecraft:snowy_slopes",
+    "minecraft:cherry_grove",
+    "minecraft:stony_shore",
+    "minecraft:deep_dark",
+    "minecraft:dripstone_caves"
+  ]
+} 

@@ -1,220 +1,107 @@
-# Pushdozer Mod
+## Pushdozer
 
-Pushdozer 是一个功能强大的 Minecraft 地形编辑模组，它提供了直观的界面和高效的工具，让玩家能够轻松地进行大规模地形修改和建筑工作。
+让地形编辑像推土机一样简单高效的 Fabric 模组。它提供直观的多模式地形操作、丰富的笔刷几何体、灵活的标高系统，以及服务端权威的多人同步与撤销/重做。
 
-## ✨ 主要功能
+- Modrinth（历史页/下载）：[https://modrinth.com/mod/pushdozer](https://modrinth.com/mod/pushdozer)
+- 旧版介绍/Wiki（历史文档）：[https://theopote.github.io/Pushdozer-Introduction/#/en/README.md](https://theopote.github.io/Pushdozer-Introduction/#/en/README.md)
 
-### 🛠️ 工作模式
-- **破坏模式**
-  - 快速清除大范围区域
-  - 智能过滤系统，可选择性地保留特定方块
-  - 支持长方体和球形两种破坏形状
+### 功能概览
 
-- **铺设模式**
-  - 快速放置大量方块
-  - 自动获取生物群落地形
-  - 智能填充算法
+- 多种工作模式（服务端执行）
+  - 挖掘/清理（EXCAVATE）
+  - 批量铺设（PLACE）：自适应生物群系或指定自然方块
+  - 平滑（SMOOTH + 变体）：自适应/提升/降低；兼容旧的独立模式（SMOOTH_RAISE、SMOOTH_LOWER、ADAPTIVE_SMOOTH）
+  - 表面粗糙（SURFACE_ROUGHEN）
+  - 表层转换（SURFACE_CONVERT）：可配置多方块百分比混铺
+  - 骨粉生长（BONE_MEAL）
+  - 批量种植（BATCH_PLANT）：树木/花朵/草丛/自定义列表
+  - 水岸处理（SHORELINE_PROCESS）：沙滩/堤岸/泥泞/岩岸，含宽度与植被参数
+- 8 种笔刷几何体
+  - Sphere、Box、Octahedron、Cylinder、Cone、Ellipsoid、Tetrahedron、Triangular Prism
+- 4 套标高系统
+  - NO_LIMIT、FOLLOW_PLAYER、LOCKED_ONCE、CUSTOM
+- 显示模式
+  - 线框（Wireframe）、点云（Point Cloud）、隐藏（None）
+- 撤销/重做
+  - 每名玩家 30 步；带冷却与批量同步优化
+- 高性能/多人优化
+  - 服务端权威执行；批处理网络广播；光照与邻居批更新；大操作分块同步
 
-- **平滑模式**
-  - 自动平滑地形起伏
-  - 保留地形特征的智能算法
-  - 适用于自然地形修整
+### 适配与依赖
 
-### 🎯 形状系统
-- **长方体模式**
-  - 可自定义长度（1-32格）
-  - 可自定义宽度（1-32格）
-  - 可自定义高度（1-32格）
+- Minecraft: 1.21.4（Fabric）
+- Fabric Loader >= 0.16.9
+- Fabric API
+- Java >= 17
+- 可选：ModMenu（用于在模组列表中快速跳转链接）
 
-- **球形模式**
-  - 可调节半径（1-32格）
-  - 完美球形算法
+### 安装
 
-### 🎨 显示系统
-- **线框模式**：以线框方式预览操作范围
-- **表面模式**：清晰显示操作范围边界
-- **无显示模式**：适用于无干扰操作
+1. 安装 Fabric Loader 与 Fabric API
+2. 将模组 JAR 放入 `.minecraft/mods`
+3. 启动游戏（客户端或专用服务器）即可
 
-### 📏 标高控制系统
-- **自由标高模式**
-  - 无高度限制
-  - 适合复杂地形修改
+### 快速上手
 
-- **锁定标高模式**
-  - 精确控制操作高度
-  - 适合创建平整地形
-  - 支持Y坐标锁定
+- 在创造模式的 `Tools` 分组中找到 `Pushdozer`，或根据配方合成
+- 手持工具，使用右键触发当前工作模式
+- 在控制/按键设置中为工具功能绑定热键
+- 通过界面面板调整：
+  - 工作模式与其子参数（如平滑强度、粗糙强度、表层转换比例、种植密度等）
+  - 笔刷几何体与半径/高度
+  - 标高模式（不限制、跟随、一次锁定、自定义）
+  - 铺设模式（自适应生物群系 / 指定自然方块）
 
-### 🔄 撤销/重做系统
-- 支持最多30步撤销操作
-- 实时保存操作历史
-- 支持重做已撤销的操作
+配置默认保存在客户端（`config/pushdozer_config.json`），更改会即时生效。
 
-## 🚀 性能优化
+### 多人/服务器
 
-- 多线程处理大规模操作
-- 智能区块加载机制
-- 内存使用优化
-- 支持撤销/重做的高效缓存系统
-- 异步渲染预览
-- 智能方块更新
+- 架构
+  - 操作在服务端线程执行，服务端为权威
+  - 通过批处理网络广播到所有在线玩家（小操作即时发送；大操作分批/延迟聚合）
+  - 撤销/重做为服务端执行，并向客户端同步光照/邻居更新
+- 权限/限制
+  - 默认所有玩家可用；内置半径上限（默认最大 100）
+  - 可与区域保护/权限系统集成（需自行扩展）
+- 配置
+  - 配置文件默认保存在客户端；服务器不强制全局配置同步
 
-## ⚙️ 系统要求
+提示：大范围操作请适当降低半径或分批执行，以兼顾服务器与客户端性能。
 
-- **Minecraft**: 1.21.1
-- **Fabric Loader**: >=0.15.0
-- **Fabric API**: 必需
-- **Java**: 17或更高版本
-- **推荐配置**:
-  - CPU: 4核心及以上
-  - 内存: 4GB及以上
+### 配置要点
 
-## 📥 安装步骤
+- 文件：`config/pushdozer_config.json`
+- 主要项（节选）：
+  - `workMode`、`geometryType`、`radius/height/...`
+  - 标高：`heightMode`（NO_LIMIT/FOLLOW_PLAYER/LOCKED_ONCE/CUSTOM）、`lockedHeight`
+  - 铺设：`placeMode`（ADAPTIVE_BIOME/NATURAL_BLOCK）、`selectedNaturalBlockId`
+  - 平滑/粗糙：`smoothStrength`、`smoothingIntensity`、`roughnessStrength`
+  - 表层转换（多方块列表及百分比）
+  - 批量种植：`plantType`、`customPlantBlockIds`、`plantDensity`
+  - 水岸：`shorelineType`、`shorelineWidth`、`plantVegetationEnabled`、`vegetationDensity`
 
-1. 安装 [Fabric 模组加载器](https://fabricmc.net/use/) (版本 >= 0.15.0)
-2. 下载并安装 [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api)
-3. 从[发布页面](https://github.com/yourusername/pushdozer/releases)下载最新版本的 Pushdozer
-4. 将下载的 JAR 文件放入 `.minecraft/mods` 文件夹
-5. 启动 Minecraft 并享受 Pushdozer！
+### 构建与开发
 
-### 兼容性说明
-- ✅ 完全兼容 Fabric API
-- ✅ 支持大多数地形生成模组
-- ✅ 支持多人游戏
-- ❌ 不支持 Forge 加载器
+- 构建
+  - Windows: `gradlew.bat build`
+  - macOS/Linux: `./gradlew build`
+- 运行（开发）
+  - 客户端：`gradlew runClient`
+  - 服务端：`gradlew runServer`
+- 代码结构
+  - 服务端入口：`com.pushdozer.PushdozerMod`
+  - 客户端入口：`com.pushdozer.PushdozerClient`
+  - 网络：`com.pushdozer.network.*`
+  - 操作/撤销：`com.pushdozer.items.handlers.*`、`com.pushdozer.operations.*`
+  - 配置与 UI：`com.pushdozer.config.*`、`com.pushdozer.ui.*`
 
-## 🎮 快捷操作
+### 许可证
 
-### 键盘快捷键
-| 快捷键         | 功能描述 |
-|-------------|----------|
-| `K`         | 打开配置界面 |
-| `V`         | 切换显示模式 |
-| `G`         | 切换工作模式 |
-| `U`         | 切换笔刷形状 |
-| `Ctrl+Z`    | 撤销操作 |
-| `Ctrl+Y`    | 重做操作 |
-| `↑`         | 增加操作范围 |
-| `↓`         | 减少操作范围 |
+- MIT License
 
-### 鼠标操作
-- **左键**: 执行单个方块破坏操作
-- **右键**: 执行pushdozer主要操作
-- **手持Pushdozer+K键: 打开快速设置菜单
+### 参考链接（历史页面）
 
-### 操作限制
-- 撤销步数上限：30步
-- 操作范围上限：32格
-- 需要手持Pushdozer工具才能使用快捷键
+- Modrinth（旧版简介与版本下载）：[https://modrinth.com/mod/pushdozer](https://modrinth.com/mod/pushdozer)
+- 旧版介绍/Wiki（历史文档）：[https://theopote.github.io/Pushdozer-Introduction/#/en/README.md](https://theopote.github.io/Pushdozer-Introduction/#/en/README.md)
 
-## 🔧 配置文件
 
-配置文件位置：`.minecraft/config/pushdozer_config.json`
-
-```json
-{
-  "workMode": "DESTROY",
-  "displayMode": "WIREFRAME",
-  "maxOperationDistance": 30,
-  "breakableBlockIds": [],
-  "ignoredBlockIds": [
-    "minecraft:grass",
-    "minecraft:fern",
-    "minecraft:dead_bush",
-    "minecraft:sapling",
-    "minecraft:seagrass",
-    "minecraft:tall_seagrass",
-    "minecraft:tall_grass"
-  ],
-  "placeableBlockId": "minecraft:stone",
-  "shape": "Box",
-  "radius": 5,
-  "length": 5,
-  "width": 5,
-  "height": 5,
-  "placeableBlockIds": ["minecraft:stone", "minecraft:dirt"],
-  "heightLocked": false,
-  "lockedHeight": 0
-}
-```
-
-### 配置项说明
-
-#### 基础设置
-- `workMode`: 工作模式
-  - `"DESTROY"`: 破坏模式
-  - `"PLACE"`: 铺设模式
-  - `"SMOOTH"`: 平滑模式
-
-- `displayMode`: 显示模式
-  - `"NONE"`: 不显示预览
-  - `"WIREFRAME"`: 线框预览
-  - `"SURFACE"`: 表面预览
-
-- `maxOperationDistance`: 最大操作距离 (1-99)
-
-#### 形状设置
-- `shape`: 笔刷形状
-  - `"Box"`: 长方体
-  - `"Sphere"`: 球形
-
-- `length`: 长方体长度 (1-32)
-- `width`: 长方体宽度 (1-32)
-- `height`: 长方体高度 (1-32)
-- `radius`: 球形半径 (1-32)
-
-#### 高度控制
-- `heightLocked`: 是否锁定高度
-  - `true`: 锁定
-  - `false`: 不锁定
-- `lockedHeight`: 锁定的高度值 (Y坐标)
-
-#### 方块过滤
-- `breakableBlockIds`: 可破坏的方块ID列表
-- `ignoredBlockIds`: 忽略的方块ID列表
-- `placeableBlockId`: 默认放置的方块ID
-- `placeableBlockIds`: 可放置的方块ID列表
-
-### 默认配置
-- 工作模式: `DESTROY`
-- 显示模式: `WIREFRAME`
-- 最大操作距离: `20`
-- 默认形状: `Box`
-- 默认尺寸: 长度=5, 宽度=5, 高度=5, 半径=5
-- 默认放置方块: `minecraft:stone`
-- 默认可放置方块: `minecraft:stone`, `minecraft:dirt`
-- 默认忽略方块:
-  - `minecraft:grass`
-  - `minecraft:fern`
-  - `minecraft:dead_bush`
-  - `minecraft:sapling`
-  - `minecraft:seagrass`
-  - `minecraft:tall_seagrass`
-  - `minecraft:tall_grass`
-
-### 注意事项
-1. 配置文件修改后会自动保存
-2. 部分设置可以通过游戏内界面修改
-3. 修改配置文件后需要重启游戏生效
-4. 建议使用游戏内配置界面进行修改，而不是直接编辑配置文件
-
-## 🐛 问题反馈
-
-如果您遇到任何问题或有改进建议：
-1. 检查[常见问题解答](https://github.com/yourusername/pushdozer/wiki/FAQ)
-2. 在 [GitHub Issues](https://github.com/yourusername/pushdozer/issues) 提交问题
-3. 加入我们的 [Discord 社区](https://discord.gg/yourdiscord)获取帮助
-
-## 📝 开发文档
-
-详细的开发文档请访问我们的 [Wiki](https://github.com/yourusername/pushdozer/wiki)
-
-## 📜 许可证
-
-本项目采用 [CC0 1.0 通用许可证](LICENSE)。
-
-## 📞 联系方式
-
-- **GitHub Issues**: [提交 issue](https://github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric/issues)
-- **电子邮件**: yhillpote@gmail.com
-- **Discord**: [Pushdozer Discord](https://discord.gg/yourdiscord)
