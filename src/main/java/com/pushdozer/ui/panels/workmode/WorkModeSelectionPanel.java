@@ -256,14 +256,14 @@ public class WorkModeSelectionPanel {
      * @param delta 帧间隔时间
      */
     private void renderButtons(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 先渲染所有按钮
+        // 先重置所有按钮的焦点状态
         for (Element widget : widgets) {
-            if (widget instanceof net.minecraft.client.gui.Drawable) {
-                ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
+            if (widget instanceof ButtonWidget button) {
+                button.setFocused(false);
             }
         }
         
-        // 给选中的按钮添加高亮背景
+        // 然后设置当前选中按钮的焦点状态
         PushdozerConfig.WorkMode currentMode = config.getWorkMode();
         
         for (int i = 0; i < widgets.size(); i++) {
@@ -271,21 +271,16 @@ public class WorkModeSelectionPanel {
             if (widget instanceof ButtonWidget button) {
                 boolean isSelected = displayModes.get(i) == currentMode;
                 if (isSelected) {
-                    context.fill(
-                        button.getX(), 
-                        button.getY(),
-                        button.getX() + button.getWidth(),
-                        button.getY() + button.getHeight(),
-                        0xFF888888 // 边框颜色
-                    );
-                    context.fill(
-                        button.getX()+1, 
-                        button.getY()+1,
-                        button.getX() + button.getWidth()-1,
-                        button.getY() + button.getHeight()-1,
-                        0xFF555555 // 背景颜色
-                    );
+                    // 使用ButtonWidget的内置按下状态
+                    button.setFocused(true);
                 }
+            }
+        }
+        
+        // 最后渲染所有按钮（让按钮自己处理文字渲染）
+        for (Element widget : widgets) {
+            if (widget instanceof net.minecraft.client.gui.Drawable) {
+                ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
             }
         }
     }

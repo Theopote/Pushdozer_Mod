@@ -12,7 +12,6 @@ import com.pushdozer.operations.UndoAction;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.ActionResult;
 import net.minecraft.world.World;
@@ -46,7 +45,6 @@ public class PushdozerItem extends Item {
                 switch (variant) {
                     case RAISE -> PushdozerMod.smoothRaiseHandler.handleSmoothRaise(p, w);
                     case LOWER -> PushdozerMod.smoothLowerHandler.handleSmoothLower(p, w);
-                    case ADAPTIVE -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH);
                     default -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH);
                 }
             })
@@ -83,19 +81,6 @@ public class PushdozerItem extends Item {
      */
     public void setDisplayMode(ItemStack stack, DisplayMode mode) {
         stack.set(PushdozerComponents.DISPLAY_MODE, mode);
-    }
-
-    /**
-     * 切换显示模式
-     * @param stack 物品堆叠
-     * @return 新的显示模式
-     */
-    public DisplayMode toggleDisplayMode(ItemStack stack) {
-        DisplayMode[] modes = DisplayMode.values();
-        int nextIndex = (getDisplayMode(stack).ordinal() + 1) % modes.length;
-        DisplayMode newMode = modes[nextIndex];
-        setDisplayMode(stack, newMode);
-        return newMode;
     }
 
     /**
@@ -141,26 +126,7 @@ public class PushdozerItem extends Item {
             }
         );
 
-        private final String translationKey;
-
         DisplayMode(String translationKey) {
-            this.translationKey = translationKey;
-        }
-
-        /**
-         * 获取显示名称（翻译后的文本）
-         * @return 翻译后的显示名称
-         */
-        public String getDisplayName() {
-            return Text.translatable(translationKey).getString();
-        }
-
-        /**
-         * 获取翻译文本对象
-         * @return 翻译文本对象
-         */
-        public Text getDisplayText() {
-            return Text.translatable(translationKey);
         }
     }
 }

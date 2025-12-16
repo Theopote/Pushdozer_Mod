@@ -50,7 +50,7 @@ public class PlaceConfigPanel extends WorkModeConfigPanel {
             getNaturalBlockButtonText(),
             button -> openNaturalBlockSelection())
             .dimensions(contentLeft, contentTop + WIDGET_HEIGHT + WIDGET_MARGIN, contentWidth, WIDGET_HEIGHT)
-            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.natural_block_selection")))
+                            .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.terrain_block_selection")))
             .build();
         widgets.add(naturalBlockButton);
 

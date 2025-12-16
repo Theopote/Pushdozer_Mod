@@ -90,14 +90,14 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     protected void renderWidgets(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 先渲染所有控件
+        // 先重置所有按钮的焦点状态
         for (Element widget : widgets) {
-            if (widget instanceof net.minecraft.client.gui.Drawable) {
-                ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
+            if (widget instanceof ButtonWidget button) {
+                button.setFocused(false);
             }
         }
         
-        // 给选中的变体按钮添加高亮背景（类似工作模式面板的样式）
+        // 然后设置当前选中按钮的焦点状态
         PushdozerConfig.SmoothVariant currentVariant = config.getSmoothVariant();
         
         for (Element widget : widgets) {
@@ -114,24 +114,17 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
                     }
                     
                     if (isSelected) {
-                        // 外层边框
-                        context.fill(
-                            button.getX(), 
-                            button.getY(),
-                            button.getX() + button.getWidth(),
-                            button.getY() + button.getHeight(),
-                            0xFF888888 // 边框颜色
-                        );
-                        // 内层背景
-                        context.fill(
-                            button.getX()+1, 
-                            button.getY()+1,
-                            button.getX() + button.getWidth()-1,
-                            button.getY() + button.getHeight()-1,
-                            0xFF555555 // 背景颜色
-                        );
+                        // 使用ButtonWidget的内置按下状态
+                        button.setFocused(true);
                     }
                 }
+            }
+        }
+        
+        // 最后渲染所有按钮（让按钮自己处理文字渲染）
+        for (Element widget : widgets) {
+            if (widget instanceof net.minecraft.client.gui.Drawable) {
+                ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
             }
         }
     }

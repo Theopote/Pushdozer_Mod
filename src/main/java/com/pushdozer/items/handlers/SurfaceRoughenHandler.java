@@ -12,7 +12,7 @@ import java.util.*;
 /**
  * 表面粗糙模式处理器 (重构版)
  * 核心算法: 平滑基准 + 受控随机噪声 (Smoothed Base + Controlled Random Noise)
- *
+ * <p>
  * 优化点:
  * 1.  【算法重构】使用平滑后的高度作为基准，解决了地形"只增不减"和效果混乱的问题。
  * 2.  【性能修复】修复了 noiseCache 导致的内存泄漏问题。

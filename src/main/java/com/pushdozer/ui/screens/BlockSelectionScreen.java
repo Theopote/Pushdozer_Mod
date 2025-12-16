@@ -325,16 +325,30 @@ public class BlockSelectionScreen extends Screen {
         return String.format("%d/%d", currentPage + 1, totalPages);
     }
 
+    private void renderCustomBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // 绘制半透明背景，避免使用renderBackground导致的blur冲突
+        context.fill(0, 0, width, height, 0x80000000);
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context, mouseX, mouseY, delta);
+        // 使用自定义背景渲染避免blur冲突
+        renderCustomBackground(context, mouseX, mouseY, delta);
 
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 10, 0xFFFFFF);
+        
+        // 绘制顶部标题背景
+        int titleBackgroundHeight = 35;
+        context.fill(0, 0, width, titleBackgroundHeight, 0x80000000);
+        
+        // 绘制标题
+        context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 8, 0xFFFFFF);
 
-        // 显示当前选择的方块总数
-        String selectedCountText = String.format("已选择: %d 个方块", selectedBlocks.size());
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(selectedCountText), width / 2, 25, 0xFFFFFF);
+        // 将已选择数量和总数放在同一行显示
+        int totalBlocks = blockCategories.stream().mapToInt(cat -> cat.blocks.size()).sum();
+        String countText = String.format("已选择: %d / 总计: %d 个方块", selectedBlocks.size(), totalBlocks);
+        int countColor = selectedBlocks.isEmpty() ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(countText), width / 2, 20, countColor);
 
         // 页码位置：搜索框上方10像素
         String pageText = getPageText();

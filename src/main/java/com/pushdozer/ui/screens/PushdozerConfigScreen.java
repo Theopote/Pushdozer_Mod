@@ -60,7 +60,6 @@ public class PushdozerConfigScreen extends Screen {
     // 面板尺寸常量
     private static final int PANEL_WIDTH = 280;    // 主面板加宽40
     private static final int TITLE_HEIGHT = 20;    // 标题高度
-    private static final int SCREEN_MARGIN = 10;   // 屏幕边距
 
     // 面板位置
     public int panelLeft, panelTop;
@@ -207,14 +206,14 @@ public class PushdozerConfigScreen extends Screen {
         int availableWidth = PANEL_WIDTH - (contentInset * 2); // 可用宽度：面板宽度-左右控件边距
         int geomConfigButtonWidth = 60; // 配置按钮固定宽度
         int dropdownWidth = availableWidth - geomConfigButtonWidth - buttonSpacing; // 填满剩余
-        int totalWidth = availableWidth; // 行总宽度即可用宽度
-        int startX = contentLeft; // 从左侧开始铺满
-        
+        // 行总宽度即可用宽度
+        // 从左侧开始铺满
+
         // 创建几何体按钮
         geometryButton = this.addDrawableChild(ButtonWidget.builder(
             getGeometryButtonText(),
             button -> showGeometrySelectionPanel())
-            .dimensions(startX, contentTop, dropdownWidth, rowHeight)
+            .dimensions(contentLeft, contentTop, dropdownWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.brush_shape_selection")))
             .build());
         
@@ -228,7 +227,7 @@ public class PushdozerConfigScreen extends Screen {
         geometryConfigButton = this.addDrawableChild(ButtonWidget.builder(
             Text.translatable("pushdozer.button.config"),
             button -> showGeometryConfigPanel())
-            .dimensions(startX + dropdownWidth + buttonSpacing, contentTop, geomConfigButtonWidth, rowHeight)
+            .dimensions(contentLeft + dropdownWidth + buttonSpacing, contentTop, geomConfigButtonWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.geometry_config")))
             .build());
 
@@ -236,7 +235,7 @@ public class PushdozerConfigScreen extends Screen {
         workModeButton = this.addDrawableChild(ButtonWidget.builder(
             getWorkModeText(), 
             button -> showWorkModeSelectionPanel())
-            .dimensions(startX, contentTop + rowHeight + verticalGap, dropdownWidth, rowHeight)
+            .dimensions(contentLeft, contentTop + rowHeight + verticalGap, dropdownWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.work_mode")))
             .build());
         
@@ -244,7 +243,7 @@ public class PushdozerConfigScreen extends Screen {
         workModeConfigButton = this.addDrawableChild(ButtonWidget.builder(
             Text.translatable("pushdozer.button.config"),
             button -> showWorkModeConfigPanel())
-            .dimensions(startX + dropdownWidth + buttonSpacing, contentTop + rowHeight + verticalGap, geomConfigButtonWidth, rowHeight)
+            .dimensions(contentLeft + dropdownWidth + buttonSpacing, contentTop + rowHeight + verticalGap, geomConfigButtonWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.work_mode_config")))
             .build());
 
@@ -252,7 +251,7 @@ public class PushdozerConfigScreen extends Screen {
 
         // 第四行：最大操作距离滑动条（铺满可用宽度）
         distanceSlider = new CustomDistanceSlider(
-            startX,
+                contentLeft,
             contentTop + (rowHeight + verticalGap) * 3,
                 availableWidth,
             rowHeight,
@@ -266,7 +265,7 @@ public class PushdozerConfigScreen extends Screen {
         displayModeButton = this.addDrawableChild(ButtonWidget.builder(
             getDisplayModeButtonText(), 
             button -> toggleDisplayMode())
-            .dimensions(startX, contentTop + (rowHeight + verticalGap) * 2, availableWidth, rowHeight)
+            .dimensions(contentLeft, contentTop + (rowHeight + verticalGap) * 2, availableWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.display_mode")))
             .build());
 
@@ -278,7 +277,7 @@ public class PushdozerConfigScreen extends Screen {
         heightConfigButton = this.addDrawableChild(ButtonWidget.builder(
             Text.translatable("pushdozer.config.height_config"),
             button -> showHeightConfigPanel())
-            .dimensions(startX, contentTop + (rowHeight + verticalGap) * 4, heightConfigButtonWidth, rowHeight)
+            .dimensions(contentLeft, contentTop + (rowHeight + verticalGap) * 4, heightConfigButtonWidth, rowHeight)
             .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.height_config")))
             .build());
 
@@ -286,7 +285,7 @@ public class PushdozerConfigScreen extends Screen {
         applyAndCloseButton = this.addDrawableChild(ButtonWidget.builder(
             Text.translatable("pushdozer.config.save_and_close"),
             button -> applyAndClose())
-            .dimensions(startX + heightConfigButtonWidth + finalButtonSpacing, 
+            .dimensions(contentLeft + heightConfigButtonWidth + finalButtonSpacing,
                        contentTop + (rowHeight + verticalGap) * 4, 
                        applyCloseButtonWidth, 
                        rowHeight)
@@ -763,6 +762,14 @@ public class PushdozerConfigScreen extends Screen {
     }
 
     /**
+     * 重写背景渲染方法，阻止默认的半透明模糊背景
+     */
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // 不调用super.renderBackground()，这样就不会绘制默认的半透明背景
+    }
+
+    /**
      * 显示错误消息
      * @param message 错误消息内容
      */
@@ -828,10 +835,6 @@ public class PushdozerConfigScreen extends Screen {
         // 隐藏标高配置面板
         if (heightConfigPanel != null) heightConfigPanel.hide();
     }
-
-
-
-
 
     /**
      * 显示标高配置面板

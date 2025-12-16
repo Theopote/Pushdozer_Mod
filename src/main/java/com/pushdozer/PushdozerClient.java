@@ -63,7 +63,10 @@ public class PushdozerClient implements ClientModInitializer {
         }
 
         // 使用目标位置而不是几何体的中心位置
-        BlockPos targetPos = ShapeUtil.getTargetBlockPos(MinecraftClient.getInstance().player, config);
+        BlockPos targetPos = null;
+        if (MinecraftClient.getInstance().player != null) {
+            targetPos = ShapeUtil.getTargetBlockPos(MinecraftClient.getInstance().player, config);
+        }
         GeometryRenderer.renderGeometryShape(matrices, vertexConsumers, shape, displayMode, targetPos);
 
         if (matrices != null) {

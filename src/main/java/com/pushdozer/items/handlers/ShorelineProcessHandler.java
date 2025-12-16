@@ -362,8 +362,8 @@ public class ShorelineProcessHandler {
     }
     
     /**
-     * 创建撤销操作并通知玩家
-     * 代码结构优化：提取撤销和通知逻辑
+     * 创建撤销操作
+     * 代码结构优化：提取撤销逻辑
      */
     private void createUndoActionAndNotifyPlayer(PlayerEntity player, ProcessingResult result, int vegetationCount) {
         // 创建撤销操作
@@ -377,14 +377,8 @@ public class ShorelineProcessHandler {
             PushdozerMod.pushUndoAction(player, undoAction);
         }
 
-        // 发送消息给玩家
+        // 性能监控：记录处理统计
         if (result.processedCount > 0) {
-            String message = vegetationCount > 0 ? 
-                "pushdozer.message.shoreline_process_complete_with_vegetation" : 
-                "pushdozer.message.shoreline_process_complete";
-            player.sendMessage(Text.translatable(message, result.processedCount, vegetationCount), false);
-            
-            // 性能监控：记录处理统计
             PushdozerMod.LOGGER.debug("Shoreline processing completed: {} blocks processed, {} plants planted", 
                 result.processedCount, vegetationCount);
         } else {

@@ -64,14 +64,6 @@ public class EntityBlockSelectionScreen extends Screen {
     private static final int SCROLL_BAR_SHADOW_COLOR = 0xFF555555;
     private static final int SELECTED_BLOCK_BORDER_COLOR = 0xFFFFFFFF;
 
-    public EntityBlockSelectionScreen(PushdozerConfigScreen parent, PushdozerConfig config) {
-        super(Text.translatable("pushdozer.screen.entity_block_selection.title"));
-        this.parent = parent;
-        this.config = config;
-        this.blockCategories = getAllRelevantBlocks();
-        this.selectedBlocks = new HashSet<>(config.getBreakableBlocks());
-        this.onConfirmCustom = null;
-    }
 
     // 自定义构造：允许传入初始选中集与确认回调
     public EntityBlockSelectionScreen(PushdozerConfigScreen parent,
@@ -326,13 +318,23 @@ public class EntityBlockSelectionScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context, mouseX, mouseY, delta);
+        // 使用自定义背景渲染避免blur冲突
+        context.fill(0, 0, width, height, 0x80000000);
 
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 10, 0xFFFFFF);
+        
+        // 绘制顶部标题背景
+        int titleBackgroundHeight = 35;
+        context.fill(0, 0, width, titleBackgroundHeight, 0x80000000);
+        
+        // 绘制标题
+        context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 8, 0xFFFFFF);
 
-        String selectedCountText = String.format("已选择: %d 个方块", selectedBlocks.size());
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(selectedCountText), width / 2, 25, 0xFFFFFF);
+        // 将已选择数量和总数放在同一行显示
+        int totalBlocks = blockCategories.stream().mapToInt(cat -> cat.blocks.size()).sum();
+        String countText = String.format("已选择: %d / 总计: %d 个方块", selectedBlocks.size(), totalBlocks);
+        int countColor = selectedBlocks.isEmpty() ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(countText), width / 2, 20, countColor);
 
         String pageText = getPageText();
         int searchBoxY = height - BUTTON_HEIGHT - BOTTOM_MARGIN - BUTTON_HEIGHT - SEARCH_BOTTOM_SPACING;
@@ -379,17 +381,6 @@ public class EntityBlockSelectionScreen extends Screen {
         }
         config.setBreakableBlocks(new ArrayList<>(selectedBlocks));
         MinecraftClient.getInstance().setScreen(parent);
-    }
-
-    // 自定义：提供读取当前选中方块的访问器（仅在需要时使用）
-    public Set<Block> getCurrentlySelectedBlocks() {
-        return new HashSet<>(selectedBlocks);
-    }
-    
-    // 新增：清除缓存以便重新构建方块列表
-    public static void clearCache() {
-        cachedCategories = null;
-        globalSearchStrings.clear();
     }
 
     // ScrollablePanel 类
@@ -503,6 +494,8 @@ public class EntityBlockSelectionScreen extends Screen {
                 return Items.WATER_BUCKET.getDefaultStack();
             } else if (block == Blocks.LAVA) {
                 return Items.LAVA_BUCKET.getDefaultStack();
+            } else if (block == Blocks.FROSTED_ICE) {
+                return new ItemStack(Blocks.ICE);
             }
             
             if (block == Blocks.TALL_SEAGRASS) {
@@ -681,31 +674,49 @@ public class EntityBlockSelectionScreen extends Screen {
         private List<BlockCategory> getAllRelevantBlocks() {
         // 强制重建缓存以反映新的分类系统
         cachedCategories = null;
+
+        System.out.println("正在重建实体方块分类缓存...");
         
-        if (cachedCategories == null) {
-            System.out.println("正在重建实体方块分类缓存...");
-            Map<String, BlockCategory> categoryMap = new LinkedHashMap<>();
-            Set<String> processedBlockIds = new HashSet<>();
+        // 检查目标方块是否存在
+        boolean foundCherryLeaves = false;
+        boolean foundFloweringAzaleaLeaves = false;
+        for (Block block : Registries.BLOCK) {
+            String blockId = Registries.BLOCK.getId(block).getPath();
+            if (blockId.equals("cherry_leaves")) {
+                foundCherryLeaves = true;
+                System.out.println("DEBUG: 找到 cherry_leaves 方块");
+            }
+            if (blockId.equals("flowering_azalea_leaves")) {
+                foundFloweringAzaleaLeaves = true;
+                System.out.println("DEBUG: 找到 flowering_azalea_leaves 方块");
+            }
+        }
+        System.out.println("DEBUG: cherry_leaves 存在: " + foundCherryLeaves);
+        System.out.println("DEBUG: flowering_azalea_leaves 存在: " + foundFloweringAzaleaLeaves);
+        
+        Map<String, BlockCategory> categoryMap = new LinkedHashMap<>();
+        Set<String> processedBlockIds = new HashSet<>();
 
             for (Block block : Registries.BLOCK) {
                 Item item = block.asItem();
                 String blockId = Registries.BLOCK.getId(block).toString();
                 String blockIdPath = Registries.BLOCK.getId(block).getPath().toLowerCase();
-                
-                if (item == Items.AIR && !blockIdPath.equals("water") && !blockIdPath.equals("lava") && 
-                    !blockIdPath.equals("kelp_plant") && !blockIdPath.equals("tall_seagrass")) {
+
+                if (item == Items.AIR && !blockIdPath.equals("water") && !blockIdPath.equals("lava") &&
+                    !blockIdPath.equals("kelp_plant") && !blockIdPath.equals("tall_seagrass") && 
+                    !blockIdPath.equals("frosted_ice")) {
                     continue;
                 }
-                
+
                 if (processedBlockIds.contains(blockId)) {
                     continue;
                 }
                 processedBlockIds.add(blockId);
 
                 List<String> categoryKeys = getCategoriesForBlock(block);
-                
+
                 for (String categoryKey : categoryKeys) {
-                    BlockCategory category = categoryMap.computeIfAbsent(categoryKey, 
+                    BlockCategory category = categoryMap.computeIfAbsent(categoryKey,
                         key -> new BlockCategory(key, getCategoryPriority(key)));
                     category.addBlock(block);
                 }
@@ -713,18 +724,33 @@ public class EntityBlockSelectionScreen extends Screen {
 
             cachedCategories = new ArrayList<>(categoryMap.values());
             cachedCategories.sort(Comparator.comparingInt(BlockCategory::getPriority));
-            
+
             for (BlockCategory category : cachedCategories) {
                 category.blocks.sort(Comparator.comparing(b -> Registries.BLOCK.getId(b).getPath()));
             }
-            
+
             // 打印分类统计信息
             System.out.println("实体方块分类完成，共 " + cachedCategories.size() + " 个分类：");
             for (BlockCategory category : cachedCategories) {
                 System.out.println("  " + category.getTranslatedName().getString() + ": " + category.blocks.size() + " 个方块");
+                
+                // 特别打印树叶分类中的所有方块
+                if (category.translationKey.equals("pushdozer.category.leaves")) {
+                    System.out.println("    树叶分类中的方块：");
+                    for (Block block : category.blocks) {
+                        String blockId = Registries.BLOCK.getId(block).getPath();
+                        System.out.println("      - " + blockId);
+                    }
+                    
+                    // 检查是否包含目标方块
+                    boolean hasCherryLeaves = category.blocks.stream().anyMatch(b -> Registries.BLOCK.getId(b).getPath().equals("cherry_leaves"));
+                    boolean hasFloweringAzaleaLeaves = category.blocks.stream().anyMatch(b -> Registries.BLOCK.getId(b).getPath().equals("flowering_azalea_leaves"));
+                    System.out.println("    检查结果：");
+                    System.out.println("      cherry_leaves: " + (hasCherryLeaves ? "✅ 已包含" : "❌ 未包含"));
+                    System.out.println("      flowering_azalea_leaves: " + (hasFloweringAzaleaLeaves ? "✅ 已包含" : "❌ 未包含"));
+                }
             }
-        }
-        return cachedCategories;
+            return cachedCategories;
     }
     
     private int getCategoryPriority(String categoryKey) {
@@ -734,13 +760,16 @@ public class EntityBlockSelectionScreen extends Screen {
             case "pushdozer.category.ores" -> 3;
             case "pushdozer.category.copper" -> 4;
             case "pushdozer.category.wood" -> 5;
-            case "pushdozer.category.stairs_slabs" -> 6;
-            case "pushdozer.category.dyed" -> 7;
-            case "pushdozer.category.functional" -> 8;
-            case "pushdozer.category.glowing" -> 9;
-            case "pushdozer.category.decorative" -> 10;
-            case "pushdozer.category.redstone" -> 11;
-            case "pushdozer.category.miscellaneous" -> 12;
+            case "pushdozer.category.leaves" -> 6;
+            case "pushdozer.category.biological" -> 7;
+            case "pushdozer.category.stairs_slabs" -> 8;
+            case "pushdozer.category.dyed" -> 9;
+            case "pushdozer.category.functional" -> 10;
+            case "pushdozer.category.glowing" -> 11;
+            case "pushdozer.category.decorative" -> 12;
+            case "pushdozer.category.redstone" -> 13;
+            case "pushdozer.category.fluid" -> 14;
+            case "pushdozer.category.miscellaneous" -> 15;
             default -> 100;
         };
     }
@@ -749,33 +778,43 @@ public class EntityBlockSelectionScreen extends Screen {
         List<String> categories = new ArrayList<>();
         String blockId = Registries.BLOCK.getId(block).getPath().toLowerCase();
 
+        // 添加调试信息来追踪目标方块
+        if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves") || blockId.equals("frosted_ice")) {
+            System.out.println("DEBUG: 开始处理方块: " + blockId);
+        }
+
         // 过滤非实体方块、植物、装饰物
         // 使用硬度和常见模式来判断是否为实体方块
         BlockState defaultState = block.getDefaultState();
         
         // 1. 排除空气方块
         if (defaultState.isAir()) {
+            if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
+                System.out.println("DEBUG: " + blockId + " 被排除：是空气方块");
+            }
             return categories;
         }
         
         // 2. 排除硬度为负数的方块（通常是不可破坏的特殊方块或空气）
         if (block.getHardness() < 0 && !blockId.equals("obsidian") && !blockId.equals("bedrock")) {
+            if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
+                System.out.println("DEBUG: " + blockId + " 被排除：硬度为负数");
+            }
             return categories;
         }
         
         // 3. 排除已知的非实体方块类型
-        if (blockId.equals("water") || blockId.equals("lava") || 
-            blockId.contains("sign") || blockId.contains("button") ||
-            blockId.contains("pressure_plate") || blockId.contains("lever")) {
+        if (blockId.contains("sign") || blockId.contains("button") ||
+            blockId.contains("pressure_plate") || blockId.contains("lever") ||
+            blockId.equals("weeping_vines")) {
             return categories;
         }
         
         try {
-            // 使用标签排除植物/花草/农作物/叶子/可替换植物等
-            if (block.getDefaultState().isIn(BlockTags.FLOWERS) ||
+            // 使用标签排除植物/花草/农作物/可替换植物等（但保留树叶和生物方块）
+            if ((block.getDefaultState().isIn(BlockTags.FLOWERS) ||
                 block.getDefaultState().isIn(BlockTags.CROPS) ||
                 block.getDefaultState().isIn(BlockTags.SAPLINGS) ||
-                block.getDefaultState().isIn(BlockTags.LEAVES) ||
                 block.getDefaultState().isIn(BlockTags.REPLACEABLE) ||
                 block.getDefaultState().isIn(BlockTags.BEDS) ||
                 block.getDefaultState().isIn(BlockTags.BANNERS) ||
@@ -793,10 +832,9 @@ public class EntityBlockSelectionScreen extends Screen {
                 // 手动排除其他装饰物和不需要的方块
                 blockId.contains("torch") || blockId.contains("lantern") ||
                 blockId.contains("chain") || blockId.contains("end_rod") ||
-                blockId.contains("lily_pad") || blockId.contains("cactus") ||
+                blockId.contains("lily_pad") ||
                 blockId.contains("sugar_cane") || blockId.contains("bamboo") ||
-                blockId.contains("mushroom") || blockId.contains("fungus") ||
-                blockId.contains("wart") || blockId.contains("coral") ||
+                blockId.contains("fungus") ||
                 blockId.contains("sea_pickle") || blockId.contains("vine") ||
                 blockId.contains("grass") || blockId.contains("fern") ||
                 blockId.contains("bush") || blockId.equals("painting") ||
@@ -821,7 +859,21 @@ public class EntityBlockSelectionScreen extends Screen {
                 blockId.contains("skull") || blockId.contains("head") ||
                 blockId.equals("pointed_dripstone") || blockId.equals("tripwire") ||
                 blockId.equals("turtle_egg") || blockId.equals("sculk_catalyst") ||
-                blockId.equals("sculk_shrieker") || blockId.equals("sculk_sensor")) {
+                blockId.equals("sculk_shrieker") || blockId.equals("sculk_sensor") ||
+                // 排除珊瑚植物（但保留珊瑚块）、下界疣、红色蘑菇、棕色蘑菇、苍白垂须
+                (blockId.contains("coral") && !blockId.contains("coral_block")) || blockId.equals("nether_wart") || blockId.equals("red_mushroom") ||
+                blockId.equals("brown_mushroom") || blockId.equals("pale_hanging_moss")) &&
+                !blockId.equals("cherry_leaves") && !blockId.equals("flowering_azalea_leaves") && !blockId.equals("frosted_ice") &&
+                !blockId.equals("grass_block") &&
+                !blockId.equals("glowstone") && !blockId.equals("sea_lantern") && !blockId.contains("shroomlight") && 
+                !blockId.contains("froglight") && !blockId.equals("redstone_lamp") && !blockId.contains("glow_lichen") && 
+                !blockId.equals("beacon") && !blockId.equals("lantern") && !blockId.equals("soul_lantern") &&
+                !blockId.equals("campfire") && !blockId.equals("soul_campfire") && !blockId.equals("fire") && 
+                !blockId.equals("soul_fire") && !blockId.equals("end_rod") && !blockId.equals("torch") && 
+                !blockId.equals("soul_torch") && !blockId.equals("redstone_torch") && !blockId.equals("respawn_anchor")) {
+                if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves") || blockId.equals("frosted_ice")) {
+                    System.out.println("DEBUG: " + blockId + " 被排除：植物/花草/农作物排除逻辑");
+                }
                 return categories;
             }
         } catch (Exception e) {
@@ -830,30 +882,49 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         try {
-            // 1. 地形方块 - 只包含基础自然地形材料，排除加工建筑构件
+            // 1. 流体方块
+            if (blockId.equals("water") || blockId.equals("lava")) {
+                categories.add("pushdozer.category.fluid");
+                return categories;
+            }
+            
+            // 2. 地形方块 - 只包含基础自然地形材料，排除加工建筑构件
             if ((block.getDefaultState().isIn(BlockTags.DIRT) || block.getDefaultState().isIn(BlockTags.BASE_STONE_OVERWORLD) ||
                 block.getDefaultState().isIn(BlockTags.SAND) || blockId.equals("obsidian") || blockId.equals("bedrock") ||
-                blockId.equals("mud") || blockId.equals("packed_mud") || blockId.equals("dirt_path") ||
+                blockId.equals("mud") || blockId.equals("muddy_mangrove_roots") || blockId.equals("packed_mud") || blockId.equals("dirt_path") ||
                 blockId.equals("farmland") || blockId.equals("gravel") || blockId.equals("calcite") ||
                 blockId.equals("clay") || blockId.equals("deepslate") || blockId.equals("stone") ||
                 blockId.equals("cobblestone") || blockId.equals("cobbled_deepslate") || blockId.equals("end_stone") ||
                 blockId.contains("blackstone") || blockId.equals("crying_obsidian") || blockId.equals("crimson_nylium") ||
                 blockId.equals("warped_nylium") || blockId.equals("netherrack") || blockId.equals("soul_sand") ||
                 blockId.equals("soul_soil") || blockId.equals("basalt") || blockId.equals("smooth_basalt") ||
-                blockId.equals("magma_block")) &&
+                blockId.equals("magma_block") || blockId.equals("infested_stone") || blockId.equals("infested_deepslate") ||
+                blockId.equals("infested_cobblestone") || blockId.equals("suspicious_gravel") ||
+                (blockId.contains("soil") && !blockId.contains("soul"))) &&
                 // 排除建筑构件：墙、台阶、楼梯等
                 !block.getDefaultState().isIn(BlockTags.WALLS) &&
                 !block.getDefaultState().isIn(BlockTags.STAIRS) &&
                 !block.getDefaultState().isIn(BlockTags.SLABS) &&
                 !blockId.contains("wall") && !blockId.contains("slab") && !blockId.contains("stairs")) {
+                // 添加调试信息
+                if (blockId.equals("grass_block")) {
+                    System.out.println("DEBUG: 找到草方块: " + blockId + ", 是否在BlockTags.DIRT中: " + block.getDefaultState().isIn(BlockTags.DIRT));
+                    System.out.println("DEBUG: " + blockId + " 被分类到地形分类");
+                }
                 categories.add("pushdozer.category.terrain");
                 return categories;
             }
             
             // 2. 冰与雪
             if (block.getDefaultState().isIn(BlockTags.ICE) || block.getDefaultState().isIn(BlockTags.SNOW) ||
-                blockId.equals("snow_block") || blockId.equals("powder_snow") || blockId.equals("packed_ice") ||
-                blockId.equals("blue_ice")) {
+                blockId.equals("snow") || blockId.equals("snow_block") || blockId.equals("powder_snow") || 
+                blockId.equals("packed_ice") || blockId.equals("blue_ice") || blockId.equals("frosted_ice")) {
+                // 添加调试信息
+                if (blockId.equals("frosted_ice")) {
+                    System.out.println("DEBUG: 找到霜冰方块: " + blockId + ", 是否在BlockTags.ICE中: " + block.getDefaultState().isIn(BlockTags.ICE));
+                    System.out.println("DEBUG: " + blockId + " 是否在BlockTags.REPLACEABLE中: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
+                    System.out.println("DEBUG: " + blockId + " 被分类到冰与雪分类");
+                }
                 categories.add("pushdozer.category.ice_snow");
                 return categories;
             }
@@ -869,9 +940,7 @@ public class EntityBlockSelectionScreen extends Screen {
             }
             
             // 4. 铜方块
-            if (blockId.contains("copper") && (blockId.contains("ore") || blockId.contains("block") || 
-                blockId.contains("raw_") || blockId.contains("cut_") || blockId.contains("exposed_") ||
-                blockId.contains("weathered_") || blockId.contains("oxidized_"))) {
+            if (blockId.contains("copper")) {
                 categories.add("pushdozer.category.copper");
                 return categories;
             }
@@ -884,13 +953,47 @@ public class EntityBlockSelectionScreen extends Screen {
                 return categories;
             }
             
-            // 6. 楼梯与台阶
+            // 6. 树叶方块
+            if (block.getDefaultState().isIn(BlockTags.LEAVES) || 
+                blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
+                // 添加调试信息
+                if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
+                    System.out.println("DEBUG: 找到特殊树叶方块: " + blockId + ", 是否在BlockTags.LEAVES中: " + block.getDefaultState().isIn(BlockTags.LEAVES));
+                    System.out.println("DEBUG: " + blockId + " 是否在BlockTags.REPLACEABLE中: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
+                    System.out.println("DEBUG: " + blockId + " 被分类到树叶分类");
+                }
+                categories.add("pushdozer.category.leaves");
+                return categories;
+            }
+            
+            // 8. 生物方块
+            if (blockId.contains("coral_block") || blockId.contains("dead_coral_block") ||
+                blockId.equals("dried_kelp_block") || blockId.equals("sponge") || blockId.equals("wet_sponge") ||
+                blockId.equals("melon") || blockId.equals("pumpkin") || blockId.equals("carved_pumpkin") ||
+                blockId.equals("jack_o_lantern") || blockId.equals("hay_bale") || blockId.equals("beehive") ||
+                blockId.equals("honeycomb_block") || blockId.equals("slime_block") || blockId.equals("honey_block") ||
+                blockId.equals("resin_block") || blockId.equals("cactus") || blockId.equals("brown_mushroom_block") ||
+                blockId.equals("red_mushroom_block") || blockId.equals("mushroom_stem") || blockId.equals("nether_wart_block") ||
+                blockId.equals("warped_wart_block") || blockId.equals("bone_block") || blockId.equals("sniffer_egg") ||
+                blockId.equals("moss_block") || blockId.equals("pale_moss_block") ||
+                // 红树根方块
+                blockId.equals("mangrove_roots") ||
+                // 各种珊瑚块和失活的珊瑚块
+                blockId.equals("tube_coral_block") || blockId.equals("brain_coral_block") || blockId.equals("bubble_coral_block") ||
+                blockId.equals("fire_coral_block") || blockId.equals("horn_coral_block") ||
+                blockId.equals("dead_tube_coral_block") || blockId.equals("dead_brain_coral_block") || blockId.equals("dead_bubble_coral_block") ||
+                blockId.equals("dead_fire_coral_block") || blockId.equals("dead_horn_coral_block")) {
+                categories.add("pushdozer.category.biological");
+                return categories;
+            }
+            
+            // 9. 楼梯与台阶
             if (block.getDefaultState().isIn(BlockTags.STAIRS) || block.getDefaultState().isIn(BlockTags.SLABS)) {
                 categories.add("pushdozer.category.stairs_slabs");
                 return categories;
             }
             
-            // 7. 染色方块
+            // 10. 染色方块
             if (blockId.contains("stained_") || blockId.contains("terracotta") || blockId.contains("concrete") ||
                 (blockId.contains("glass") && !blockId.equals("glass")) || // 排除普通玻璃
                 blockId.contains("glazed_terracotta")) {
@@ -898,7 +1001,7 @@ public class EntityBlockSelectionScreen extends Screen {
                 return categories;
             }
             
-            // 8. 功能方块
+            // 11. 功能方块
             if (block.getDefaultState().isIn(BlockTags.ANVIL) || block.getDefaultState().isIn(BlockTags.CAULDRONS) ||
                 block.getDefaultState().isIn(BlockTags.SHULKER_BOXES) || blockId.contains("chest") ||
                 blockId.contains("barrel") || blockId.contains("furnace") || blockId.contains("smoker") ||
@@ -906,22 +1009,24 @@ public class EntityBlockSelectionScreen extends Screen {
                 blockId.contains("lectern") || blockId.contains("composter") ||
                 blockId.contains("enchanting_table") || blockId.contains("ender_chest") ||
                 blockId.contains("crafting_table") || blockId.contains("bookshelf") ||
-                blockId.equals("beehive") || blockId.equals("bee_nest") || blockId.equals("spawner") ||
+                blockId.equals("bee_nest") || blockId.equals("spawner") ||
                 blockId.equals("trial_spawner")) {
                 categories.add("pushdozer.category.functional");
                 return categories;
             }
             
-            // 9. 发光方块
-            if (blockId.equals("glowstone") || blockId.equals("sea_lantern") || blockId.contains("shroomlight") ||
-                blockId.contains("froglight") || blockId.equals("jack_o_lantern") || blockId.equals("redstone_lamp") ||
-                blockId.contains("glow_lichen") || blockId.equals("end_rod") || blockId.contains("amethyst") ||
-                blockId.equals("beacon")) {
+            // 12. 发光方块
+            if (blockId.equals("glowstone") || blockId.equals("sea_lantern") || blockId.contains("shroomlight") || 
+                blockId.contains("froglight") || blockId.equals("redstone_lamp") || blockId.contains("glow_lichen") || 
+                blockId.equals("beacon") || blockId.equals("lantern") || blockId.equals("soul_lantern") ||
+                blockId.equals("campfire") || blockId.equals("soul_campfire") || blockId.equals("fire") || 
+                blockId.equals("soul_fire") || blockId.equals("end_rod") || blockId.equals("torch") || 
+                blockId.equals("soul_torch") || blockId.equals("redstone_torch") || blockId.equals("respawn_anchor")) {
                 categories.add("pushdozer.category.glowing");
                 return categories;
             }
             
-            // 10. 装饰方块
+            // 13. 装饰方块
             if (blockId.contains("brick") || blockId.contains("sandstone") || blockId.contains("prismarine") ||
                 blockId.contains("quartz") || blockId.equals("smooth_stone") || blockId.contains("glass") ||
                 blockId.contains("polished_") || blockId.contains("chiseled_") || blockId.equals("purpur_block") ||
@@ -930,7 +1035,7 @@ public class EntityBlockSelectionScreen extends Screen {
                 return categories;
             }
             
-            // 11. 红石与机械
+            // 14. 红石与机械
             if (blockId.contains("piston") || blockId.contains("dispenser") || blockId.contains("observer") ||
                 blockId.contains("hopper") || blockId.equals("tnt") || blockId.contains("target") || 
                 blockId.contains("button") || blockId.contains("pressure_plate") || blockId.contains("lever") ||
@@ -943,7 +1048,7 @@ public class EntityBlockSelectionScreen extends Screen {
             System.err.println("Failed to check tags for block: " + blockId + ", using miscellaneous: " + e.getMessage());
         }
         
-        // 9. 杂项（兜底）
+        // 15. 杂项（兜底）
         categories.add("pushdozer.category.miscellaneous");
         return categories;
     }

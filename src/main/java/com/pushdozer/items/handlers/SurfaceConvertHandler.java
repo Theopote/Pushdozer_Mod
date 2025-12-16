@@ -23,13 +23,44 @@ public class SurfaceConvertHandler {
     private final PushdozerConfig config;
     private static final Random RANDOM = new Random(); // 静态Random对象，避免重复创建
     private static final Set<Block> IGNORED_BLOCKS = Set.of(
+        // 原木
         Blocks.OAK_LOG, Blocks.SPRUCE_LOG, Blocks.BIRCH_LOG, Blocks.JUNGLE_LOG, 
-        Blocks.ACACIA_LOG, Blocks.DARK_OAK_LOG, Blocks.TALL_GRASS, Blocks.FERN, 
-        Blocks.LARGE_FERN, Blocks.DANDELION, Blocks.POPPY, Blocks.BLUE_ORCHID, 
-        Blocks.ALLIUM, Blocks.AZURE_BLUET, Blocks.RED_TULIP, Blocks.ORANGE_TULIP, 
-        Blocks.WHITE_TULIP, Blocks.PINK_TULIP, Blocks.OXEYE_DAISY, Blocks.CORNFLOWER, 
-        Blocks.LILY_OF_THE_VALLEY, Blocks.SUNFLOWER, Blocks.LILAC, Blocks.ROSE_BUSH, 
-        Blocks.PEONY
+        Blocks.ACACIA_LOG, Blocks.DARK_OAK_LOG, Blocks.MANGROVE_LOG, Blocks.CHERRY_LOG,
+        
+        // 草和蕨类
+        Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.LARGE_FERN,
+        Blocks.SHORT_DRY_GRASS, Blocks.TALL_DRY_GRASS,
+        
+        // 花朵
+        Blocks.DANDELION, Blocks.POPPY, Blocks.BLUE_ORCHID, Blocks.ALLIUM, 
+        Blocks.AZURE_BLUET, Blocks.RED_TULIP, Blocks.ORANGE_TULIP, Blocks.WHITE_TULIP, 
+        Blocks.PINK_TULIP, Blocks.OXEYE_DAISY, Blocks.CORNFLOWER, Blocks.LILY_OF_THE_VALLEY, 
+        Blocks.SUNFLOWER, Blocks.LILAC, Blocks.ROSE_BUSH, Blocks.PEONY, Blocks.WITHER_ROSE,
+        Blocks.TORCHFLOWER,
+        
+        // 其他植物
+        Blocks.DEAD_BUSH, Blocks.CACTUS, Blocks.CACTUS_FLOWER, Blocks.SUGAR_CANE, Blocks.BAMBOO,
+        Blocks.CHORUS_PLANT, Blocks.CHORUS_FLOWER, Blocks.NETHER_SPROUTS,
+        Blocks.WARPED_ROOTS, Blocks.CRIMSON_ROOTS, Blocks.WARPED_FUNGUS, Blocks.CRIMSON_FUNGUS,
+        Blocks.WEEPING_VINES, Blocks.TWISTING_VINES, Blocks.GLOW_LICHEN, Blocks.HANGING_ROOTS,
+        Blocks.SPORE_BLOSSOM, Blocks.FLOWERING_AZALEA, Blocks.AZALEA,
+        Blocks.MOSS_CARPET, Blocks.SEAGRASS, Blocks.TALL_SEAGRASS, Blocks.KELP,
+        Blocks.KELP_PLANT, Blocks.SEA_PICKLE, Blocks.LILY_PAD, Blocks.SMALL_DRIPLEAF,
+        Blocks.BIG_DRIPLEAF, Blocks.PITCHER_PLANT,
+        
+        // 树苗
+        Blocks.OAK_SAPLING, Blocks.SPRUCE_SAPLING, Blocks.BIRCH_SAPLING, Blocks.JUNGLE_SAPLING,
+        Blocks.ACACIA_SAPLING, Blocks.DARK_OAK_SAPLING, Blocks.MANGROVE_PROPAGULE, Blocks.CHERRY_SAPLING,
+        
+        // 农作物
+        Blocks.WHEAT, Blocks.CARROTS, Blocks.POTATOES, Blocks.BEETROOTS, Blocks.SWEET_BERRY_BUSH,
+        Blocks.COCOA, Blocks.MELON_STEM, Blocks.PUMPKIN_STEM,
+        
+        // 蘑菇
+        Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM,
+        
+        // 藤蔓
+        Blocks.VINE, Blocks.CAVE_VINES, Blocks.CAVE_VINES_PLANT
     );
 
     public SurfaceConvertHandler(PushdozerConfig config) {
@@ -85,7 +116,7 @@ public class SurfaceConvertHandler {
         // 记录被修改的地表位置，用于后续移除悬空植物
         List<BlockPos> newlyPlacedSurfacePositions = new ArrayList<>();
 
-        // 对每个柱子，从高到低扫描，找到第一个"非空气、非水、非被忽略的方块、非树叶"
+        // 对每个柱子，从高到低扫描，找到第一个"非空气、非水、非被忽略的方块"
         for (Map.Entry<BlockPos, List<Integer>> entry : columnYMap.entrySet()) {
             BlockPos columnPos = entry.getKey();
             List<Integer> yList = entry.getValue();
@@ -94,7 +125,7 @@ public class SurfaceConvertHandler {
                 BlockPos surfacePos = new BlockPos(columnPos.getX(), y, columnPos.getZ());
                 BlockState state = world.getBlockState(surfacePos);
                 if (!world.isAir(surfacePos) && !isWater(world, surfacePos) && 
-                    !isIgnoredBlock(state) && !isLeafBlock(state)) {
+                    !isIgnoredBlock(state)) {
                     // 找到真正的地表
                     Block targetBlock = selectTargetBlock();
                     BlockState targetState = targetBlock.getDefaultState();
@@ -107,7 +138,7 @@ public class SurfaceConvertHandler {
                     }
                     break; // 只处理第一个地表
                 }
-                // 如果是空气/水/被忽略的方块/树叶，继续向下扫描
+                // 如果是空气/水/被忽略的方块，继续向下扫描
             }
         }
 
@@ -173,7 +204,31 @@ public class SurfaceConvertHandler {
      * 检查是否为忽略的方块
      */
     private boolean isIgnoredBlock(BlockState state) {
-        return IGNORED_BLOCKS.contains(state.getBlock());
+        Block block = state.getBlock();
+        return IGNORED_BLOCKS.contains(block) || isPotted(block) || isLiveCoral(block) || isDeadCoral(block);
+    }
+    
+    /**
+     * 检查方块是否为盆栽（不包括空花盆）
+     */
+    private boolean isPotted(Block block) {
+        return (block instanceof net.minecraft.block.FlowerPotBlock) && block != Blocks.FLOWER_POT;
+    }
+    
+    /**
+     * 检查方块是否为活珊瑚
+     */
+    private boolean isLiveCoral(Block block) {
+        String id = block.toString().toLowerCase();
+        return id.contains("coral") && !id.contains("dead");
+    }
+    
+    /**
+     * 检查方块是否为死珊瑚
+     */
+    private boolean isDeadCoral(Block block) {
+        String id = block.toString().toLowerCase();
+        return id.contains("coral") && id.contains("dead");
     }
 
     /**
@@ -195,7 +250,8 @@ public class SurfaceConvertHandler {
             Blocks.TALL_GRASS, Blocks.FERN, Blocks.LARGE_FERN, Blocks.DANDELION, Blocks.POPPY,
             Blocks.BLUE_ORCHID, Blocks.ALLIUM, Blocks.AZURE_BLUET, Blocks.RED_TULIP, Blocks.ORANGE_TULIP,
             Blocks.WHITE_TULIP, Blocks.PINK_TULIP, Blocks.OXEYE_DAISY, Blocks.CORNFLOWER, Blocks.LILY_OF_THE_VALLEY,
-            Blocks.SUNFLOWER, Blocks.LILAC, Blocks.ROSE_BUSH, Blocks.PEONY
+            Blocks.SUNFLOWER, Blocks.LILAC, Blocks.ROSE_BUSH, Blocks.PEONY,
+            Blocks.SHORT_DRY_GRASS, Blocks.TALL_DRY_GRASS
         );
         
         // 只检查被修改过的地表上方的方块

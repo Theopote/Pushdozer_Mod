@@ -335,21 +335,31 @@ public class MultiSelectPlantSelectionScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        // 使用自定义背景渲染避免blur冲突
+        context.fill(0, 0, width, height, 0x80000000);
         
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, 0xFFFFFF);
         
-        // 在左侧中部显示选中的方块数量和当前分类
+        // 绘制顶部标题背景
+        int titleBackgroundHeight = 25;
+        context.fill(0, 0, width, titleBackgroundHeight, 0x80000000);
+        
+        // 绘制标题
+        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 5, 0xFFFFFF);
+        
+        // 将已选择数量和总数放在同一行显示
+        int totalPlants = plantBlocks.size();
+        String countText = String.format("已选择: %d / 总计: %d 种植物", selectedBlocks.size(), totalPlants);
+        int countColor = selectedBlocks.isEmpty() ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(countText), width / 2, 15, countColor);
+        
+        // 在左侧中部显示当前分类信息
         int leftMargin = 20;
         int infoY = height / 2 - 30; // 屏幕中部偏上
         
-        String selectedCountText = "已选择: " + selectedBlocks.size() + " 种植物";
-        context.drawTextWithShadow(textRenderer, Text.literal(selectedCountText), leftMargin, infoY, 0xFFFFFF);
-        
         // 显示当前分类信息
         String categoryText = "当前分类: " + Text.translatable("pushdozer.category.plant." + currentCategory).getString();
-        context.drawTextWithShadow(textRenderer, Text.literal(categoryText), leftMargin, infoY + 15, 0xCCCCCC);
+        context.drawTextWithShadow(textRenderer, Text.literal(categoryText), leftMargin, infoY, 0xCCCCCC);
     }
 
     @Override

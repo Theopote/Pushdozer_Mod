@@ -87,7 +87,7 @@ public class UndoRedoService {
      */
     private void updatePlayerPosition(PlayerEntity player) {
         if (player instanceof ServerPlayerEntity serverPlayer) {
-            ServerWorld serverWorld = serverPlayer.getServerWorld();
+            ServerWorld serverWorld = (ServerWorld) serverPlayer.getWorld();
             serverWorld.getChunkManager().updatePosition(serverPlayer);
         }
     }

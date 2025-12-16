@@ -214,9 +214,8 @@ public class BatchPlantHandler {
             PushdozerMod.pushUndoAction(player, undoAction);
         }
 
-        // 发送完成消息和性能统计
+        // 性能统计
         if (result.getTotalCount() > 0) {
-            player.sendMessage(net.minecraft.text.Text.translatable("pushdozer.message.batch_plant_complete", result.getTotalCount()), false);
             PushdozerMod.LOGGER.info("Batch planting completed: {} plants, {} trees, {} total blocks changed",
                     result.getSimplePlantCount(), result.getTreeCount(), result.getTotalCount());
         }
@@ -1034,11 +1033,14 @@ public class BatchPlantHandler {
         // 特殊方块：根据密度设置覆盖程度
         state = setCoverageBasedOnDensity(state, chosen);
 
-        // Leaf Litter：随机设置朝向
-        if (chosen.toString().toLowerCase().contains("leaf_litter") && state.contains(Properties.HORIZONTAL_FACING)) {
-            Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
-            Direction randomDirection = directions[random.nextInt(directions.length)];
-            state = state.with(Properties.HORIZONTAL_FACING, randomDirection);
+        // 为需要随机方向的方块设置朝向
+        if (state.contains(Properties.HORIZONTAL_FACING)) {
+            String blockName = chosen.toString().toLowerCase();
+            if (blockName.contains("leaf_litter") || blockName.contains("pink_petals") || blockName.contains("wildflowers")) {
+                Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
+                Direction randomDirection = directions[random.nextInt(directions.length)];
+                state = state.with(Properties.HORIZONTAL_FACING, randomDirection);
+            }
         }
 
         // 小型垂滴叶：不在这里设置 WATERLOGGED，让放置逻辑处理
@@ -1481,6 +1483,14 @@ public class BatchPlantHandler {
         // 粉红色花簇使用 FLOWER_AMOUNT
         if (blockId.contains("pink_petals") && state.contains(Properties.FLOWER_AMOUNT)) {
             BlockState newState = state.with(Properties.FLOWER_AMOUNT, coverageLevel);
+            
+            // 为粉红色花簇添加随机方向
+            if (newState.contains(Properties.HORIZONTAL_FACING)) {
+                Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
+                Direction randomDirection = directions[random.nextInt(directions.length)];
+                newState = newState.with(Properties.HORIZONTAL_FACING, randomDirection);
+            }
+            
             PushdozerMod.LOGGER.debug("Set FLOWER_AMOUNT for pink_petals: density={}, coverageLevel={}", 
                     density, coverageLevel);
             return newState;
@@ -1491,6 +1501,14 @@ public class BatchPlantHandler {
             // 尝试常见的属性名称
             if (state.contains(Properties.FLOWER_AMOUNT)) {
                 BlockState newState = state.with(Properties.FLOWER_AMOUNT, coverageLevel);
+                
+                // 为野花簇添加随机方向
+                if (newState.contains(Properties.HORIZONTAL_FACING)) {
+                    Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
+                    Direction randomDirection = directions[random.nextInt(directions.length)];
+                    newState = newState.with(Properties.HORIZONTAL_FACING, randomDirection);
+                }
+                
                 PushdozerMod.LOGGER.debug("Set FLOWER_AMOUNT for wildflowers: density={}, coverageLevel={}", 
                         density, coverageLevel);
                 return newState;
@@ -1512,6 +1530,14 @@ public class BatchPlantHandler {
                         int maxValue = validValues.stream().mapToInt(Integer::intValue).max().orElse(4);
                         int validCoverageLevel = Math.max(1, Math.min(maxValue, coverageLevel));
                         BlockState newState = state.with(intProperty, validCoverageLevel);
+                        
+                        // 为 Leaf Litter 添加随机方向
+                        if (newState.contains(Properties.HORIZONTAL_FACING)) {
+                            Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
+                            Direction randomDirection = directions[random.nextInt(directions.length)];
+                            newState = newState.with(Properties.HORIZONTAL_FACING, randomDirection);
+                        }
+                        
                         PushdozerMod.LOGGER.debug("Set {} for leaf_litter: density={}, coverageLevel={}, validLevel={}, maxValue={}", 
                                 property.getName(), density, coverageLevel, validCoverageLevel, maxValue);
                         return newState;
@@ -1533,6 +1559,14 @@ public class BatchPlantHandler {
                         int maxValue = validValues.stream().mapToInt(Integer::intValue).max().orElse(4);
                         int validCoverageLevel = Math.max(1, Math.min(maxValue, coverageLevel));
                         BlockState newState = state.with(intProperty, validCoverageLevel);
+                        
+                        // 为 Leaf Litter 添加随机方向
+                        if (newState.contains(Properties.HORIZONTAL_FACING)) {
+                            Direction[] directions = Direction.Type.HORIZONTAL.stream().toArray(Direction[]::new);
+                            Direction randomDirection = directions[random.nextInt(directions.length)];
+                            newState = newState.with(Properties.HORIZONTAL_FACING, randomDirection);
+                        }
+                        
                         PushdozerMod.LOGGER.debug("Set {} for leaf_litter: density={}, coverageLevel={}, validLevel={}, maxValue={}", 
                                 property.getName(), density, coverageLevel, validCoverageLevel, maxValue);
                         return newState;

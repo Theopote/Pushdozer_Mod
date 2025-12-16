@@ -309,77 +309,42 @@ public class HeightConfigPanel {
      * @param delta 帧间隔时间
      */
     private void renderButtons(DrawContext context, int mouseX, int mouseY, float delta) {
+        // 先重置所有按钮的焦点状态
+        if (followPlayerButton != null) {
+            followPlayerButton.setFocused(false);
+        }
+        if (lockOnceButton != null) {
+            lockOnceButton.setFocused(false);
+        }
+        if (noLimitButton != null) {
+            noLimitButton.setFocused(false);
+        }
+        if (customHeightButton != null) {
+            customHeightButton.setFocused(false);
+        }
+        
+        // 然后设置当前选中按钮的焦点状态
+        PushdozerConfig.HeightMode currentMode = config.getHeightMode();
+        boolean isLockedOnce = config.isLockedOnceMode();
+        
+        if (currentMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER && followPlayerButton != null) {
+            followPlayerButton.setFocused(true);
+        }
+        if (isLockedOnce && lockOnceButton != null) {
+            lockOnceButton.setFocused(true);
+        }
+        if (currentMode == PushdozerConfig.HeightMode.NO_LIMIT && noLimitButton != null) {
+            noLimitButton.setFocused(true);
+        }
+        if (currentMode == PushdozerConfig.HeightMode.CUSTOM && !isLockedOnce && customHeightButton != null) {
+            customHeightButton.setFocused(true);
+        }
+        
+        // 最后渲染所有按钮（让按钮自己处理文字渲染）
         for (Element widget : widgets) {
             if (widget instanceof Drawable) {
                 ((Drawable) widget).render(context, mouseX, mouseY, delta);
             }
-        }
-        PushdozerConfig.HeightMode currentMode = config.getHeightMode();
-        boolean isLockedOnce = config.isLockedOnceMode();
-        // 高亮当前选中的按钮
-        if (currentMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER && followPlayerButton != null) {
-            context.fill(
-                followPlayerButton.getX(), 
-                followPlayerButton.getY(),
-                followPlayerButton.getX() + followPlayerButton.getWidth(),
-                followPlayerButton.getY() + followPlayerButton.getHeight(),
-                0xFF888888
-            );
-            context.fill(
-                followPlayerButton.getX()+1, 
-                followPlayerButton.getY()+1,
-                followPlayerButton.getX() + followPlayerButton.getWidth()-1,
-                followPlayerButton.getY() + followPlayerButton.getHeight()-1,
-                0xFF555555
-            );
-        }
-        if (isLockedOnce && lockOnceButton != null) {
-            context.fill(
-                lockOnceButton.getX(), 
-                lockOnceButton.getY(),
-                lockOnceButton.getX() + lockOnceButton.getWidth(),
-                lockOnceButton.getY() + lockOnceButton.getHeight(),
-                0xFF888888
-            );
-            context.fill(
-                lockOnceButton.getX()+1, 
-                lockOnceButton.getY()+1,
-                lockOnceButton.getX() + lockOnceButton.getWidth()-1,
-                lockOnceButton.getY() + lockOnceButton.getHeight()-1,
-                0xFF555555
-            );
-        }
-        if (currentMode == PushdozerConfig.HeightMode.NO_LIMIT && noLimitButton != null) {
-            context.fill(
-                noLimitButton.getX() , 
-                noLimitButton.getY() ,
-                noLimitButton.getX() + noLimitButton.getWidth() ,
-                noLimitButton.getY() + noLimitButton.getHeight() ,
-                0xFF888888
-            );
-            context.fill(
-                noLimitButton.getX()+1, 
-                noLimitButton.getY()+1,
-                noLimitButton.getX() + noLimitButton.getWidth()-1,
-                noLimitButton.getY() + noLimitButton.getHeight()-1,
-                0xFF555555
-            );
-        }
-        if (currentMode == PushdozerConfig.HeightMode.CUSTOM && !isLockedOnce && customHeightButton != null) {
-            context.fill(
-                customHeightButton.getX(), 
-                customHeightButton.getY(),
-                customHeightButton.getX() + customHeightButton.getWidth(),
-                customHeightButton.getY() + customHeightButton.getHeight(),
-                0xFF888888
-            );
-            context.fill(
-                customHeightButton.getX()+1, 
-                customHeightButton.getY()+1,
-                customHeightButton.getX() + customHeightButton.getWidth()-1,
-                customHeightButton.getY() + customHeightButton.getHeight()-1,
-                0xFF555555
-            );
         }
     }
 
