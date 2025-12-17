@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "確認",
   "pushdozer.screen.block_selection.previous_page": "前のページ",
   "pushdozer.screen.block_selection.next_page": "次のページ",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "地形ブロック",
   "pushdozer.category.sand_and_gravel": "砂と砂利",
   "pushdozer.category.snow_and_ice": "雪と氷",

@@ -5,9 +5,11 @@ import com.pushdozer.ui.screens.NaturalBlockSelectionScreen;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
@@ -217,7 +219,18 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
         // 绘制面板边框
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, this.panelHeight, COLOR_PANEL_BORDER);
+        drawBorder(context, panelLeft, panelTop, PANEL_WIDTH, this.panelHeight, COLOR_PANEL_BORDER);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        // top
+        context.fill(x, y, x + width, y + 1, color);
+        // bottom
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        // left
+        context.fill(x, y, x + 1, y + height, color);
+        // right
+        context.fill(x + width - 1, y, x + width, y + height, color);
     }
 
     @Override
@@ -237,8 +250,9 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         if (!visible) return false;
 
         // 先让父类/控件处理点击
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (net.minecraft.client.gui.Element widget : widgets) {
-            if (widget.mouseClicked(mouseX, mouseY, button)) {
+            if (widget.mouseClicked(click, false)) {
                 return true;
             }
         }
@@ -419,7 +433,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
                 
                 // 绘制背景
                 context.fill(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, 0xFF373737);
-                context.drawBorder(x, y, BLOCK_ICON_SIZE, BLOCK_ICON_SIZE, 0xFF8B8B8B);
+                SurfaceConvertConfigPanel.drawBorder(context, x, y, BLOCK_ICON_SIZE, BLOCK_ICON_SIZE, 0xFF8B8B8B);
                 
                 // 绘制方块图标
                 if (!itemStack.isEmpty()) {
@@ -569,14 +583,6 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
                     return ItemStack.EMPTY;
                 } else if (block == Blocks.STRUCTURE_VOID) {
                     return ItemStack.EMPTY;
-                } else if (block == Blocks.END_PORTAL) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.END_GATEWAY) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.NETHER_PORTAL) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.LIGHT) {
-                    return ItemStack.EMPTY;
                 } else {
                     // 对于其他没有物品形式的方块，根据方块类型使用合适的替代物品
                     String blockIdPath = Registries.BLOCK.getId(block).getPath().toLowerCase();
@@ -668,23 +674,23 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(Click click, boolean doubleClick) {
             // 如果只有一个方块，禁用滑动条交互
             List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             if (surfaceBlocks.size() == 1) {
                 return false; // 不处理点击事件
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(click, doubleClick);
         }
         
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(Click click, double deltaX, double deltaY) {
             // 如果只有一个方块，禁用滑动条拖拽
             List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             if (surfaceBlocks.size() == 1) {
                 return false; // 不处理拖拽事件
             }
-            return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+            return super.mouseDragged(click, deltaX, deltaY);
         }
         
         @Override

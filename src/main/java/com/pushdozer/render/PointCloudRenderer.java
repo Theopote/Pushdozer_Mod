@@ -55,8 +55,8 @@ public class PointCloudRenderer {
      * @param basePos 几何体的基准位置
      */
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, GeometryShape shape, BlockPos basePos) {
-        // 使用 RenderLayer 来处理着色器
-        RenderLayer renderLayer = RenderLayer.getLines();
+        // 使用 RenderLayers.LINES 来获取线条渲染层
+        RenderLayer renderLayer = RenderLayers.LINES;
         
         try {
             // 使用现有的渲染层

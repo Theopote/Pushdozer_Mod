@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "Confirm",
   "pushdozer.screen.block_selection.previous_page": "Previous Page",
   "pushdozer.screen.block_selection.next_page": "Next Page",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "Terrain Blocks",
   "pushdozer.category.sand_and_gravel": "Sand and Gravel",
   "pushdozer.category.snow_and_ice": "Snow and Ice",

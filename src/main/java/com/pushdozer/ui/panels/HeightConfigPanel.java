@@ -3,6 +3,7 @@ package com.pushdozer.ui.panels;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -286,7 +288,18 @@ public class HeightConfigPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
         // 绘制面板边框（在标题背景之后，确保边框不被遮挡）
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT, COLOR_PANEL_BORDER);
+        drawBorder(context, panelLeft, panelTop);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y) {
+        // top
+        context.fill(x, y, x + HeightConfigPanel.PANEL_WIDTH, y + 1, HeightConfigPanel.COLOR_PANEL_BORDER);
+        // bottom
+        context.fill(x, y + HeightConfigPanel.PANEL_HEIGHT - 1, x + HeightConfigPanel.PANEL_WIDTH, y + HeightConfigPanel.PANEL_HEIGHT, HeightConfigPanel.COLOR_PANEL_BORDER);
+        // left
+        context.fill(x, y, x + 1, y + HeightConfigPanel.PANEL_HEIGHT, HeightConfigPanel.COLOR_PANEL_BORDER);
+        // right
+        context.fill(x + HeightConfigPanel.PANEL_WIDTH - 1, y, x + HeightConfigPanel.PANEL_WIDTH, y + HeightConfigPanel.PANEL_HEIGHT, HeightConfigPanel.COLOR_PANEL_BORDER);
     }
 
     /**
@@ -357,10 +370,11 @@ public class HeightConfigPanel {
      * @return 如果事件被处理则返回 true
      */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {
-                    return clickable.mouseClicked(mouseX, mouseY, button);
+                    return clickable.mouseClicked(click, false);
                 }
             }
         }
@@ -378,10 +392,11 @@ public class HeightConfigPanel {
      * @return 如果事件被处理则返回 true
      */
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {
-                    return clickable.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+                    return clickable.mouseDragged(click, deltaX, deltaY);
                 }
             }
         }
@@ -397,10 +412,11 @@ public class HeightConfigPanel {
      * @return 如果事件被处理则返回 true
      */
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {
-                    return clickable.mouseReleased(mouseX, mouseY, button);
+                    return clickable.mouseReleased(click);
                 }
             }
         }

@@ -44,16 +44,19 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
         int contentWidth = PANEL_WIDTH - (WIDGET_MARGIN * 2);
 
         // 水岸类型选择按钮
-        CyclingButtonWidget<PushdozerConfig.ShorelineType> shorelineTypeButton = CyclingButtonWidget.builder(PushdozerConfig.ShorelineType::getDisplayText)
-                .values(PushdozerConfig.ShorelineType.values())
-                .initially(config.getShorelineType())
-                .build(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT,
-                        Text.translatable("pushdozer.config.shoreline_type"),
-                        (button, shorelineType) -> {
-                            config.setShorelineType(shorelineType);
-                            // 重新初始化面板以更新按钮显示
-                            this.show();
-                        });
+        CyclingButtonWidget<PushdozerConfig.ShorelineType> shorelineTypeButton =
+                CyclingButtonWidget.<PushdozerConfig.ShorelineType>builder(
+                                PushdozerConfig.ShorelineType::getDisplayText,
+                                config.getShorelineType()
+                        )
+                        .values(PushdozerConfig.ShorelineType.values())
+                        .build(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT,
+                                Text.translatable("pushdozer.config.shoreline_type"),
+                                (button, shorelineType) -> {
+                                    config.setShorelineType(shorelineType);
+                                    // 重新初始化面板以更新按钮显示
+                                    this.show();
+                                });
         shorelineTypeButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.config.shoreline_type.tooltip")));
         widgets.add(shorelineTypeButton);
         contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
@@ -93,11 +96,9 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
                     .build();
             selectPlantsButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.config.custom_shoreline.select_plants.tooltip")));
             widgets.add(selectPlantsButton);
-            contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
         } else {
             // 非自定义水岸类型：显示植物种植开关
-            CyclingButtonWidget<Boolean> plantVegetationButton = CyclingButtonWidget.onOffBuilder()
-                    .initially(config.isPlantVegetationEnabled())
+            CyclingButtonWidget<Boolean> plantVegetationButton = CyclingButtonWidget.onOffBuilder(config.isPlantVegetationEnabled())
                     .build(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT,
                             Text.translatable("pushdozer.config.plant_vegetation"),
                             (button, enabled) -> {
@@ -107,8 +108,8 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
                             });
             plantVegetationButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.config.plant_vegetation.tooltip")));
             widgets.add(plantVegetationButton);
-            contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
         }
+        contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
 
         // 植物密度滑动条（在自定义水岸类型时始终显示，其他类型时仅在启用植物种植时显示）
         if (config.getShorelineType() == PushdozerConfig.ShorelineType.CUSTOM || config.isPlantVegetationEnabled()) {
@@ -247,14 +248,8 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
         contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
         
         // 植物种植开关或自定义选择按钮
-        if (config.getShorelineType() == PushdozerConfig.ShorelineType.CUSTOM) {
-            // 自定义水岸类型：两个按钮在同一行
-            contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
-        } else {
-            // 非自定义水岸类型：植物种植开关
-            contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
-        }
-        
+        contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
+
         // 植物密度滑动条（在自定义水岸类型时始终显示，其他类型时仅在启用植物种植时显示）
         if (config.getShorelineType() == PushdozerConfig.ShorelineType.CUSTOM || config.isPlantVegetationEnabled()) {
             contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;

@@ -71,7 +71,7 @@ public class SurfaceConvertHandler {
      * 处理表层转换操作
      */
     public void handleSurfaceConvert(PlayerEntity player, World world) {
-        if (world.isClient) return;
+        if (world.isClient()) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);

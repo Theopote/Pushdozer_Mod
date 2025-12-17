@@ -7,11 +7,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 import com.pushdozer.network.ClientNetworkHandler;
 
@@ -21,7 +21,12 @@ import com.pushdozer.network.ClientNetworkHandler;
 public class KeyBindings {
 
     // 定义按键类和各个按键的标识符
-    public static final String KEY_CATEGORY_PUSHDOZER = "key.category.pushdozer";
+    /**
+     * 1.21.11 起，按键分类使用 {@link KeyBinding.Category}（基于 Identifier），其本地化键为：
+     * {@code key.category.<namespace>.<path>}
+     */
+    public static final KeyBinding.Category KEY_CATEGORY_PUSHDOZER =
+            KeyBinding.Category.create(Identifier.of("pushdozer", "pushdozer"));
     public static final String KEY_TOGGLE_MODE = "key.pushdozer.toggle_mode";
     public static final String KEY_OPEN_CONFIG = "key.pushdozer.open_config";
     public static final String KEY_TOGGLE_DISPLAY_MODE = "key.pushdozer.toggle_display_mode";
@@ -100,12 +105,7 @@ public class KeyBindings {
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_Z, // 默认按键为 Z
             KEY_CATEGORY_PUSHDOZER
-        ) {
-            @Override
-            public boolean matchesKey(int keyCode, int scanCode) {
-                return super.matchesKey(keyCode, scanCode) && Screen.hasControlDown();
-            }
-        });
+        ));
 
         // 注册重做操作按键
         redoKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -113,12 +113,7 @@ public class KeyBindings {
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_Y, // 默认按键为 Y
             KEY_CATEGORY_PUSHDOZER
-        ) {
-            @Override
-            public boolean matchesKey(int keyCode, int scanCode) {
-                return super.matchesKey(keyCode, scanCode) && Screen.hasControlDown();
-            }
-        });
+        ));
 
         // 注册按键输入事件
         registerKeyInputs();
@@ -161,16 +156,22 @@ public class KeyBindings {
                 }
 
                 // 处理撤销操作的检测逻辑
-                if (undoKey.wasPressed() && Screen.hasControlDown() && isHoldingPushdozer(client)) {
+                if (undoKey.wasPressed() && isControlDown(client) && isHoldingPushdozer(client)) {
                     ClientNetworkHandler.sendUndoRedoRequest(true);
                 }
 
                 // 处理重做操作的检测逻辑
-                if (redoKey.wasPressed() && Screen.hasControlDown() && isHoldingPushdozer(client)) {
+                if (redoKey.wasPressed() && isControlDown(client) && isHoldingPushdozer(client)) {
                     ClientNetworkHandler.sendUndoRedoRequest(false);
                 }
             }
         });
+    }
+
+    private static boolean isControlDown(MinecraftClient client) {
+        if (client == null || client.getWindow() == null) return false;
+        return InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_CONTROL)
+                || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_CONTROL);
     }
 
     /**

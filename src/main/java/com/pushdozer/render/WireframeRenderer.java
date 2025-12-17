@@ -18,8 +18,8 @@ import net.minecraft.util.math.Vec3d;
 public class WireframeRenderer {
     
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, GeometryShape shape, BlockPos basePos) {
-        // 使用 RenderLayer 来处理着色器
-        RenderLayer renderLayer = RenderLayer.getLines();
+        // 使用 RenderLayers.LINES 来获取线条渲染层
+        RenderLayer renderLayer = RenderLayers.LINES;
         
         try {
             VertexConsumer lines = vertexConsumers.getBuffer(renderLayer);
@@ -129,14 +129,13 @@ public class WireframeRenderer {
             double angle = i * 2 * Math.PI / segments;
             float x = (float)(baseRadius * Math.cos(angle));
             float z = (float)(baseRadius * Math.sin(angle));
-            float y = bottomY;
             if (lastPoint != null) {
                 drawLine(lines, matrix,
                     (float)lastPoint.x, (float)lastPoint.y, (float)lastPoint.z,
-                    x, y, z
+                    x, bottomY, z
                 );
             }
-            lastPoint = new Vec3d(x, y, z);
+            lastPoint = new Vec3d(x, bottomY, z);
         }
         float topX = 0;
         float topZ = 0;
@@ -144,9 +143,8 @@ public class WireframeRenderer {
             double angle = i * 2 * Math.PI / segments;
             float x = (float)(baseRadius * Math.cos(angle));
             float z = (float)(baseRadius * Math.sin(angle));
-            float y = bottomY;
             drawLine(lines, matrix,
-                x, y, z,
+                x, bottomY, z,
                 topX, topY, topZ
             );
         }
@@ -162,18 +160,17 @@ public class WireframeRenderer {
             double angle = i * 2 * Math.PI / segments;
             float x = (float)(radius * Math.cos(angle));
             float z = (float)(radius * Math.sin(angle));
-            float yBottom = bottomY;
             if (lastPointBottom != null) {
                 drawLine(lines, matrix,
                     (float)lastPointBottom.x, (float)lastPointBottom.y, (float)lastPointBottom.z,
-                    x, yBottom, z
+                    x, bottomY, z
                 );
                 drawLine(lines, matrix,
                     (float)lastPointTop.x, (float)lastPointTop.y, (float)lastPointTop.z,
                     x, topY, z
                 );
             }
-            lastPointBottom = new Vec3d(x, yBottom, z);
+            lastPointBottom = new Vec3d(x, bottomY, z);
             lastPointTop = new Vec3d(x, topY, z);
         }
         for (int i = 0; i < segments; i += 8) {

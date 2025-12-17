@@ -8,11 +8,15 @@ import com.pushdozer.config.PushdozerConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -105,9 +109,11 @@ public class BlockSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        boolean result = super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(Click click, boolean doubleClick) {
+        boolean result = super.mouseClicked(click, doubleClick);
         if (searchBox != null) {
+            double mouseX = click.x();
+            double mouseY = click.y();
             if (searchBox.isMouseOver(mouseX, mouseY)) {
                 searchBox.setFocused(true);
                 return true;
@@ -119,8 +125,9 @@ public class BlockSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
         if (searchBox != null && searchBox.isFocused()) {
+            int keyCode = input.key();
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 searchBox.setFocused(false);
                 return true;
@@ -129,21 +136,21 @@ public class BlockSelectionScreen extends Screen {
                 focusOnMatch();
                 return true;
             }
-            if (searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+            if (searchBox.keyPressed(input)) {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
+    public boolean charTyped(CharInput input) {
         if (searchBox != null && searchBox.isFocused()) {
-            if (searchBox.charTyped(chr, modifiers)) {
+            if (searchBox.charTyped(input)) {
                 return true;
             }
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(input);
     }
 
     private void focusOnMatch() {
@@ -222,13 +229,17 @@ public class BlockSelectionScreen extends Screen {
     }
 
     private void addPageButtons() {
-        // 上一页按钮
-        addDrawableChild(new PageButtonWidget(10, height / 2, 20, 20, Text.literal("<"), 
-            button -> changePage(-1), Text.translatable("pushdozer.screen.block_selection.previous_page")));
-        
-        // 下一页按钮
-        addDrawableChild(new PageButtonWidget(width - 30, height / 2, 20, 20, Text.literal(">"), 
-            button -> changePage(1), Text.translatable("pushdozer.screen.block_selection.next_page")));
+        ButtonWidget prevButton = ButtonWidget.builder(net.minecraft.text.Text.literal("<"), button -> changePage(-1))
+                .dimensions(10, height / 2, 20, 20)
+                .tooltip(Tooltip.of(net.minecraft.text.Text.translatable("pushdozer.screen.block_selection.previous_page")))
+                .build();
+        addDrawableChild(prevButton);
+
+        ButtonWidget nextButton = ButtonWidget.builder(net.minecraft.text.Text.literal(">"), button -> changePage(1))
+                .dimensions(width - 30, height / 2, 20, 20)
+                .tooltip(Tooltip.of(net.minecraft.text.Text.translatable("pushdozer.screen.block_selection.next_page")))
+                .build();
+        addDrawableChild(nextButton);
     }
 
     private void changePage(int delta) {
@@ -408,7 +419,7 @@ public class BlockSelectionScreen extends Screen {
         private Block lastHoveredBlock = null;
 
         public ScrollablePanel(int x, int y, int width, int height, List<Block> blocks) {
-            super(x, y, width, height, Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
+            super(x, y, width, height, net.minecraft.text.Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
             this.blocks = blocks;
         }
         
@@ -418,7 +429,7 @@ public class BlockSelectionScreen extends Screen {
         }
 
         @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void drawIcon(DrawContext context, int mouseX, int mouseY, float delta) {
             int totalRows = (blocks.size() + 3) / 4;
             int visibleRows = getVisibleRows();
 
@@ -506,7 +517,7 @@ public class BlockSelectionScreen extends Screen {
             // 如果方块被选中，绘制背景高亮和选中标记
             if (selectedBlocks.contains(block)) {
                 context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, 0x80FFFFFF);
-                context.drawText(textRenderer, Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
+                context.drawText(textRenderer, net.minecraft.text.Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
             }
         }
 
@@ -593,7 +604,10 @@ public class BlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(Click click, boolean doubleClick) {
+            double mouseX = click.x();
+            double mouseY = click.y();
+            int button = click.button();
             if (isMouseOver(mouseX, mouseY)) {
                 // 检查是否点击了滚动条区域
                 int totalRows = (blocks.size() + 3) / 4;
@@ -627,7 +641,8 @@ public class BlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+            double mouseY = click.y();
             if (isDraggingScrollBar) {
                 int totalRows = (blocks.size() + 3) / 4;
                 int backgroundHeight = getVisibleRows() * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
@@ -650,7 +665,7 @@ public class BlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        public boolean mouseReleased(Click click) {
             if (isDraggingScrollBar) {
                 isDraggingScrollBar = false;
                 return true;
@@ -1215,25 +1230,5 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("test_block") || blockId.equals("test_instance") ||
                blockId.equals("test_example") || blockId.equals("test_sample") ||
                blockId.equals("test_case") || blockId.equals("test_unit");
-    }
-    
-    // 自定义翻页按钮类，支持工具提示
-    private class PageButtonWidget extends ButtonWidget {
-        private final Text tooltipText;
-        
-        public PageButtonWidget(int x, int y, int width, int height, Text message, PressAction onPress, Text tooltipText) {
-            super(x, y, width, height, message, onPress, DEFAULT_NARRATION_SUPPLIER);
-            this.tooltipText = tooltipText;
-        }
-        
-        @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-            super.renderWidget(context, mouseX, mouseY, delta);
-            
-            // 如果鼠标悬停在按钮上，显示工具提示
-            if (isMouseOver(mouseX, mouseY)) {
-                context.drawTooltip(textRenderer, tooltipText, mouseX, mouseY);
-            }
-        }
     }
 }

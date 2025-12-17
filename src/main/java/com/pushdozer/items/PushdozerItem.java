@@ -89,7 +89,7 @@ public class PushdozerItem extends Item {
      */
     @Override
     public ActionResult use(World world, PlayerEntity player, Hand hand) {
-        if (!world.isClient) {
+        if (!world.isClient()) {
             PushdozerConfig config = PushdozerMod.getConfig();
             PushdozerConfig.WorkMode currentMode = config.getWorkMode();
 

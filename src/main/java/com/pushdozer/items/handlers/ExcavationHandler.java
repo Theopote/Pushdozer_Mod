@@ -38,7 +38,7 @@ public class ExcavationHandler {
      * @return 被挖掘的方块位置列表
      */
     public List<BlockPos> handleExcavation(PlayerEntity player, World world) {
-        if (world.isClient) {
+        if (world.isClient()) {
             return List.of();
         }
 

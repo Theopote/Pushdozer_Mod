@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "Konfirmasi",
   "pushdozer.screen.block_selection.previous_page": "Halaman Sebelumnya",
   "pushdozer.screen.block_selection.next_page": "Halaman Berikutnya",
-  "key.category.pushdozer": "Bulldozer",
+  "key.category.pushdozer.pushdozer": "Bulldozer",
   "pushdozer.category.terrain": "Blok Terrain",
   "pushdozer.category.sand_and_gravel": "Pasir dan Kerikil",
   "pushdozer.category.snow_and_ice": "Salju dan Es",

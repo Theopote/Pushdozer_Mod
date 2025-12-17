@@ -43,7 +43,7 @@ public abstract class AbstractTerrainToolHandler {
      * 增加了多人游戏支持和权限验证
      */
     public void handleOperation(PlayerEntity player, World world, UndoAction.ActionType actionType) {
-        if (world.isClient) return;
+        if (world.isClient()) return;
 
         // 多人游戏权限检查
         if (!hasOperationPermission(player, world, actionType)) {

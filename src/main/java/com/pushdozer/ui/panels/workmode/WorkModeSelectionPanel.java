@@ -2,10 +2,12 @@ package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -225,7 +227,18 @@ public class WorkModeSelectionPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
         // 4. 绘制面板边框（在标题背景之后，确保边框不被遮挡）
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT, COLOR_PANEL_BORDER);
+        drawBorder(context, panelLeft, panelTop);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y) {
+        // top
+        context.fill(x, y, x + WorkModeSelectionPanel.PANEL_WIDTH, y + 1, WorkModeSelectionPanel.COLOR_PANEL_BORDER);
+        // bottom
+        context.fill(x, y + WorkModeSelectionPanel.PANEL_HEIGHT - 1, x + WorkModeSelectionPanel.PANEL_WIDTH, y + WorkModeSelectionPanel.PANEL_HEIGHT, WorkModeSelectionPanel.COLOR_PANEL_BORDER);
+        // left
+        context.fill(x, y, x + 1, y + WorkModeSelectionPanel.PANEL_HEIGHT, WorkModeSelectionPanel.COLOR_PANEL_BORDER);
+        // right
+        context.fill(x + WorkModeSelectionPanel.PANEL_WIDTH - 1, y, x + WorkModeSelectionPanel.PANEL_WIDTH, y + WorkModeSelectionPanel.PANEL_HEIGHT, WorkModeSelectionPanel.COLOR_PANEL_BORDER);
     }
 
     /**
@@ -322,7 +335,8 @@ public class WorkModeSelectionPanel {
             mouseY >= panelTop && mouseY <= panelTop + PANEL_HEIGHT) {
 
             // 将事件传递给按钮
-            return handleMouseEvent(widget -> widget.mouseClicked(mouseX, mouseY, button));
+            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+            return handleMouseEvent(widget -> widget.mouseClicked(click, false));
         }
 
         // 点击在面板外部，关闭面板
@@ -342,7 +356,8 @@ public class WorkModeSelectionPanel {
      */
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (!visible) return false;
-        return handleMouseEvent(widget -> widget.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return handleMouseEvent(widget -> widget.mouseDragged(click, deltaX, deltaY));
     }
 
     /**
@@ -355,7 +370,8 @@ public class WorkModeSelectionPanel {
      */
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (!visible) return false;
-        return handleMouseEvent(widget -> widget.mouseReleased(mouseX, mouseY, button));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return handleMouseEvent(widget -> widget.mouseReleased(click));
     }
 
     /**

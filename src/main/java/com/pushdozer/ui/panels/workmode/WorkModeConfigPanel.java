@@ -2,10 +2,12 @@ package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -279,7 +281,18 @@ public abstract class WorkModeConfigPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
         // 绘制面板边框
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, getPanelHeight(), COLOR_PANEL_BORDER);
+        drawBorder(context, panelLeft, panelTop, getPanelHeight());
+    }
+
+    protected static void drawBorder(DrawContext context, int x, int y, int height) {
+        // top
+        context.fill(x, y, x + WorkModeConfigPanel.PANEL_WIDTH, y + 1, WorkModeConfigPanel.COLOR_PANEL_BORDER);
+        // bottom
+        context.fill(x, y + height - 1, x + WorkModeConfigPanel.PANEL_WIDTH, y + height, WorkModeConfigPanel.COLOR_PANEL_BORDER);
+        // left
+        context.fill(x, y, x + 1, y + height, WorkModeConfigPanel.COLOR_PANEL_BORDER);
+        // right
+        context.fill(x + WorkModeConfigPanel.PANEL_WIDTH - 1, y, x + WorkModeConfigPanel.PANEL_WIDTH, y + height, WorkModeConfigPanel.COLOR_PANEL_BORDER);
     }
 
     /**
@@ -320,9 +333,10 @@ public abstract class WorkModeConfigPanel {
             mouseY >= panelTop && mouseY <= panelTop + getPanelHeight()) {
 
             // 将事件传递给控件
+            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
             for (Element widget : widgets) {
                 if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    if (clickableWidget.mouseClicked(mouseX, mouseY, button)) {
+                    if (clickableWidget.mouseClicked(click, false)) {
                         return true;
                     }
                 }
@@ -342,10 +356,11 @@ public abstract class WorkModeConfigPanel {
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (!visible) return false;
 
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
             if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
                 if (clickableWidget.isMouseOver(mouseX, mouseY)) {
-                    if (clickableWidget.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+                    if (clickableWidget.mouseDragged(click, deltaX, deltaY)) {
                         return true;
                     }
                 }
@@ -360,10 +375,11 @@ public abstract class WorkModeConfigPanel {
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (!visible) return false;
 
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
             if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
                 if (clickableWidget.isMouseOver(mouseX, mouseY)) {
-                    if (clickableWidget.mouseReleased(mouseX, mouseY, button)) {
+                    if (clickableWidget.mouseReleased(click)) {
                         return true;
                     }
                 }

@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "확인",
   "pushdozer.screen.block_selection.previous_page": "이전 페이지",
   "pushdozer.screen.block_selection.next_page": "다음 페이지",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "지형 블록",
   "pushdozer.category.sand_and_gravel": "모래와 자갈",
   "pushdozer.category.snow_and_ice": "눈과 얼음",

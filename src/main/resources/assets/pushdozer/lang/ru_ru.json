@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "Подтвердить",
   "pushdozer.screen.block_selection.previous_page": "Предыдущая страница",
   "pushdozer.screen.block_selection.next_page": "Следующая страница",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "Блоки местности",
   "pushdozer.category.sand_and_gravel": "Песок и гравий",
   "pushdozer.category.snow_and_ice": "Снег и лед",

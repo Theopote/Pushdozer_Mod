@@ -2,10 +2,12 @@ package com.pushdozer.ui.panels.brushgeometry;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -215,7 +217,18 @@ public class GeometrySelectionPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
         // 4. 绘制面板边框（在标题背景之后，确保边框不被遮挡）
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT, COLOR_PANEL_BORDER);
+        drawBorder(context, panelLeft, panelTop);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y) {
+        // top
+        context.fill(x, y, x + GeometrySelectionPanel.PANEL_WIDTH, y + 1, GeometrySelectionPanel.COLOR_PANEL_BORDER);
+        // bottom
+        context.fill(x, y + GeometrySelectionPanel.PANEL_HEIGHT - 1, x + GeometrySelectionPanel.PANEL_WIDTH, y + GeometrySelectionPanel.PANEL_HEIGHT, GeometrySelectionPanel.COLOR_PANEL_BORDER);
+        // left
+        context.fill(x, y, x + 1, y + GeometrySelectionPanel.PANEL_HEIGHT, GeometrySelectionPanel.COLOR_PANEL_BORDER);
+        // right
+        context.fill(x + GeometrySelectionPanel.PANEL_WIDTH - 1, y, x + GeometrySelectionPanel.PANEL_WIDTH, y + GeometrySelectionPanel.PANEL_HEIGHT, GeometrySelectionPanel.COLOR_PANEL_BORDER);
     }
 
     /**
@@ -254,22 +267,11 @@ public class GeometrySelectionPanel {
         // 然后设置当前选中按钮的焦点状态
         PushdozerConfig.GeometryType currentType = config.getGeometryType();
         
-        for (Element widget : widgets) {
+        PushdozerConfig.GeometryType[] types = PushdozerConfig.GeometryType.values();
+        for (int i = 0; i < widgets.size() && i < types.length; i++) {
+            Element widget = widgets.get(i);
             if (widget instanceof ButtonWidget button) {
-                // 检查按钮是否对应当前选中的几何类型
-                boolean isSelected = false;
-                for (PushdozerConfig.GeometryType type : PushdozerConfig.GeometryType.values()) {
-                    if (type.getDisplayText().equals(button.getMessage().getString()) ||
-                        ("☑ " + type.getDisplayText().getString()).equals(button.getMessage().getString())) {
-                        isSelected = (type == currentType);
-                        break;
-                    }
-                }
-                
-                if (isSelected) {
-                    // 使用ButtonWidget的内置按下状态
-                    button.setFocused(true);
-                }
+                button.setFocused(types[i] == currentType);
             }
         }
         
@@ -299,7 +301,8 @@ public class GeometrySelectionPanel {
         }
 
         // 使用事件委托处理按钮点击
-        handleMouseEvent(clickable -> clickable.mouseClicked(mouseX, mouseY, button));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        handleMouseEvent(clickable -> clickable.mouseClicked(click, false));
         return true;
     }
 
@@ -315,7 +318,8 @@ public class GeometrySelectionPanel {
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (!visible) return false;
 
-        return handleMouseEvent(clickable -> clickable.mouseDragged(mouseX, mouseY, button, deltaX, deltaY));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return handleMouseEvent(clickable -> clickable.mouseDragged(click, deltaX, deltaY));
     }
 
     /**
@@ -328,7 +332,8 @@ public class GeometrySelectionPanel {
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (!visible) return false;
 
-        return handleMouseEvent(clickable -> clickable.mouseReleased(mouseX, mouseY, button));
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        return handleMouseEvent(clickable -> clickable.mouseReleased(click));
     }
 
     /**

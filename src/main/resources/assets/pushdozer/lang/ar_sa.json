@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "تأكيد",
   "pushdozer.screen.block_selection.previous_page": "الصفحة السابقة",
   "pushdozer.screen.block_selection.next_page": "الصفحة التالية",
-  "key.category.pushdozer": "معدة الدفع",
+  "key.category.pushdozer.pushdozer": "معدة الدفع",
   "pushdozer.category.terrain": "كتل التضاريس",
   "pushdozer.category.sand_and_gravel": "رمل وحصى",
   "pushdozer.category.snow_and_ice": "ثلج وجليد",

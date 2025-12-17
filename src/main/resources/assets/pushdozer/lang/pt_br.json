@@ -111,7 +111,7 @@
   "pushdozer.screen.block_selection.confirm": "Confirmar",
   "pushdozer.screen.block_selection.previous_page": "Página Anterior",
   "pushdozer.screen.block_selection.next_page": "Próxima Página",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "Blocos de Terreno",
   "pushdozer.category.sand_and_gravel": "Areia e Cascalho",
   "pushdozer.category.snow_and_ice": "Neve e Gelo",

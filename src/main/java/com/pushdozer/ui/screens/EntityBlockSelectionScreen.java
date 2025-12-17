@@ -10,11 +10,14 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -118,9 +121,11 @@ public class EntityBlockSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        boolean result = super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(Click click, boolean doubleClick) {
+        boolean result = super.mouseClicked(click, doubleClick);
         if (searchBox != null) {
+            double mouseX = click.x();
+            double mouseY = click.y();
             if (searchBox.isMouseOver(mouseX, mouseY)) {
                 searchBox.setFocused(true);
                 return true;
@@ -132,8 +137,9 @@ public class EntityBlockSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
         if (searchBox != null && searchBox.isFocused()) {
+            int keyCode = input.key();
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 searchBox.setFocused(false);
                 return true;
@@ -142,21 +148,21 @@ public class EntityBlockSelectionScreen extends Screen {
                 focusOnMatch();
                 return true;
             }
-            if (searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+            if (searchBox.keyPressed(input)) {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
+    public boolean charTyped(CharInput input) {
         if (searchBox != null && searchBox.isFocused()) {
-            if (searchBox.charTyped(chr, modifiers)) {
+            if (searchBox.charTyped(input)) {
                 return true;
             }
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(input);
     }
 
     private void focusOnMatch() {
@@ -224,11 +230,18 @@ public class EntityBlockSelectionScreen extends Screen {
     }
 
     private void addPageButtons() {
-        addDrawableChild(new PageButtonWidget(10, height / 2, 20, 20, Text.literal("<"), 
-            button -> changePage(-1), Text.translatable("pushdozer.screen.entity_block_selection.previous_page")));
+        // 使用 builder 创建按钮并添加工具提示
+        ButtonWidget prevButton = ButtonWidget.builder(Text.literal("<"), button -> changePage(-1))
+            .dimensions(10, height / 2, 20, 20)
+            .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.translatable("pushdozer.screen.entity_block_selection.previous_page")))
+            .build();
+        addDrawableChild(prevButton);
         
-        addDrawableChild(new PageButtonWidget(width - 30, height / 2, 20, 20, Text.literal(">"), 
-            button -> changePage(1), Text.translatable("pushdozer.screen.entity_block_selection.next_page")));
+        ButtonWidget nextButton = ButtonWidget.builder(Text.literal(">"), button -> changePage(1))
+            .dimensions(width - 30, height / 2, 20, 20)
+            .tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.translatable("pushdozer.screen.entity_block_selection.next_page")))
+            .build();
+        addDrawableChild(nextButton);
     }
 
     private void changePage(int delta) {
@@ -400,7 +413,7 @@ public class EntityBlockSelectionScreen extends Screen {
         private Block lastHoveredBlock = null;
 
         public ScrollablePanel(int x, int y, int width, int height, List<Block> blocks) {
-            super(x, y, width, height, Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
+            super(x, y, width, height, net.minecraft.text.Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
             this.blocks = blocks;
         }
         
@@ -409,7 +422,7 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+        protected void drawIcon(DrawContext context, int mouseX, int mouseY, float delta) {
             int totalRows = (blocks.size() + 3) / 4;
             int visibleRows = getVisibleRows();
 
@@ -485,7 +498,7 @@ public class EntityBlockSelectionScreen extends Screen {
             
             if (selectedBlocks.contains(block)) {
                 context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, 0x80FFFFFF);
-                context.drawText(textRenderer, Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
+                context.drawText(textRenderer, net.minecraft.text.Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
             }
         }
 
@@ -563,7 +576,10 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(Click click, boolean doubleClick) {
+            double mouseX = click.x();
+            double mouseY = click.y();
+            int button = click.button();
             if (isMouseOver(mouseX, mouseY)) {
                 int totalRows = (blocks.size() + 3) / 4;
                 int backgroundHeight = getVisibleRows() * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
@@ -594,7 +610,8 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+            double mouseY = click.y();
             if (isDraggingScrollBar) {
                 int totalRows = (blocks.size() + 3) / 4;
                 int backgroundHeight = getVisibleRows() * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
@@ -616,7 +633,7 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        public boolean mouseReleased(Click click) {
             if (isDraggingScrollBar) {
                 isDraggingScrollBar = false;
                 return true;
@@ -871,9 +888,6 @@ public class EntityBlockSelectionScreen extends Screen {
                 !blockId.equals("campfire") && !blockId.equals("soul_campfire") && !blockId.equals("fire") && 
                 !blockId.equals("soul_fire") && !blockId.equals("end_rod") && !blockId.equals("torch") && 
                 !blockId.equals("soul_torch") && !blockId.equals("redstone_torch") && !blockId.equals("respawn_anchor")) {
-                if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves") || blockId.equals("frosted_ice")) {
-                    System.out.println("DEBUG: " + blockId + " 被排除：植物/花草/农作物排除逻辑");
-                }
                 return categories;
             }
         } catch (Exception e) {
@@ -1055,22 +1069,4 @@ public class EntityBlockSelectionScreen extends Screen {
 
 
     
-    // 自定义翻页按钮类
-    private class PageButtonWidget extends ButtonWidget {
-        private final Text tooltipText;
-        
-        public PageButtonWidget(int x, int y, int width, int height, Text message, PressAction onPress, Text tooltipText) {
-            super(x, y, width, height, message, onPress, DEFAULT_NARRATION_SUPPLIER);
-            this.tooltipText = tooltipText;
-        }
-        
-        @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-            super.renderWidget(context, mouseX, mouseY, delta);
-            
-            if (isMouseOver(mouseX, mouseY)) {
-                context.drawTooltip(textRenderer, tooltipText, mouseX, mouseY);
-            }
-        }
-    }
 }

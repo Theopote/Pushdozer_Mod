@@ -118,7 +118,7 @@
   "pushdozer.screen.entity_block_selection.previous_page": "Page Précédente",
   "pushdozer.screen.entity_block_selection.next_page": "Page Suivante",
   "pushdozer.screen.entity_block_selection.search": "Rechercher des blocs...",
-  "key.category.pushdozer": "Pushdozer",
+  "key.category.pushdozer.pushdozer": "Pushdozer",
   "pushdozer.category.terrain": "Blocs de Terrain",
   "pushdozer.category.sand_and_gravel": "Sable et Gravier",
   "pushdozer.category.snow_and_ice": "Neige et Glace",

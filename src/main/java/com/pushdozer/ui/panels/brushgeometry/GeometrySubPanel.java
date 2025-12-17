@@ -4,10 +4,12 @@ import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
@@ -28,7 +30,6 @@ public abstract class GeometrySubPanel {
 
     // 布局常量
     protected static final int PANEL_WIDTH = 210;           // 面板的宽度（统一加宽40）
-    protected static final int PANEL_HEIGHT = 125;          // 面板的默认高度
     protected static final int TITLE_HEIGHT = 20;           // 标题高度常量
     // 滑动条和按钮宽度按面板宽度与边距动态计算
     protected static final int SLIDER_HEIGHT = 20;          // 滑动条高度
@@ -303,8 +304,9 @@ public abstract class GeometrySubPanel {
      * @return 是否处理了事件
      */
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
-            if (widget.mouseClicked(mouseX, mouseY, button)) {
+            if (widget.mouseClicked(click, false)) {
                 return true;
             }
         }
@@ -322,8 +324,9 @@ public abstract class GeometrySubPanel {
      * @return 是否处理了事件
      */
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
-            if (widget.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+            if (widget.mouseDragged(click, deltaX, deltaY)) {
                 return true;
             }
         }
@@ -339,8 +342,9 @@ public abstract class GeometrySubPanel {
      * @return 是否处理了事件
      */
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (Element widget : widgets) {
-            if (widget.mouseReleased(mouseX, mouseY, button)) {
+            if (widget.mouseReleased(click)) {
                 return true;
             }
         }
@@ -359,7 +363,18 @@ public abstract class GeometrySubPanel {
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, 0xE0303030);
         
         // 3. 绘制面板边框（在标题背景之后，确保边框不被遮挡）
-        context.drawBorder(panelLeft, panelTop, PANEL_WIDTH, getPanelHeight(), 0xFFFFFFFF);
+        drawBorder(context, panelLeft, panelTop, getPanelHeight());
+    }
+
+    protected static void drawBorder(DrawContext context, int x, int y, int height) {
+        // top
+        context.fill(x, y, x + GeometrySubPanel.PANEL_WIDTH, y + 1, -1);
+        // bottom
+        context.fill(x, y + height - 1, x + GeometrySubPanel.PANEL_WIDTH, y + height, -1);
+        // left
+        context.fill(x, y, x + 1, y + height, -1);
+        // right
+        context.fill(x + GeometrySubPanel.PANEL_WIDTH - 1, y, x + GeometrySubPanel.PANEL_WIDTH, y + height, -1);
     }
 
     /**

@@ -182,7 +182,7 @@ public class BatchPlantHandler {
     }
 
     public void handleBatchPlant(PlayerEntity player, World world) {
-        if (world.isClient || !(world instanceof ServerWorld serverWorld)) return;
+        if (world.isClient() || !(world instanceof ServerWorld serverWorld)) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);

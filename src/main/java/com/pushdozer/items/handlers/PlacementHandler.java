@@ -62,7 +62,7 @@ public class PlacementHandler {
 
     public List<BlockPos> handlePlacement(PlayerEntity player, World world) {
         List<BlockPos> placedPositions = new ArrayList<>();
-        if (world.isClient) {
+        if (world.isClient()) {
             return placedPositions; // 如果是客户端，直接返回空列表
         }
 

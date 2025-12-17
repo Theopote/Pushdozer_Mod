@@ -33,12 +33,14 @@ import com.pushdozer.ui.panels.workmode.SurfaceRoughenConfigPanel;
 import com.pushdozer.ui.panels.workmode.WorkModeSelectionPanel;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -550,7 +552,7 @@ public class PushdozerConfigScreen extends Screen {
     public void tick() {
         super.tick();
         // 检查 K 键是否被按下，并且经过了延迟时间
-        if (InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), GLFW.GLFW_KEY_K) &&
+        if (InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), GLFW.GLFW_KEY_K) &&
             System.currentTimeMillis() - openTime > CLOSE_DELAY) {
             this.close();
         }
@@ -561,7 +563,8 @@ public class PushdozerConfigScreen extends Screen {
      * 处理按键事件
      */
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             // 优先处理标高配置面板
             if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
@@ -624,7 +627,7 @@ public class PushdozerConfigScreen extends Screen {
             }
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     /**
@@ -660,7 +663,7 @@ public class PushdozerConfigScreen extends Screen {
             context.fill(panelLeft + 20, panelTop, panelLeft + PANEL_WIDTH - 20, panelTop + TITLE_HEIGHT, 0xE0303030);
             
             // 绘制边框
-            context.drawBorder(panelLeft + 20, panelTop, PANEL_WIDTH - 40, panelHeight, 0xFFFFFFFF);
+            drawBorder(context, panelLeft + 20, panelTop, panelHeight);
             
             // 绘制标题
             if (this.textRenderer != null) {
@@ -710,6 +713,17 @@ public class PushdozerConfigScreen extends Screen {
         if (heightConfigPanelVisible) {
             heightConfigPanel.render(context, mouseX, mouseY, delta);
         }
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int height) {
+        // top
+        context.fill(x, y, x + 240, y + 1, -1);
+        // bottom
+        context.fill(x, y + height - 1, x + 240, y + height, -1);
+        // left
+        context.fill(x, y, x + 1, y + height, -1);
+        // right
+        context.fill(x + 240 - 1, y, x + 240, y + height, -1);
     }
 
     private String getDisplayModeText() {
@@ -872,7 +886,10 @@ public class PushdozerConfigScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubleClick) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
         // 如果标高配置面板打开，优先处理它的事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
             if (heightConfigPanel.mouseClicked(mouseX, mouseY, button)) {
@@ -905,7 +922,7 @@ public class PushdozerConfigScreen extends Screen {
         if (isWorkModeDropdownOpen) {
             for (ButtonWidget option : workModeOptions) {
                 if (option.isMouseOver(mouseX, mouseY)) {
-                    option.onPress();
+                    option.onPress(click);
                     return true;
                 }
             }
@@ -917,17 +934,20 @@ public class PushdozerConfigScreen extends Screen {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {
                     if (clickable.isMouseOver(mouseX, mouseY)) {
-                        return clickable.mouseClicked(mouseX, mouseY, button);
+                        return clickable.mouseClicked(click, doubleClick);
                     }
                 }
             }
         }
         
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
         // 处理标高配置面板事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
             if (heightConfigPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
@@ -960,16 +980,19 @@ public class PushdozerConfigScreen extends Screen {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {
                     if (clickable.isMouseOver(mouseX, mouseY)) {
-                        return clickable.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+                        return clickable.mouseDragged(click, deltaX, deltaY);
                     }
                 }
             }
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(click, deltaX, deltaY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(Click click) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
         // 处理标高配置面板事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
             if (heightConfigPanel.mouseReleased(mouseX, mouseY, button)) {
@@ -1002,12 +1025,12 @@ public class PushdozerConfigScreen extends Screen {
             for (Element widget : currentSubPanel.getWidgets()) {
                 if (widget instanceof ClickableWidget clickable) {
                     if (clickable.isMouseOver(mouseX, mouseY)) {
-                        return clickable.mouseReleased(mouseX, mouseY, button);
+                        return clickable.mouseReleased(click);
                     }
                 }
             }
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(click);
     }
 
     /**

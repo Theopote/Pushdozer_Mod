@@ -12,7 +12,6 @@ import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.state.property.Properties;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -292,7 +291,7 @@ public class ShorelineProcessHandler {
      * 使用分层架构：边缘检测 -> 过渡计算 -> 应用变化 -> 植物装饰
      */
     public void handleShorelineProcess(PlayerEntity player, World world) {
-        if (world.isClient) {
+        if (world.isClient()) {
             return;
         }
 

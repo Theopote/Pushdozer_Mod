@@ -48,10 +48,10 @@ public class NetworkManager {
                 try {
                     if (payload.isUndo()) {
                         LOGGER.info("服务器收到撤销请求，玩家: {}", context.player().getName().getString());
-                        UndoRedoService.getInstance().undoLastAction(context.player(), context.player().getWorld());
+                        UndoRedoService.getInstance().undoLastAction(context.player(), context.player().getEntityWorld());
                     } else {
                         LOGGER.info("服务器收到重做请求，玩家: {}", context.player().getName().getString());
-                        UndoRedoService.getInstance().redoLastAction(context.player(), context.player().getWorld());
+                        UndoRedoService.getInstance().redoLastAction(context.player(), context.player().getEntityWorld());
                     }
                 } catch (Exception e) {
                     LOGGER.error("处理撤销/重做操作失败", e);

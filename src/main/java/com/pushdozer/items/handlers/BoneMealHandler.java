@@ -32,7 +32,7 @@ public class BoneMealHandler {
      * 处理骨粉操作
      */
     public void handleBoneMeal(PlayerEntity player, World world) {
-        if (world.isClient) return;
+        if (world.isClient()) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
