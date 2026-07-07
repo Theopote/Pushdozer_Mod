@@ -116,9 +116,9 @@ public abstract class AbstractTerrainToolHandler {
         // 多人游戏中所有玩家都可以使用地形工具
         if (player instanceof ServerPlayerEntity) {
             // 检查操作范围限制（防止恶意大范围操作）
-            if (config.getRadius() > 100) {  // 提高限制到100格
-                LOGGER.warn("玩家 {} 尝试执行过大范围操作: 半径 {}", 
-                    player.getName().getString(), config.getRadius());
+            if (!PushdozerConfig.isBrushSizeAllowed(config.getLargestBrushDimension())) {
+                LOGGER.warn("玩家 {} 尝试执行过大范围操作: 最大笔刷尺寸 {} (上限 {})",
+                    player.getName().getString(), config.getLargestBrushDimension(), PushdozerConfig.MAX_BRUSH_RADIUS);
                 return false;
             }
             

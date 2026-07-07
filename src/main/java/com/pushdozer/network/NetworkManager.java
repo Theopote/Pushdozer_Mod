@@ -1,5 +1,6 @@
 package com.pushdozer.network;
 
+import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.services.ConfigService;
 import com.pushdozer.services.UndoRedoService;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -169,9 +170,9 @@ public class NetworkManager {
         // 这里可以添加更复杂的区域保护逻辑
         
         // 检查操作范围是否合理（防止恶意大范围操作）
-        if (radius > 100) {  // 提高限制到100格
-            LOGGER.warn("玩家 {} 尝试执行过大范围的操作: 半径 {}", 
-                player.getName().getString(), radius);
+        if (!PushdozerConfig.isBrushSizeAllowed(radius)) {
+            LOGGER.warn("玩家 {} 尝试执行过大范围的操作: 半径 {} (上限 {})",
+                player.getName().getString(), radius, PushdozerConfig.MAX_BRUSH_RADIUS);
             return false;
         }
         

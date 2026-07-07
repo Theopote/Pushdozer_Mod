@@ -29,6 +29,18 @@ public class PushdozerConfig {
         .excludeFieldsWithoutExposeAnnotation()
         .create();
     public static final int MAX_OPERATION_DISTANCE = 99;
+    /** 笔刷几何尺寸下限（与 UI 滑块一致） */
+    public static final int MIN_BRUSH_RADIUS = 1;
+    /** 笔刷几何尺寸上限（与 UI 滑块一致；半径 64 的球体约 109 万方块） */
+    public static final int MAX_BRUSH_RADIUS = 64;
+
+    public static int clampBrushSize(int size) {
+        return Math.max(MIN_BRUSH_RADIUS, Math.min(MAX_BRUSH_RADIUS, size));
+    }
+
+    public static boolean isBrushSizeAllowed(int size) {
+        return size >= MIN_BRUSH_RADIUS && size <= MAX_BRUSH_RADIUS;
+    }
 
     public enum WorkMode {
         EXCAVATE("pushdozer.mode.excavate"),
@@ -458,8 +470,33 @@ public class PushdozerConfig {
     }
 
     public void setRadius(int radius) {
-        this.radius = radius;
+        this.radius = clampBrushSize(radius);
         notifyListeners();
+    }
+
+    /**
+     * 配置中所有笔刷尺寸参数的最大值，用于服务端权限校验。
+     */
+    public int getLargestBrushDimension() {
+        int max = radius;
+        max = Math.max(max, length);
+        max = Math.max(max, width);
+        max = Math.max(max, height);
+        max = Math.max(max, boxHeight);
+        max = Math.max(max, sphereRadius);
+        max = Math.max(max, sphereHeight);
+        max = Math.max(max, cylinderRadius);
+        max = Math.max(max, cylinderHeight);
+        max = Math.max(max, coneRadius);
+        max = Math.max(max, coneHeight);
+        max = Math.max(max, octahedronRadius);
+        max = Math.max(max, octahedronHeight);
+        max = Math.max(max, ellipsoidHeight);
+        max = Math.max(max, tetrahedronEdgeLength);
+        max = Math.max(max, tetrahedronHeight);
+        max = Math.max(max, triangularPrismSideLength);
+        max = Math.max(max, triangularPrismHeight);
+        return max;
     }
 
     public int getLength() {
@@ -467,7 +504,7 @@ public class PushdozerConfig {
     }
 
     public void setLength(int length) {
-        this.length = length;
+        this.length = clampBrushSize(length);
         notifyListeners();
     }
 
@@ -476,7 +513,7 @@ public class PushdozerConfig {
     }
 
     public void setWidth(int width) {
-        this.width = width;
+        this.width = clampBrushSize(width);
         notifyListeners();
     }
 
@@ -485,7 +522,7 @@ public class PushdozerConfig {
     }
 
     public void setHeight(int height) {
-        this.height = height;
+        this.height = clampBrushSize(height);
         notifyListeners();
     }
 
@@ -495,7 +532,7 @@ public class PushdozerConfig {
     }
 
     public void setBoxHeight(int boxHeight) {
-        this.boxHeight = boxHeight;
+        this.boxHeight = clampBrushSize(boxHeight);
         notifyListeners();
     }
 
@@ -504,7 +541,7 @@ public class PushdozerConfig {
     }
 
     public void setCylinderHeight(int cylinderHeight) {
-        this.cylinderHeight = cylinderHeight;
+        this.cylinderHeight = clampBrushSize(cylinderHeight);
         notifyListeners();
     }
 
@@ -513,7 +550,7 @@ public class PushdozerConfig {
     }
 
     public void setConeHeight(int coneHeight) {
-        this.coneHeight = coneHeight;
+        this.coneHeight = clampBrushSize(coneHeight);
         notifyListeners();
     }
 
@@ -522,7 +559,7 @@ public class PushdozerConfig {
     }
 
     public void setEllipsoidHeight(int ellipsoidHeight) {
-        this.ellipsoidHeight = ellipsoidHeight;
+        this.ellipsoidHeight = clampBrushSize(ellipsoidHeight);
         notifyListeners();
     }
 
@@ -532,7 +569,7 @@ public class PushdozerConfig {
     }
 
     public void setSphereRadius(int sphereRadius) {
-        this.sphereRadius = sphereRadius;
+        this.sphereRadius = clampBrushSize(sphereRadius);
         notifyListeners();
     }
 
@@ -541,7 +578,7 @@ public class PushdozerConfig {
     }
 
     public void setCylinderRadius(int cylinderRadius) {
-        this.cylinderRadius = cylinderRadius;
+        this.cylinderRadius = clampBrushSize(cylinderRadius);
         notifyListeners();
     }
 
@@ -550,7 +587,7 @@ public class PushdozerConfig {
     }
 
     public void setConeRadius(int coneRadius) {
-        this.coneRadius = coneRadius;
+        this.coneRadius = clampBrushSize(coneRadius);
         notifyListeners();
     }
 
@@ -559,7 +596,7 @@ public class PushdozerConfig {
     }
 
     public void setOctahedronRadius(int octahedronRadius) {
-        this.octahedronRadius = octahedronRadius;
+        this.octahedronRadius = clampBrushSize(octahedronRadius);
         notifyListeners();
     }
 
@@ -568,7 +605,7 @@ public class PushdozerConfig {
     }
 
     public void setTetrahedronEdgeLength(int tetrahedronEdgeLength) {
-        this.tetrahedronEdgeLength = tetrahedronEdgeLength;
+        this.tetrahedronEdgeLength = clampBrushSize(tetrahedronEdgeLength);
         notifyListeners();
     }
 
@@ -577,7 +614,7 @@ public class PushdozerConfig {
     }
 
     public void setTriangularPrismSideLength(int triangularPrismSideLength) {
-        this.triangularPrismSideLength = triangularPrismSideLength;
+        this.triangularPrismSideLength = clampBrushSize(triangularPrismSideLength);
         notifyListeners();
     }
 
@@ -586,7 +623,7 @@ public class PushdozerConfig {
     }
 
     public void setTetrahedronHeight(int tetrahedronHeight) {
-        this.tetrahedronHeight = tetrahedronHeight;
+        this.tetrahedronHeight = clampBrushSize(tetrahedronHeight);
         notifyListeners();
     }
 
@@ -595,7 +632,7 @@ public class PushdozerConfig {
     }
 
     public void setTriangularPrismHeight(int triangularPrismHeight) {
-        this.triangularPrismHeight = triangularPrismHeight;
+        this.triangularPrismHeight = clampBrushSize(triangularPrismHeight);
         notifyListeners();
     }
 
@@ -952,8 +989,31 @@ public class PushdozerConfig {
             PushdozerMod.LOGGER.warn("Failed to migrate old smooth work modes", e);
         }
 
+        clampBrushDimensions(config);
         config.ignoredBlocksCacheDirty = true;
         config.rebuildIgnoredBlocksCache();
+    }
+
+    /** 将 JSON/旧配置中的笔刷尺寸限制在合法范围内（绕过 setter 直接写字段时也能生效）。 */
+    private static void clampBrushDimensions(PushdozerConfig config) {
+        config.radius = clampBrushSize(config.radius);
+        config.length = clampBrushSize(config.length);
+        config.width = clampBrushSize(config.width);
+        config.height = clampBrushSize(config.height);
+        config.boxHeight = clampBrushSize(config.boxHeight);
+        config.sphereRadius = clampBrushSize(config.sphereRadius);
+        config.sphereHeight = clampBrushSize(config.sphereHeight);
+        config.cylinderRadius = clampBrushSize(config.cylinderRadius);
+        config.cylinderHeight = clampBrushSize(config.cylinderHeight);
+        config.coneRadius = clampBrushSize(config.coneRadius);
+        config.coneHeight = clampBrushSize(config.coneHeight);
+        config.octahedronRadius = clampBrushSize(config.octahedronRadius);
+        config.octahedronHeight = clampBrushSize(config.octahedronHeight);
+        config.ellipsoidHeight = clampBrushSize(config.ellipsoidHeight);
+        config.tetrahedronEdgeLength = clampBrushSize(config.tetrahedronEdgeLength);
+        config.tetrahedronHeight = clampBrushSize(config.tetrahedronHeight);
+        config.triangularPrismSideLength = clampBrushSize(config.triangularPrismSideLength);
+        config.triangularPrismHeight = clampBrushSize(config.triangularPrismHeight);
     }
 
     public static PushdozerConfig load() {

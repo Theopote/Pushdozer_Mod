@@ -36,8 +36,6 @@ public abstract class GeometrySubPanel {
     protected static final int WIDGET_MARGIN_HORIZONTAL = 5; // 组件水平边距
     protected static final int CONFIRM_BUTTON_HEIGHT = 20;  // 确认按钮高度
     protected static final int CONFIRM_BUTTON_MARGIN = 5;   // 确认按钮边距
-    protected static final int MAX_VALUE = 64;               // 最大值常量
-    
     protected int panelLeft, panelTop;              // 面板的左上角坐标
     private boolean visible = false;                // 面板是否可见
 
@@ -208,8 +206,8 @@ public abstract class GeometrySubPanel {
             PANEL_WIDTH - (2 * WIDGET_MARGIN_HORIZONTAL),
             SLIDER_HEIGHT,
             label.getString(),
-            1,
-            MAX_VALUE,
+            PushdozerConfig.MIN_BRUSH_RADIUS,
+            PushdozerConfig.MAX_BRUSH_RADIUS,
             value,
             (newValue) -> this.updatePreview() // 传递一个 Lambda 作为回调
         );
