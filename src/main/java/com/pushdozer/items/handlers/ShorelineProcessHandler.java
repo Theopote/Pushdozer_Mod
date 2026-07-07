@@ -1426,7 +1426,6 @@ public class ShorelineProcessHandler {
                     // 底部甘蔗有随机年龄
                     caneState = caneState.with(SugarCaneBlock.AGE, random.nextInt(15));
                 }
-                world.setBlockState(plantPos, caneState);
                 newStates.add(caneState);
             }
         } else if (plantBlock == Blocks.BAMBOO) {
@@ -1438,7 +1437,6 @@ public class ShorelineProcessHandler {
                     // 底部竹子有随机年龄
                     bambooState = bambooState.with(BambooBlock.AGE, random.nextInt(1));
                 }
-                world.setBlockState(plantPos, bambooState);
                 newStates.add(bambooState);
             }
         } else if (plantBlock == Blocks.CACTUS || plantBlock == Blocks.CACTUS_FLOWER) {
@@ -1455,7 +1453,6 @@ public class ShorelineProcessHandler {
                     // 底部仙人掌有随机年龄
                     cactusState = cactusState.with(CactusBlock.AGE, random.nextInt(15));
                 }
-                world.setBlockState(plantPos, cactusState);
                 newStates.add(cactusState);
             }
         } else if (plantBlock == Blocks.KELP) {
