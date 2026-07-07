@@ -30,15 +30,14 @@ public class SmoothLowerHandler extends AbstractTerrainToolHandler {
     // 邻域偏移缓存，按半径平方缓存离散偏移
     private static final java.util.Map<Integer, java.util.List<BlockPos>> OFFSETS_CACHE = new java.util.HashMap<>();
 
-    public SmoothLowerHandler(PushdozerConfig config) {
-        super(config);
+    public SmoothLowerHandler() {
     }
 
     /**
      * 处理平滑降低操作
      */
-    public void handleSmoothLower(PlayerEntity player, World world) {
-        handleOperation(player, world, UndoAction.ActionType.SMOOTH_LOWER);
+    public void handleSmoothLower(PlayerEntity player, World world, PushdozerConfig config) {
+        handleOperation(player, world, UndoAction.ActionType.SMOOTH_LOWER, config);
     }
 
     /**

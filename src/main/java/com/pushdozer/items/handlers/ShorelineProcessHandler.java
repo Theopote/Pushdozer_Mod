@@ -73,7 +73,7 @@ import net.minecraft.registry.tag.TagKey;
  * - 三阶段过渡：所有水岸类型都支持渐进过渡到草方块
  */
 public class ShorelineProcessHandler {
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
     // 移除全局Random实例，改为使用world.getRandom()确保可重现性
     
     // 常量定义：提高可维护性和可读性
@@ -113,16 +113,7 @@ public class ShorelineProcessHandler {
             (distance, random) -> applyTransitionProbability(distance, Blocks.GRASS_BLOCK.getDefaultState(), Blocks.DIRT.getDefaultState(), random));
     }
 
-    public ShorelineProcessHandler(PushdozerConfig config) {
-        if (config == null) {
-            throw new IllegalArgumentException("PushdozerConfig cannot be null");
-        }
-        
-        // 配置验证：检查所有配置参数
-        validateConfig(config);
-        
-        this.config = config;
-        // 移除random初始化，改为使用world.getRandom()
+    public ShorelineProcessHandler() {
     }
     
     /**
@@ -290,7 +281,10 @@ public class ShorelineProcessHandler {
      * 处理水岸生成的主要方法
      * 使用分层架构：边缘检测 -> 过渡计算 -> 应用变化 -> 植物装饰
      */
-    public void handleShorelineProcess(PlayerEntity player, World world) {
+    public void handleShorelineProcess(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
+        validateConfig(config);
+
         if (world.isClient()) {
             return;
         }

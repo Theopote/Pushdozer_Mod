@@ -26,8 +26,7 @@ public class AdaptiveSmoothHandler extends AbstractTerrainToolHandler {
     // 邻域偏移缓存，按半径平方缓存离散偏移，降低 N^2 遍历
     private static final java.util.Map<Integer, java.util.List<BlockPos>> OFFSETS_CACHE = new java.util.HashMap<>();
 
-    public AdaptiveSmoothHandler(PushdozerConfig config) {
-        super(config);
+    public AdaptiveSmoothHandler() {
     }
 
     /**

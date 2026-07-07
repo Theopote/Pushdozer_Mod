@@ -165,7 +165,7 @@ public class BatchPlantHandler {
         }
     }
 
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
     private final Random random;
     private final SimplexNoiseSampler noiseSampler;
 
@@ -175,13 +175,13 @@ public class BatchPlantHandler {
     // 常量定义：消除魔法数字
     private static final double NOISE_SCALE = 0.05; // 团簇噪声缩放
 
-    public BatchPlantHandler(PushdozerConfig config) {
-        this.config = config;
+    public BatchPlantHandler() {
         this.random = Random.create();
         this.noiseSampler = new SimplexNoiseSampler(Random.create(1234L));
     }
 
-    public void handleBatchPlant(PlayerEntity player, World world) {
+    public void handleBatchPlant(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
         if (world.isClient() || !(world instanceof ServerWorld serverWorld)) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);

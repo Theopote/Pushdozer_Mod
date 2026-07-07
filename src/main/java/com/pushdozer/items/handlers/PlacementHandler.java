@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 public class PlacementHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
 
     // 使用标签系统替代硬编码的装饰性方块集合
     private static final TagKey<Block> DECORATIVE_BLOCKS = TagKey.of(RegistryKeys.BLOCK, 
@@ -56,11 +56,11 @@ public class PlacementHandler {
         BLOCK_REPLACEMENT_MAP.put(Blocks.BAMBOO, Blocks.GRASS_BLOCK);
     }
 
-    public PlacementHandler(PushdozerConfig config) {
-        this.config = config;
+    public PlacementHandler() {
     }
 
-    public List<BlockPos> handlePlacement(PlayerEntity player, World world) {
+    public List<BlockPos> handlePlacement(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
         List<BlockPos> placedPositions = new ArrayList<>();
         if (world.isClient()) {
             return placedPositions; // 如果是客户端，直接返回空列表

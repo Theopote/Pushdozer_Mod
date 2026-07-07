@@ -25,24 +25,22 @@ import java.util.*;
 public abstract class AbstractTerrainToolHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     
-    protected final PushdozerConfig config;
-    
+    protected PushdozerConfig config;
+
     // REFINED: 简化忽略方块列表，使用BlockTags替代大部分硬编码
     protected static final Set<Block> IGNORED_BLOCKS = Set.of(
-        // 只保留没有合适标签的方块
         Blocks.VINE, Blocks.SNOW, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM
-        // 其他方块如树木、树叶、花等已通过BlockTags处理
     );
 
-    public AbstractTerrainToolHandler(PushdozerConfig config) {
-        this.config = config;
+    public AbstractTerrainToolHandler() {
     }
 
     /**
      * 处理地形操作的主入口方法
      * 增加了多人游戏支持和权限验证
      */
-    public void handleOperation(PlayerEntity player, World world, UndoAction.ActionType actionType) {
+    public void handleOperation(PlayerEntity player, World world, UndoAction.ActionType actionType, PushdozerConfig config) {
+        this.config = config;
         if (world.isClient()) return;
 
         // 多人游戏权限检查

@@ -36,25 +36,19 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
     private static final float DEFAULT_NOISE_PERSISTENCE = 0.5f;
     private static final float MAX_ROUGHNESS_AMPLITUDE = 5.0f; // 最大粗糙度振幅
     
-    // 种子参数（可配置）
-    private final long noiseSeed;
     // 可选：缓存局部区域的噪声结果以降低重复计算成本
     private final Map<Long, Float> noiseCache = new HashMap<>();
 
-    public SurfaceRoughenHandler(PushdozerConfig config) {
-        super(config);
-        // 使用配置中的种子或默认种子
-        this.noiseSeed = config.getNoiseSeed();
+    public SurfaceRoughenHandler() {
     }
 
     /**
      * 处理表面粗糙操作
      * 【优化】在每次操作前清空噪声缓存，防止内存泄漏。
      */
-    public void handleSurfaceRoughen(PlayerEntity player, World world) {
-        // Clear cache before each new operation to prevent memory leak
-        this.noiseCache.clear(); 
-        handleOperation(player, world, UndoAction.ActionType.SURFACE_ROUGHEN);
+    public void handleSurfaceRoughen(PlayerEntity player, World world, PushdozerConfig config) {
+        this.noiseCache.clear();
+        handleOperation(player, world, UndoAction.ActionType.SURFACE_ROUGHEN, config);
     }
 
     /**
@@ -134,8 +128,8 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
 
         for (int i = 0; i < octaves; i++) {
             // 使用种子偏移坐标
-            int seededX = x + (int)(noiseSeed & 0xFFFF);
-            int seededZ = z + (int)((noiseSeed >> 16) & 0xFFFF);
+            int seededX = x + (int)(config.getNoiseSeed() & 0xFFFF);
+            int seededZ = z + (int)((config.getNoiseSeed() >> 16) & 0xFFFF);
 
             noise += amplitude * perlinNoise(seededX * frequency, seededZ * frequency);
             maxAmplitude += amplitude; // 累加当前八度的振幅

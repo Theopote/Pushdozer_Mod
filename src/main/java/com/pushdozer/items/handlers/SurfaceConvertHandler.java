@@ -20,7 +20,7 @@ import java.util.*;
  * 如果异常那就默认替换为草方块
  */
 public class SurfaceConvertHandler {
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
     private static final Random RANDOM = new Random(); // 静态Random对象，避免重复创建
     private static final Set<Block> IGNORED_BLOCKS = Set.of(
         // 原木
@@ -63,14 +63,14 @@ public class SurfaceConvertHandler {
         Blocks.VINE, Blocks.CAVE_VINES, Blocks.CAVE_VINES_PLANT
     );
 
-    public SurfaceConvertHandler(PushdozerConfig config) {
-        this.config = config;
+    public SurfaceConvertHandler() {
     }
 
     /**
      * 处理表层转换操作
      */
-    public void handleSurfaceConvert(PlayerEntity player, World world) {
+    public void handleSurfaceConvert(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
         if (world.isClient()) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);

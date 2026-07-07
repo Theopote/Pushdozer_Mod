@@ -24,10 +24,9 @@ import net.minecraft.registry.Registries;
  * 负责处理挖掘操作，支持分层挖掘功能
  */
 public class ExcavationHandler {
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
 
-    public ExcavationHandler(PushdozerConfig config) {
-        this.config = config;
+    public ExcavationHandler() {
     }
 
     /**
@@ -35,9 +34,11 @@ public class ExcavationHandler {
      * 
      * @param player 执行操作的玩家
      * @param world 世界对象
+     * @param config 玩家个人配置
      * @return 被挖掘的方块位置列表
      */
-    public List<BlockPos> handleExcavation(PlayerEntity player, World world) {
+    public List<BlockPos> handleExcavation(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
         if (world.isClient()) {
             return List.of();
         }

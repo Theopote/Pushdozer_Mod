@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.component.PushdozerComponents;
+import com.pushdozer.services.ConfigService;
 import com.mojang.serialization.Codec;
 import com.pushdozer.operations.UndoAction;
 
@@ -37,25 +38,25 @@ public class PushdozerItem extends Item {
      */
     private static final Map<PushdozerConfig.WorkMode, IOperationHandler> OPERATION_HANDLERS = 
         ImmutableMap.<PushdozerConfig.WorkMode, IOperationHandler>builder()
-            .put(PushdozerConfig.WorkMode.EXCAVATE, (p, w, c) -> PushdozerMod.excavationHandler.handleExcavation(p, w))
-            .put(PushdozerConfig.WorkMode.PLACE, (p, w, c) -> PushdozerMod.placementHandler.handlePlacement(p, w))
+            .put(PushdozerConfig.WorkMode.EXCAVATE, (p, w, c) -> PushdozerMod.excavationHandler.handleExcavation(p, w, c))
+            .put(PushdozerConfig.WorkMode.PLACE, (p, w, c) -> PushdozerMod.placementHandler.handlePlacement(p, w, c))
             // 统一平滑模式，根据变体转发到具体处理器
             .put(PushdozerConfig.WorkMode.SMOOTH, (p, w, c) -> {
                 PushdozerConfig.SmoothVariant variant = c.getSmoothVariant();
                 switch (variant) {
-                    case RAISE -> PushdozerMod.smoothRaiseHandler.handleSmoothRaise(p, w);
-                    case LOWER -> PushdozerMod.smoothLowerHandler.handleSmoothLower(p, w);
-                    default -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH);
+                    case RAISE -> PushdozerMod.smoothRaiseHandler.handleSmoothRaise(p, w, c);
+                    case LOWER -> PushdozerMod.smoothLowerHandler.handleSmoothLower(p, w, c);
+                    default -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH, c);
                 }
             })
-            .put(PushdozerConfig.WorkMode.SMOOTH_RAISE, (p, w, c) -> PushdozerMod.smoothRaiseHandler.handleSmoothRaise(p, w))
-            .put(PushdozerConfig.WorkMode.SMOOTH_LOWER, (p, w, c) -> PushdozerMod.smoothLowerHandler.handleSmoothLower(p, w))
-            .put(PushdozerConfig.WorkMode.SURFACE_ROUGHEN, (p, w, c) -> PushdozerMod.surfaceRoughenHandler.handleSurfaceRoughen(p, w))
-            .put(PushdozerConfig.WorkMode.ADAPTIVE_SMOOTH, (p, w, c) -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH))
-            .put(PushdozerConfig.WorkMode.SURFACE_CONVERT, (p, w, c) -> PushdozerMod.surfaceConvertHandler.handleSurfaceConvert(p, w))
-            .put(PushdozerConfig.WorkMode.BONE_MEAL, (p, w, c) -> PushdozerMod.boneMealHandler.handleBoneMeal(p, w))
-            .put(PushdozerConfig.WorkMode.BATCH_PLANT, (p, w, c) -> PushdozerMod.batchPlantHandler.handleBatchPlant(p, w))
-            .put(PushdozerConfig.WorkMode.SHORELINE_PROCESS, (p, w, c) -> PushdozerMod.shorelineProcessHandler.handleShorelineProcess(p, w))
+            .put(PushdozerConfig.WorkMode.SMOOTH_RAISE, (p, w, c) -> PushdozerMod.smoothRaiseHandler.handleSmoothRaise(p, w, c))
+            .put(PushdozerConfig.WorkMode.SMOOTH_LOWER, (p, w, c) -> PushdozerMod.smoothLowerHandler.handleSmoothLower(p, w, c))
+            .put(PushdozerConfig.WorkMode.SURFACE_ROUGHEN, (p, w, c) -> PushdozerMod.surfaceRoughenHandler.handleSurfaceRoughen(p, w, c))
+            .put(PushdozerConfig.WorkMode.ADAPTIVE_SMOOTH, (p, w, c) -> PushdozerMod.adaptiveSmoothHandler.handleOperation(p, w, UndoAction.ActionType.SMOOTH, c))
+            .put(PushdozerConfig.WorkMode.SURFACE_CONVERT, (p, w, c) -> PushdozerMod.surfaceConvertHandler.handleSurfaceConvert(p, w, c))
+            .put(PushdozerConfig.WorkMode.BONE_MEAL, (p, w, c) -> PushdozerMod.boneMealHandler.handleBoneMeal(p, w, c))
+            .put(PushdozerConfig.WorkMode.BATCH_PLANT, (p, w, c) -> PushdozerMod.batchPlantHandler.handleBatchPlant(p, w, c))
+            .put(PushdozerConfig.WorkMode.SHORELINE_PROCESS, (p, w, c) -> PushdozerMod.shorelineProcessHandler.handleShorelineProcess(p, w, c))
             .build();
 
     /**
@@ -90,7 +91,7 @@ public class PushdozerItem extends Item {
     @Override
     public ActionResult use(World world, PlayerEntity player, Hand hand) {
         if (!world.isClient()) {
-            PushdozerConfig config = PushdozerMod.getConfig();
+            PushdozerConfig config = ConfigService.getInstance().getConfig(player);
             PushdozerConfig.WorkMode currentMode = config.getWorkMode();
 
             // 从Map中获取操作并执行，使用预创建的处理器实例

@@ -79,17 +79,17 @@ public class PushdozerMod implements ModInitializer {
             );
 
             // 初始化所有处理器实例，避免频繁创建对象
-            placementHandler = new PlacementHandler(config);
-            smoothingHandler = new SmoothingHandler(config);
-            excavationHandler = new ExcavationHandler(config);
-            smoothRaiseHandler = new SmoothRaiseHandler(config);
-            smoothLowerHandler = new SmoothLowerHandler(config);
-            surfaceRoughenHandler = new SurfaceRoughenHandler(config);
-            surfaceConvertHandler = new SurfaceConvertHandler(config);
-            boneMealHandler = new BoneMealHandler(config);
-            batchPlantHandler = new BatchPlantHandler(config);
-            shorelineProcessHandler = new ShorelineProcessHandler(config);
-            adaptiveSmoothHandler = new AdaptiveSmoothHandler(config);
+            placementHandler = new PlacementHandler();
+            smoothingHandler = new SmoothingHandler();
+            excavationHandler = new ExcavationHandler();
+            smoothRaiseHandler = new SmoothRaiseHandler();
+            smoothLowerHandler = new SmoothLowerHandler();
+            surfaceRoughenHandler = new SurfaceRoughenHandler();
+            surfaceConvertHandler = new SurfaceConvertHandler();
+            boneMealHandler = new BoneMealHandler();
+            batchPlantHandler = new BatchPlantHandler();
+            shorelineProcessHandler = new ShorelineProcessHandler();
+            adaptiveSmoothHandler = new AdaptiveSmoothHandler();
 
             // 注册网络系统
             NetworkManager.registerNetworking();

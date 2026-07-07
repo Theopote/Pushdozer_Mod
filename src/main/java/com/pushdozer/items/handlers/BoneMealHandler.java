@@ -19,19 +19,19 @@ import java.util.*;
  * 在指定区域使用骨粉促进植物生长
  */
 public class BoneMealHandler {
-    private final PushdozerConfig config;
+    private PushdozerConfig config;
     private static final Set<Block> GROWABLE_BLOCKS = Set.of(
         Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.FARMLAND, Blocks.SAND
     );
 
-    public BoneMealHandler(PushdozerConfig config) {
-        this.config = config;
+    public BoneMealHandler() {
     }
 
     /**
      * 处理骨粉操作
      */
-    public void handleBoneMeal(PlayerEntity player, World world) {
+    public void handleBoneMeal(PlayerEntity player, World world, PushdozerConfig config) {
+        this.config = config;
         if (world.isClient()) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);

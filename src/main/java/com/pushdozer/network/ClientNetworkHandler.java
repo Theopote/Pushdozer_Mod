@@ -69,11 +69,18 @@ public class ClientNetworkHandler {
     }
     
     /**
-     * 发送配置同步到服务器（已禁用，因为每个玩家的配置是独立的）
+     * 发送配置同步到服务器
      */
     public static void sendConfigSync(PushdozerConfig config) {
-        // 不再需要配置同步，每个玩家的配置是独立的
-        LOGGER.debug("配置同步已禁用，每个玩家的配置是独立的");
+        try {
+            if (!ClientPlayNetworking.canSend(ConfigSyncPayload.ID)) {
+                return;
+            }
+            ClientPlayNetworking.send(ConfigSyncPayload.fromConfig(config));
+            LOGGER.debug("已将 Pushdozer 配置同步到服务器");
+        } catch (Exception e) {
+            LOGGER.error("发送配置同步失败", e);
+        }
     }
     
     /**

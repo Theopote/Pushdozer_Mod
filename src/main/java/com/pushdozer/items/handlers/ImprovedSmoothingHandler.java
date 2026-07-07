@@ -32,15 +32,14 @@ public class ImprovedSmoothingHandler extends AbstractTerrainToolHandler {
     private static final float MIN_COMPLEXITY_THRESHOLD = 0.5f;
     private static final float MAX_COMPLEXITY_THRESHOLD = 3.0f;
 
-    public ImprovedSmoothingHandler(PushdozerConfig config) {
-        super(config);
+    public ImprovedSmoothingHandler() {
     }
 
     /**
      * 处理平滑操作（兼容性方法）
      */
-    public void handleSmoothing(PlayerEntity player, World world) {
-        handleOperation(player, world, UndoAction.ActionType.SMOOTH);
+    public void handleSmoothing(PlayerEntity player, World world, PushdozerConfig config) {
+        handleOperation(player, world, UndoAction.ActionType.SMOOTH, config);
     }
 
     @Override

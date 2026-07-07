@@ -12,7 +12,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import com.pushdozer.PushdozerMod;
+import com.pushdozer.network.ClientNetworkHandler;
 
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -884,6 +886,74 @@ public class PushdozerConfig {
         } catch (IOException e) {
             PushdozerMod.LOGGER.error("An error occurred while saving the Pushdozer configuration", e);
         }
+
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+            ClientNetworkHandler.sendConfigSync(this);
+        }
+    }
+
+    public String toJson() {
+        return GSON.toJson(this);
+    }
+
+    public static PushdozerConfig fromJson(String json) {
+        if (json == null || json.isBlank()) {
+            PushdozerConfig config = new PushdozerConfig();
+            ensureDefaults(config);
+            return config;
+        }
+
+        try {
+            PushdozerConfig config = GSON.fromJson(json, PushdozerConfig.class);
+            if (config == null) {
+                config = new PushdozerConfig();
+            }
+            ensureDefaults(config);
+            return config;
+        } catch (Exception e) {
+            PushdozerMod.LOGGER.error("Failed to parse Pushdozer configuration JSON", e);
+            PushdozerConfig config = new PushdozerConfig();
+            ensureDefaults(config);
+            return config;
+        }
+    }
+
+    public static void ensureDefaults(PushdozerConfig config) {
+        if (config.getWorkMode() == null) {
+            config.setWorkMode(WorkMode.EXCAVATE);
+        }
+        if (config.getDisplayMode() == null) {
+            config.setDisplayMode(DisplayMode.WIREFRAME);
+        }
+        if (config.getHeightMode() == null) {
+            if (config.getLockedHeight() != 0) {
+                config.setHeightMode(HeightMode.CUSTOM);
+            } else {
+                config.setHeightMode(HeightMode.NO_LIMIT);
+            }
+        }
+        if (config.getPlantType() == null) {
+            config.setPlantType(PlantType.TREES);
+        }
+
+        try {
+            WorkMode wm = config.getWorkMode();
+            if (wm == WorkMode.SMOOTH_RAISE) {
+                config.setSmoothVariant(SmoothVariant.RAISE);
+                config.setWorkMode(WorkMode.SMOOTH);
+            } else if (wm == WorkMode.SMOOTH_LOWER) {
+                config.setSmoothVariant(SmoothVariant.LOWER);
+                config.setWorkMode(WorkMode.SMOOTH);
+            } else if (wm == WorkMode.ADAPTIVE_SMOOTH) {
+                config.setSmoothVariant(SmoothVariant.ADAPTIVE);
+                config.setWorkMode(WorkMode.SMOOTH);
+            }
+        } catch (Exception e) {
+            PushdozerMod.LOGGER.warn("Failed to migrate old smooth work modes", e);
+        }
+
+        config.ignoredBlocksCacheDirty = true;
+        config.rebuildIgnoredBlocksCache();
     }
 
     public static PushdozerConfig load() {
@@ -906,48 +976,7 @@ public class PushdozerConfig {
             PushdozerMod.LOGGER.info("Creating new default configuration");
         }
 
-        // 确保必要的配置项都有默认值
-        if (config.getWorkMode() == null) {
-            config.setWorkMode(WorkMode.EXCAVATE);
-        }
-        if (config.getDisplayMode() == null) {
-            config.setDisplayMode(DisplayMode.WIREFRAME);
-            PushdozerMod.LOGGER.warn("DisplayMode was null, setting default to WIREFRAME");
-        }
-        if (config.getHeightMode() == null) {
-            // 如果 heightMode 为 null，检查是否有 lockedHeight 值
-            // 如果有 lockedHeight 值，说明之前是 LOCKED_ONCE 或 CUSTOM 模式
-            if (config.getLockedHeight() != 0) {
-                config.setHeightMode(HeightMode.CUSTOM);
-            } else {
-                config.setHeightMode(HeightMode.NO_LIMIT);
-            }
-        }
-        if (config.getPlantType() == null) {
-            config.setPlantType(PlantType.TREES);
-            PushdozerMod.LOGGER.warn("PlantType was null, setting default to TREES");
-        }
-
-        // 兼容旧平滑模式：将旧的三个平滑模式合并为统一的SMOOTH，并设置相应的变体
-        try {
-            WorkMode wm = config.getWorkMode();
-            if (wm == WorkMode.SMOOTH_RAISE) {
-                config.setSmoothVariant(SmoothVariant.RAISE);
-                config.setWorkMode(WorkMode.SMOOTH);
-            } else if (wm == WorkMode.SMOOTH_LOWER) {
-                config.setSmoothVariant(SmoothVariant.LOWER);
-                config.setWorkMode(WorkMode.SMOOTH);
-            } else if (wm == WorkMode.ADAPTIVE_SMOOTH) {
-                config.setSmoothVariant(SmoothVariant.ADAPTIVE);
-                config.setWorkMode(WorkMode.SMOOTH);
-            }
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.warn("Failed to migrate old smooth work modes", e);
-        }
-
-        // 初始化忽略方块缓存
-        config.ignoredBlocksCacheDirty = true;
-        config.rebuildIgnoredBlocksCache();
+        ensureDefaults(config);
 
         // 保存配置文件
         try {

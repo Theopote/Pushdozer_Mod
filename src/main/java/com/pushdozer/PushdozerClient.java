@@ -9,6 +9,7 @@ import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
@@ -34,6 +35,11 @@ public class PushdozerClient implements ClientModInitializer {
 
         // 注册客户端网络处理器
         ClientNetworkHandler.registerClientNetworking();
+
+        // 加入多人服务器时立即同步本地配置
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
+            ClientNetworkHandler.sendConfigSync(PushdozerConfig.getInstance())
+        );
     }
 
     private void onWorldRenderEndMain(WorldRenderContext context) {

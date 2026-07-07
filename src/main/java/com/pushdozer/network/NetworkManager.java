@@ -1,5 +1,6 @@
 package com.pushdozer.network;
 
+import com.pushdozer.services.ConfigService;
 import com.pushdozer.services.UndoRedoService;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -65,13 +66,9 @@ public class NetworkManager {
             ConfigSyncPayload.ID,
             (payload, context) -> context.server().execute(() -> {
                 try {
-                    // 所有玩家都可以修改自己的配置
                     if (hasPermissionToChangeConfig(context.player())) {
-                        LOGGER.info("玩家 {} 更新了个人配置", context.player().getName().getString());
-                        
-                        // 这里不需要保存到服务器全局配置
-                        // 每个玩家的配置应该由客户端管理
-                        // 服务器只需要验证操作的合法性
+                        ConfigService.getInstance().applySync(context.player(), payload);
+                        LOGGER.debug("玩家 {} 更新了个人 Pushdozer 配置", context.player().getName().getString());
                     }
                 } catch (Exception e) {
                     LOGGER.error("处理配置同步失败", e);
@@ -108,13 +105,8 @@ public class NetworkManager {
      */
     private static void registerConnectionEvents() {
         // 玩家加入时的处理
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            try {
-                LOGGER.info("玩家 {} 加入服务器，pushdozer工具可用", handler.player.getName().getString());
-                // 不需要发送服务器配置，每个玩家使用自己的配置
-            } catch (Exception e) {
-                LOGGER.error("处理玩家加入事件失败", e);
-            }
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            ConfigService.getInstance().removePlayer(handler.player.getUuid());
         });
     }
     

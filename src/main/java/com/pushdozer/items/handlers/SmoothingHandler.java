@@ -27,15 +27,14 @@ public class SmoothingHandler extends AbstractTerrainToolHandler {
     // 性能优化参数
     private static final float BILATERAL_KERNEL_RADIUS_FACTOR = 2.0f; // 双边核半径因子
 
-    public SmoothingHandler(PushdozerConfig config) {
-        super(config);
+    public SmoothingHandler() {
     }
 
     /**
      * 处理平滑操作（兼容性方法）
      */
-    public void handleSmoothing(PlayerEntity player, World world) {
-        handleOperation(player, world, UndoAction.ActionType.SMOOTH);
+    public void handleSmoothing(PlayerEntity player, World world, PushdozerConfig config) {
+        handleOperation(player, world, UndoAction.ActionType.SMOOTH, config);
     }
 
     /**
