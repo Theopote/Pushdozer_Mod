@@ -889,31 +889,30 @@ public class PushdozerConfigScreen extends Screen {
     public boolean mouseClicked(Click click, boolean doubleClick) {
         double mouseX = click.x();
         double mouseY = click.y();
-        int button = click.button();
         // 如果标高配置面板打开，优先处理它的事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
-            if (heightConfigPanel.mouseClicked(mouseX, mouseY, button)) {
+            if (heightConfigPanel.mouseClicked(click)) {
                 return true;
             }
         }
 
         // 如果几何体选择面板打开，优先处理它的事件
         if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
-            if (geometrySelectionPanel.mouseClicked(mouseX, mouseY, button)) {
+            if (geometrySelectionPanel.mouseClicked(click)) {
                 return true;
             }
         }
 
         // 如果工作模式配置面板打开，优先处理它的事件
         if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
-            if (currentWorkModeConfigPanel.mouseClicked(mouseX, mouseY, button)) {
+            if (currentWorkModeConfigPanel.mouseClicked(click)) {
                 return true;
             }
         }
 
         // 如果工作模式选择面板打开，优先处理它的事件
         if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
-            if (workModeSelectionPanel.mouseClicked(mouseX, mouseY, button)) {
+            if (workModeSelectionPanel.mouseClicked(click)) {
                 return true;
             }
         }
@@ -947,31 +946,30 @@ public class PushdozerConfigScreen extends Screen {
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         double mouseX = click.x();
         double mouseY = click.y();
-        int button = click.button();
         // 处理标高配置面板事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
-            if (heightConfigPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+            if (heightConfigPanel.mouseDragged(click, deltaX, deltaY)) {
                 return true;
             }
         }
 
         // 处理几何体选择面板事件
         if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
-            if (geometrySelectionPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+            if (geometrySelectionPanel.mouseDragged(click, deltaX, deltaY)) {
                 return true;
             }
         }
 
         // 处理工作模式配置面板事件
         if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
-            if (currentWorkModeConfigPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+            if (currentWorkModeConfigPanel.mouseDragged(click, deltaX, deltaY)) {
                 return true;
             }
         }
 
         // 处理工作模式选择面板事件
         if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
-            if (workModeSelectionPanel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)) {
+            if (workModeSelectionPanel.mouseDragged(click, deltaX, deltaY)) {
                 return true;
             }
         }
@@ -992,31 +990,30 @@ public class PushdozerConfigScreen extends Screen {
     public boolean mouseReleased(Click click) {
         double mouseX = click.x();
         double mouseY = click.y();
-        int button = click.button();
         // 处理标高配置面板事件
         if (heightConfigPanel != null && heightConfigPanel.isVisible()) {
-            if (heightConfigPanel.mouseReleased(mouseX, mouseY, button)) {
+            if (heightConfigPanel.mouseReleased(click)) {
                 return true;
             }
         }
 
         // 处理几何体选择面板事件
         if (geometrySelectionPanel != null && geometrySelectionPanel.isVisible()) {
-            if (geometrySelectionPanel.mouseReleased(mouseX, mouseY, button)) {
+            if (geometrySelectionPanel.mouseReleased(click)) {
                 return true;
             }
         }
 
         // 处理工作模式配置面板事件
         if (currentWorkModeConfigPanel != null && currentWorkModeConfigPanel.isVisible()) {
-            if (currentWorkModeConfigPanel.mouseReleased(mouseX, mouseY, button)) {
+            if (currentWorkModeConfigPanel.mouseReleased(click)) {
                 return true;
             }
         }
 
         // 处理工作模式选择面板事件
         if (workModeSelectionPanel != null && workModeSelectionPanel.isVisible()) {
-            if (workModeSelectionPanel.mouseReleased(mouseX, mouseY, button)) {
+            if (workModeSelectionPanel.mouseReleased(click)) {
                 return true;
             }
         }

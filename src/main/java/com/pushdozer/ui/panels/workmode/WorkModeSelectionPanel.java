@@ -7,7 +7,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -321,21 +320,17 @@ public class WorkModeSelectionPanel {
 
     /**
      * 处理鼠标点击事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click) {
         if (!visible) return false;
+
+        double mouseX = click.x();
+        double mouseY = click.y();
 
         // 检查点击是否在面板内
         if (mouseX >= panelLeft && mouseX <= panelLeft + PANEL_WIDTH &&
             mouseY >= panelTop && mouseY <= panelTop + PANEL_HEIGHT) {
 
-            // 将事件传递给按钮
-            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
             return handleMouseEvent(widget -> widget.mouseClicked(click, false));
         }
 
@@ -346,31 +341,17 @@ public class WorkModeSelectionPanel {
 
     /**
      * 处理鼠标拖拽事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @param deltaX X 轴偏移
-     * @param deltaY Y 轴偏移
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         if (!visible) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         return handleMouseEvent(widget -> widget.mouseDragged(click, deltaX, deltaY));
     }
 
     /**
      * 处理鼠标释放事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(Click click) {
         if (!visible) return false;
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         return handleMouseEvent(widget -> widget.mouseReleased(click));
     }
 

@@ -9,7 +9,6 @@ import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
@@ -246,11 +245,13 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click) {
         if (!visible) return false;
 
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         // 先让父类/控件处理点击
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         for (net.minecraft.client.gui.Element widget : widgets) {
             if (widget.mouseClicked(click, false)) {
                 return true;

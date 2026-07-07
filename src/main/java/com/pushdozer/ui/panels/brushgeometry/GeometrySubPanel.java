@@ -9,7 +9,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
@@ -297,14 +296,8 @@ public abstract class GeometrySubPanel {
 
     /**
      * 处理鼠标点击事件。
-     *
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param button 鼠标按钮
-     * @return 是否处理了事件
      */
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseClicked(Click click) {
         for (Element widget : widgets) {
             if (widget.mouseClicked(click, false)) {
                 return true;
@@ -315,16 +308,8 @@ public abstract class GeometrySubPanel {
 
     /**
      * 处理鼠标拖动事件。
-     *
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param button 鼠标按钮
-     * @param deltaX X轴移动距离
-     * @param deltaY Y轴移动距离
-     * @return 是否处理了事件
      */
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         for (Element widget : widgets) {
             if (widget.mouseDragged(click, deltaX, deltaY)) {
                 return true;
@@ -335,14 +320,8 @@ public abstract class GeometrySubPanel {
 
     /**
      * 处理鼠标释放事件。
-     *
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param button 鼠标按钮
-     * @return 是否处理了事件
      */
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseReleased(Click click) {
         for (Element widget : widgets) {
             if (widget.mouseReleased(click)) {
                 return true;

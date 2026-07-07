@@ -11,7 +11,6 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -363,14 +362,10 @@ public class HeightConfigPanel {
 
     /**
      * 处理鼠标点击事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseClicked(Click click) {
+        double mouseX = click.x();
+        double mouseY = click.y();
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {
@@ -383,16 +378,10 @@ public class HeightConfigPanel {
 
     /**
      * 处理鼠标拖拽事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @param deltaX X 方向移动距离
-     * @param deltaY Y 方向移动距离
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        double mouseX = click.x();
+        double mouseY = click.y();
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {
@@ -405,14 +394,10 @@ public class HeightConfigPanel {
 
     /**
      * 处理鼠标释放事件。
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param button 鼠标按钮
-     * @return 如果事件被处理则返回 true
      */
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+    public boolean mouseReleased(Click click) {
+        double mouseX = click.x();
+        double mouseY = click.y();
         for (Element widget : widgets) {
             if (widget instanceof ClickableWidget clickable) {
                 if (clickable.isMouseOver(mouseX, mouseY)) {

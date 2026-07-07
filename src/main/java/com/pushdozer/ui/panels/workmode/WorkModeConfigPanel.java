@@ -7,7 +7,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -325,15 +324,17 @@ public abstract class WorkModeConfigPanel {
     /**
      * 处理鼠标点击事件
      */
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click) {
         if (!visible) return false;
+
+        double mouseX = click.x();
+        double mouseY = click.y();
 
         // 检查点击是否在面板内
         if (mouseX >= panelLeft && mouseX <= panelLeft + PANEL_WIDTH &&
             mouseY >= panelTop && mouseY <= panelTop + getPanelHeight()) {
 
             // 将事件传递给控件
-            Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
             for (Element widget : widgets) {
                 if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
                     if (clickableWidget.mouseClicked(click, false)) {
@@ -353,10 +354,11 @@ public abstract class WorkModeConfigPanel {
     /**
      * 处理鼠标拖拽事件
      */
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         if (!visible) return false;
 
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        double mouseX = click.x();
+        double mouseY = click.y();
         for (Element widget : widgets) {
             if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
                 if (clickableWidget.isMouseOver(mouseX, mouseY)) {
@@ -372,10 +374,11 @@ public abstract class WorkModeConfigPanel {
     /**
      * 处理鼠标释放事件
      */
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(Click click) {
         if (!visible) return false;
 
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        double mouseX = click.x();
+        double mouseY = click.y();
         for (Element widget : widgets) {
             if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
                 if (clickableWidget.isMouseOver(mouseX, mouseY)) {
