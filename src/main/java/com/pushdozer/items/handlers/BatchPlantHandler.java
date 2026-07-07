@@ -171,6 +171,8 @@ public class BatchPlantHandler {
     private final SimplexNoiseSampler noiseSampler;
 
     private static final int TREE_HEIGHT_LIMIT = 32; // 最大树高度限制
+    /** 跨 tick 调度时，每个 tick 最多生成的树木数量 */
+    private static final int TREE_GENERATIONS_PER_TICK = 4;
     // 已弃用的核心边界常量（使用扩展区域快照代替）
 
     // 常量定义：消除魔法数字
@@ -201,8 +203,18 @@ public class BatchPlantHandler {
 
         PushdozerMod.LOGGER.info("Found {} planting positions", plantingPositions.size());
 
-        // 执行批量种植操作
-        BatchPlantingResult result = executeBatchPlanting(serverWorld, plantingPositions);
+        List<PlantingPosition> treePositions = new ArrayList<>();
+        List<PlantingPosition> simplePlantPositions = new ArrayList<>();
+        for (PlantingPosition pos : plantingPositions) {
+            if (pos.plantType == PushdozerConfig.PlantType.TREES) {
+                treePositions.add(pos);
+            } else {
+                simplePlantPositions.add(pos);
+            }
+        }
+
+        BatchPlantingResult result = new BatchPlantingResult();
+        processSimplePlants(serverWorld, simplePlantPositions, result);
 
         Runnable pushUndo = () -> {
             if (!result.isEmpty()) {
@@ -221,15 +233,23 @@ public class BatchPlantHandler {
             }
         };
 
+        Runnable afterSimplePlants = () -> {
+            if (treePositions.isEmpty()) {
+                pushUndo.run();
+            } else {
+                scheduleTreesAcrossTicks(serverWorld, treePositions, 0, new HashSet<>(), result, pushUndo);
+            }
+        };
+
         if (result.hasSimplePlants()) {
             BlockOperation.applyTerrainChanges(
                 serverWorld,
                 result.getSimplePlantPositions(),
                 result.getSimplePlantNewStates(),
-                pushUndo
+                afterSimplePlants
             );
         } else {
-            pushUndo.run();
+            afterSimplePlants.run();
         }
     }
 
@@ -387,30 +407,56 @@ public class BatchPlantHandler {
     }
 
     /**
-     * 执行批量种植操作
+     * 跨 tick 生成树木，避免大范围批量种植时单 tick 卡顿。
      */
-    private BatchPlantingResult executeBatchPlanting(ServerWorld world, List<PlantingPosition> positions) {
-        BatchPlantingResult result = new BatchPlantingResult();
+    private void scheduleTreesAcrossTicks(ServerWorld world, List<PlantingPosition> treePositions,
+                                          int startIndex, Set<Long> blockedColumns,
+                                          BatchPlantingResult result, Runnable onComplete) {
+        int endIndex = Math.min(startIndex + TREE_GENERATIONS_PER_TICK, treePositions.size());
 
-        // 分离树木和简单植物
-        List<PlantingPosition> treePositions = new ArrayList<>();
-        List<PlantingPosition> simplePlantPositions = new ArrayList<>();
+        for (int i = startIndex; i < endIndex; i++) {
+            processSingleTree(world, treePositions.get(i), blockedColumns, result);
+        }
 
-        for (PlantingPosition pos : positions) {
-            if (pos.plantType == PushdozerConfig.PlantType.TREES) {
-                treePositions.add(pos);
-            } else {
-                simplePlantPositions.add(pos);
+        if (endIndex >= treePositions.size()) {
+            onComplete.run();
+            return;
+        }
+
+        world.getServer().execute(() ->
+            scheduleTreesAcrossTicks(world, treePositions, endIndex, blockedColumns, result, onComplete)
+        );
+    }
+
+    private void processSingleTree(ServerWorld world, PlantingPosition pos, Set<Long> blockedColumns,
+                                   BatchPlantingResult result) {
+        long colKey = BlockPos.asLong(pos.position.getX(), 0, pos.position.getZ());
+        if (blockedColumns.contains(colKey)) {
+            return;
+        }
+
+        if (!canPlantAt(world, pos.position)) {
+            return;
+        }
+
+        TreeGenerationResult treeResult = generateTreeWithSmartBoundary(world, pos.position);
+        if (treeResult.isEmpty()) {
+            return;
+        }
+
+        result.incrementTreeCount();
+
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                long nearbyColKey = BlockPos.asLong(pos.position.getX() + dx, 0, pos.position.getZ() + dz);
+                blockedColumns.add(nearbyColKey);
             }
         }
 
-        // 处理简单植物（花草）
-        processSimplePlants(world, simplePlantPositions, result);
-
-        // 处理树木（需要特殊处理）
-        processTrees(world, treePositions, result);
-
-        return result;
+        for (int i = 0; i < treeResult.affectedPositions.size(); i++) {
+            BlockPos affectedPos = treeResult.affectedPositions.get(i);
+            result.addTreeBlock(affectedPos, treeResult.originalStates.get(i), treeResult.newStates.get(i));
+        }
     }
 
     /**
@@ -713,49 +759,6 @@ public class BatchPlantHandler {
             }
         }
         return null;
-    }
-
-    /**
-     * 处理树木生成
-     * 优化版本：使用更智能的边界检测和批量状态记录
-     * 增强版本：改进重叠处理逻辑，减少内存使用
-     */
-    private void processTrees(ServerWorld world, List<PlantingPosition> positions, BatchPlantingResult result) {
-        // 使用Set记录被屏蔽的XZ列，避免重叠生成（显著减少内存使用）
-        Set<Long> blockedColumns = new HashSet<>();
-
-        for (PlantingPosition pos : positions) {
-            long colKey = BlockPos.asLong(pos.position.getX(), 0, pos.position.getZ());
-            if (blockedColumns.contains(colKey)) {
-                continue;
-            }
-
-            // ⭐ 新增：在生成前进行最终检查
-            if (!canPlantAt(world, pos.position)) {
-                continue;
-            }
-
-            // 生成树并记录所有受影响的方块
-            TreeGenerationResult treeResult = generateTreeWithSmartBoundary(world, pos.position);
-
-            if (!treeResult.isEmpty()) {
-                result.incrementTreeCount();
-
-                // ⭐ 优化重叠处理逻辑：仅屏蔽XZ列，减少内存使用
-                for (int dx = -4; dx <= 4; dx++) {
-                    for (int dz = -4; dz <= 4; dz++) {
-                        long nearbyColKey = BlockPos.asLong(pos.position.getX() + dx, 0, pos.position.getZ() + dz);
-                        blockedColumns.add(nearbyColKey);
-                    }
-                }
-
-                // 记录所有受影响的方块
-                for (int i = 0; i < treeResult.affectedPositions.size(); i++) {
-                    BlockPos affectedPos = treeResult.affectedPositions.get(i);
-                    result.addTreeBlock(affectedPos, treeResult.originalStates.get(i), treeResult.newStates.get(i));
-                }
-            }
-        }
     }
 
     /**
