@@ -10,10 +10,7 @@ import net.minecraft.server.world.ServerWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * BlockOperation 工具类
@@ -171,7 +168,7 @@ public class BlockOperation {
             return;
         }
 
-        world.getServer().execute(() ->
+        Objects.requireNonNull(world.getServer()).execute(() ->
             scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, onComplete)
         );
     }

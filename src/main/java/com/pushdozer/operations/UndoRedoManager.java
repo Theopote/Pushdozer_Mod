@@ -228,7 +228,7 @@ public class UndoRedoManager {
                     affectedChunks.add(new ChunkPos(pos));
                 }
                 sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
-                serverWorld.getServer().execute(() ->
+                Objects.requireNonNull(serverWorld.getServer()).execute(() ->
                     sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
                 );
             }
