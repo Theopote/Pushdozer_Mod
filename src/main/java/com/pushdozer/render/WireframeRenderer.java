@@ -16,7 +16,8 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 public class WireframeRenderer {
-    
+    private static final float LINE_WIDTH = 2.0f;
+
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, GeometryShape shape, BlockPos basePos) {
         // 使用 RenderLayers.LINES 来获取线条渲染层
         RenderLayer renderLayer = RenderLayers.LINES;
@@ -374,7 +375,7 @@ public class WireframeRenderer {
     private static void drawLine(VertexConsumer lines, Matrix4f matrix, 
                                float x1, float y1, float z1, 
                                float x2, float y2, float z2) {
-        lines.vertex(matrix, x1, y1, z1).color((float) 1.0, (float) 1.0, (float) 1.0, (float) 1.0).normal(1, 0, 0);
-        lines.vertex(matrix, x2, y2, z2).color((float) 1.0, (float) 1.0, (float) 1.0, (float) 1.0).normal(1, 0, 0);
+        lines.vertex(matrix, x1, y1, z1).color((float) 1.0, (float) 1.0, (float) 1.0, (float) 1.0).normal(1, 0, 0).lineWidth(LINE_WIDTH);
+        lines.vertex(matrix, x2, y2, z2).color((float) 1.0, (float) 1.0, (float) 1.0, (float) 1.0).normal(1, 0, 0).lineWidth(LINE_WIDTH);
     }
 }
