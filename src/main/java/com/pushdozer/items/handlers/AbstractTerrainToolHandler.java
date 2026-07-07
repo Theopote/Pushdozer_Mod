@@ -5,6 +5,7 @@ import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.operations.UndoAction;
+import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.network.NetworkManager;
 import net.minecraft.block.*;
 import net.minecraft.entity.player.PlayerEntity;
@@ -59,11 +60,14 @@ public abstract class AbstractTerrainToolHandler {
         List<BlockState> originalStates = new ArrayList<>();
         List<BlockState> newStates = new ArrayList<>();
 
-        // 执行地形操作
+        // 执行地形操作（先规划变更，再跨 tick 应用）
         processTerrain(world, shape, basePos, affectedPositions, originalStates, newStates);
 
-        // 创建撤销操作并同步到其他玩家
-        if (!affectedPositions.isEmpty()) {
+        if (affectedPositions.isEmpty() || !(world instanceof ServerWorld serverWorld)) {
+            return;
+        }
+
+        Runnable finalizeOperation = () -> {
             UndoAction undoAction = new UndoAction(
                 actionType,
                 affectedPositions,
@@ -71,9 +75,8 @@ public abstract class AbstractTerrainToolHandler {
                 newStates
             );
             PushdozerMod.pushUndoAction(player, undoAction);
-            
-            // 在多人游戏中广播地形操作到其他玩家
-            if (world instanceof ServerWorld serverWorld && !Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
+
+            if (!Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
                 NetworkManager.broadcastTerrainOperation(
                     serverWorld,
                     actionType.name(),
@@ -81,7 +84,24 @@ public abstract class AbstractTerrainToolHandler {
                     newStates
                 );
             }
-        }
+        };
+
+        BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
+            List<BlockPos> vegetationPositions = new ArrayList<>();
+            List<BlockState> vegetationOriginal = new ArrayList<>();
+            List<BlockState> vegetationNew = new ArrayList<>();
+            collectFloatingVegetation(world, shape, vegetationPositions, vegetationOriginal, vegetationNew);
+
+            if (vegetationPositions.isEmpty()) {
+                finalizeOperation.run();
+                return;
+            }
+
+            affectedPositions.addAll(vegetationPositions);
+            originalStates.addAll(vegetationOriginal);
+            newStates.addAll(vegetationNew);
+            BlockOperation.applyTerrainChanges(serverWorld, vegetationPositions, vegetationNew, finalizeOperation);
+        });
     }
     
     /**
@@ -142,9 +162,6 @@ public abstract class AbstractTerrainToolHandler {
             applyHeightChange(world, columnXZ, column, targetHeight,
                            affectedPositions, originalStates, newStates);
         }
-
-        // 4. 后期处理
-        postProcess(world, shape, affectedPositions, originalStates, newStates);
     }
 
     /**
@@ -254,7 +271,6 @@ public abstract class AbstractTerrainToolHandler {
                     affectedPositions.add(pos);
                     originalStates.add(originalState);
                     newStates.add(placeState);
-                    world.setBlockState(pos, placeState, Block.NOTIFY_ALL);
                 } else {
                     // 如果遇到无法替换的方块，停止这一列的提升
                     break;
@@ -270,27 +286,15 @@ public abstract class AbstractTerrainToolHandler {
                     affectedPositions.add(pos);
                     originalStates.add(originalState);
                     newStates.add(Blocks.AIR.getDefaultState());
-                    world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                 }
             }
         }
     }
 
     /**
-     * 后期处理：移除悬空植物
+     * 收集悬空植物（在高度变更应用后执行）
      */
-    protected void postProcess(World world, GeometryShape shape,
-                             List<BlockPos> affectedPositions,
-                             List<BlockState> originalStates,
-                             List<BlockState> newStates) {
-        removeFloatingVegetation(world, shape, affectedPositions, originalStates, newStates);
-    }
-
-    /**
-     * 移除悬空植物
-     * REFINED: 性能优化 - 只检查地表上方几个方块
-     */
-    protected void removeFloatingVegetation(World world, GeometryShape shape,
+    protected void collectFloatingVegetation(World world, GeometryShape shape,
                                           List<BlockPos> affectedPositions,
                                           List<BlockState> originalStates,
                                           List<BlockState> newStates) {
@@ -317,7 +321,6 @@ public abstract class AbstractTerrainToolHandler {
                         affectedPositions.add(pos);
                         originalStates.add(state);
                         newStates.add(Blocks.AIR.getDefaultState());
-                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                     }
                 }
             }

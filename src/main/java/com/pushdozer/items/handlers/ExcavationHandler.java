@@ -13,11 +13,12 @@ import com.pushdozer.operations.UndoAction;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.registry.Registries;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.block.Blocks;
-import net.minecraft.registry.Registries;
 
 /**
  * 挖掘模式处理器
@@ -74,32 +75,33 @@ public class ExcavationHandler {
      * 执行挖掘操作
      */
     private void performExcavation(World world, List<BlockPos> positions, PlayerEntity player) {
+        if (!(world instanceof ServerWorld serverWorld)) {
+            return;
+        }
+
         List<BlockState> originalStates = new ArrayList<>();
         List<BlockState> newStates = new ArrayList<>();
 
         for (BlockPos pos : positions) {
-            BlockState originalState = world.getBlockState(pos);
-            originalStates.add(originalState);
+            originalStates.add(world.getBlockState(pos));
             newStates.add(Blocks.AIR.getDefaultState());
-            
-            // 挖掘方块
-            world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
         }
 
-        // 收集边界扩展信息
-        BlockOperation.BoundaryExtension boundaryExtension = BlockOperation.collectBoundaryExtension(positions, world);
-        
-        // 创建撤销操作
-        UndoAction undoAction = new UndoAction(
-            UndoAction.ActionType.BREAK,
-            positions,
-            originalStates,
-            newStates,
-            boundaryExtension.getPositions(),
-            boundaryExtension.getOriginalStates(),
-            boundaryExtension.getNewStates()
-        );
-        PushdozerMod.pushUndoAction(player, undoAction);
+        BlockOperation.applyTerrainChanges(serverWorld, positions, newStates, () -> {
+            BlockOperation.BoundaryExtension boundaryExtension =
+                BlockOperation.collectBoundaryExtension(positions, world);
+
+            UndoAction undoAction = new UndoAction(
+                UndoAction.ActionType.BREAK,
+                positions,
+                originalStates,
+                newStates,
+                boundaryExtension.getPositions(),
+                boundaryExtension.getOriginalStates(),
+                boundaryExtension.getNewStates()
+            );
+            PushdozerMod.pushUndoAction(player, undoAction);
+        });
     }
 
     /**

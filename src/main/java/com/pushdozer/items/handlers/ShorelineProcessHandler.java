@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.tags.PushdozerBiomeTags;
@@ -12,6 +13,7 @@ import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.state.property.Properties;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -307,20 +309,29 @@ public class ShorelineProcessHandler {
         }
 
         Map<BlockPos, ShorelineTransition> transitions = computeShorelineTransitions(world, shorelineEdges);
-        ProcessingResult result = applyShorelineTransitions(world, player, transitions);
-        
-        List<VegetationPlacement> vegetationPlacements = collectVegetationPositions(world, result.vegetationPositions);
-        int vegetationCount = plantVegetation(world, vegetationPlacements, result.affectedPositions, result.originalStates, result.newStates, player);
+        ProcessingResult result = collectShorelineTransitions(world, player, transitions);
+        if (result.affectedPositions.isEmpty()) {
+            return;
+        }
 
-        // 创建撤销操作并发送消息
-        createUndoActionAndNotifyPlayer(player, result, vegetationCount);
+        if (!(world instanceof ServerWorld serverWorld)) {
+            return;
+        }
+
+        BlockOperation.applyTerrainChanges(serverWorld, result.affectedPositions, result.newStates, () -> {
+            List<VegetationPlacement> vegetationPlacements =
+                collectVegetationPositions(world, result.vegetationPositions);
+            int vegetationCount = plantVegetation(
+                world, vegetationPlacements, result.affectedPositions, result.originalStates, result.newStates, player
+            );
+            createUndoActionAndNotifyPlayer(player, result, vegetationCount);
+        });
     }
     
     /**
-     * 应用水岸过渡
-     * 代码结构优化：提取过渡应用逻辑
+     * 收集水岸过渡变更（不立即写入世界）
      */
-    private ProcessingResult applyShorelineTransitions(World world, PlayerEntity player, 
+    private ProcessingResult collectShorelineTransitions(World world, PlayerEntity player,
                                                       Map<BlockPos, ShorelineTransition> transitions) {
         List<BlockPos> affectedPositions = new ArrayList<>();
         List<BlockState> originalStates = new ArrayList<>();
@@ -336,7 +347,6 @@ public class ShorelineProcessHandler {
                 }
                 
                 BlockState originalState = world.getBlockState(transition.pos);
-                world.setBlockState(transition.pos, transition.newState);
                 affectedPositions.add(transition.pos);
                 originalStates.add(originalState);
                 newStates.add(transition.newState);

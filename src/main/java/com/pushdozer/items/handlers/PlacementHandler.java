@@ -121,9 +121,6 @@ public class PlacementHandler {
 
         // 从上往下遍历每一层
         for (int y = maxY; y >= minY; y--) {
-            List<BlockPos> layerBlocks = new ArrayList<>();
-            List<BlockState> layerNewStates = new ArrayList<>();
-
             boolean layerHasNonAllowedBlocks = false;
             // 检查当前层是否有非允许的方块
             for (BlockPos pos : shape.getBlocksInLayer(center, y)) {
@@ -138,8 +135,6 @@ public class PlacementHandler {
                 startedPlacing = true;
                 for (BlockPos pos : shape.getBlocksInLayer(center, y)) {
                     if (isValidPlacementPosition(pos, world, shape, player)) {
-                        layerBlocks.add(pos);
-                        // 记录原始状态
                         originalStates.add(world.getBlockState(pos));
                         placedBlocks.add(pos);
 
@@ -151,51 +146,47 @@ public class PlacementHandler {
                         
                         BlockState newState = fillBlock.getDefaultState();
                         newStates.add(newState);
-                        layerNewStates.add(newState);
                     }
                 }
 
-                // 批量放置方块
-                placeBlocksBulk(layerBlocks, layerNewStates, world);
+                // 批量放置方块（先收集，最后统一跨 tick 应用）
             }
         }
 
-        // 推入撤销栈并同步到其他玩家
-        if (!placedBlocks.isEmpty()) {
+        if (!placedBlocks.isEmpty() && world instanceof ServerWorld serverWorld) {
             LOGGER.info("创建撤销操作，放置方块数: {}", placedBlocks.size());
-            
-            // 收集边界扩展信息
-            BlockOperation.BoundaryExtension boundaryExtension = BlockOperation.collectBoundaryExtension(placedBlocks, world);
-            LOGGER.info("边界扩展收集完成，扩展位置数: {}", boundaryExtension.getSize());
-            
-            UndoAction undoAction = new UndoAction(
-                UndoAction.ActionType.PLACE,
-                placedBlocks,
-                originalStates,
-                newStates,
-                boundaryExtension.getPositions(),
-                boundaryExtension.getOriginalStates(),
-                boundaryExtension.getNewStates()
-            );
-            
-            LOGGER.info("撤销操作创建完成，验证状态: {}", undoAction.isValid());
-            PushdozerMod.pushUndoAction(player, undoAction);
-            
-            // 调试：检查撤销栈状态
-            PushdozerMod.debugUndoStacks(player);
-            
-            // 在多人游戏中广播放置操作到其他玩家
-            if (world instanceof ServerWorld serverWorld && !Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
-                NetworkManager.broadcastTerrainOperation(
-                    serverWorld,
-                    "PLACE",
+
+            BlockOperation.applyPlacementChanges(serverWorld, placedBlocks, newStates, () -> {
+                BlockOperation.BoundaryExtension boundaryExtension =
+                    BlockOperation.collectBoundaryExtension(placedBlocks, world);
+                LOGGER.info("边界扩展收集完成，扩展位置数: {}", boundaryExtension.getSize());
+
+                UndoAction undoAction = new UndoAction(
+                    UndoAction.ActionType.PLACE,
                     placedBlocks,
-                    newStates
+                    originalStates,
+                    newStates,
+                    boundaryExtension.getPositions(),
+                    boundaryExtension.getOriginalStates(),
+                    boundaryExtension.getNewStates()
                 );
-                LOGGER.info("广播放置操作到其他玩家，影响方块数: {}，边界扩展: {}", 
-                    placedBlocks.size(), boundaryExtension.getSize());
-            }
-        } else {
+
+                LOGGER.info("撤销操作创建完成，验证状态: {}", undoAction.isValid());
+                PushdozerMod.pushUndoAction(player, undoAction);
+                PushdozerMod.debugUndoStacks(player);
+
+                if (!Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
+                    NetworkManager.broadcastTerrainOperation(
+                        serverWorld,
+                        "PLACE",
+                        placedBlocks,
+                        newStates
+                    );
+                    LOGGER.info("广播放置操作到其他玩家，影响方块数: {}，边界扩展: {}",
+                        placedBlocks.size(), boundaryExtension.getSize());
+                }
+            });
+        } else if (placedBlocks.isEmpty()) {
             LOGGER.info("没有放置任何方块，跳过撤销操作创建");
         }
 
@@ -291,44 +282,6 @@ public class PlacementHandler {
             return Blocks.GRASS_BLOCK;
         }
         return block;
-    }
-
-    private void placeBlocksBulk(List<BlockPos> positions, List<BlockState> states, World world) {
-        // 步骤 1: "安静地"放置所有方块，不触发邻居更新
-        // NOTIFY_LISTENERS: 通知客户端
-        // FORCE_STATE: 强制设置状态，即使它和旧的一样
-        // SKIP_DROPS: 避免被替换的方块掉落物品
-        final int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
-        
-        for (int i = 0; i < positions.size(); i++) {
-            BlockPos pos = positions.get(i);
-            BlockState newState = states.get(i);
-            
-            // 放置新的方块，使用优化的标志
-            world.setBlockState(pos, newState, flags);
-            
-            // 如果是下落方块，使用方块刻度调度系统
-            if (newState.getBlock() instanceof FallingBlock) {
-                world.scheduleBlockTick(pos, newState.getBlock(), 2);
-            }
-        }
-
-        // 步骤 2: 在操作完成后，批量更新受影响区域边界的方块和光照
-        if (world instanceof ServerWorld serverWorld) {
-            for (int i = 0; i < positions.size(); i++) {
-                BlockPos pos = positions.get(i);
-                BlockState newState = states.get(i);
-                
-                // 更新光照
-                serverWorld.getLightingProvider().checkBlock(pos);
-                
-                // 通知邻居方块更新
-                world.updateNeighbors(pos, newState.getBlock());
-                
-                // 如果放置的方块会影响它下方的方块（比如沙子），也更新下方
-                world.updateNeighbors(pos.down(), newState.getBlock());
-            }
-        }
     }
 
     private boolean isValidPlacementPosition(BlockPos pos, World world, GeometryShape shape, PlayerEntity player) {

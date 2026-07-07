@@ -1,6 +1,8 @@
 package com.pushdozer.operations;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
@@ -172,6 +174,52 @@ public class BlockOperation {
         world.getServer().execute(() ->
             scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, onComplete)
         );
+    }
+
+    public static final int TERRAIN_NOTIFY_FLAGS = Block.NOTIFY_ALL;
+    public static final int PLACEMENT_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
+
+    /**
+     * 应用地形工具收集的方块变更，大操作自动跨 tick 调度。
+     */
+    public static void applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                           Runnable onComplete) {
+        batchSetBlockStates(positions, newStates, world, TERRAIN_NOTIFY_FLAGS, onComplete);
+    }
+
+    /**
+     * 应用放置模式收集的方块变更，并在全部写入后执行光照/邻居更新。
+     */
+    public static void applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                             Runnable onComplete) {
+        batchSetBlockStates(positions, newStates, world, PLACEMENT_FLAGS, () -> {
+            postProcessPlacements(world, positions, newStates);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+        });
+    }
+
+    private static void postProcessPlacements(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
+        for (int i = 0; i < positions.size(); i++) {
+            BlockPos pos = positions.get(i);
+            BlockState newState = newStates.get(i);
+            if (newState.getBlock() instanceof FallingBlock) {
+                world.scheduleBlockTick(pos, newState.getBlock(), 2);
+            }
+        }
+
+        for (int i = 0; i < positions.size(); i++) {
+            BlockPos pos = positions.get(i);
+            BlockState newState = newStates.get(i);
+            try {
+                world.getLightingProvider().checkBlock(pos);
+                world.updateNeighbors(pos, newState.getBlock());
+                world.updateNeighbors(pos.down(), newState.getBlock());
+            } catch (Exception e) {
+                LOGGER.warn("放置后处理失败: {}", pos, e);
+            }
+        }
     }
 
     /**

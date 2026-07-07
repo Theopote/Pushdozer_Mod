@@ -4,12 +4,14 @@ import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
 import net.minecraft.block.*;
 import net.minecraft.block.LeavesBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.Registries;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import java.util.*;
@@ -87,15 +89,16 @@ public class SurfaceConvertHandler {
         // 执行表层转换
         convertSurface(world, shape, affectedPositions, originalStates, newStates);
 
-        // 创建撤销操作
-        if (!affectedPositions.isEmpty()) {
-            UndoAction undoAction = new UndoAction(
-                UndoAction.ActionType.SURFACE_CONVERT,
-                affectedPositions,
-                originalStates,
-                newStates
-            );
-            PushdozerMod.pushUndoAction(player, undoAction);
+        if (!affectedPositions.isEmpty() && world instanceof ServerWorld serverWorld) {
+            BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
+                UndoAction undoAction = new UndoAction(
+                    UndoAction.ActionType.SURFACE_CONVERT,
+                    affectedPositions,
+                    originalStates,
+                    newStates
+                );
+                PushdozerMod.pushUndoAction(player, undoAction);
+            });
         }
     }
 
@@ -133,8 +136,7 @@ public class SurfaceConvertHandler {
                         affectedPositions.add(surfacePos);
                         originalStates.add(state);
                         newStates.add(targetState);
-                        world.setBlockState(surfacePos, targetState, Block.NOTIFY_ALL);
-                        newlyPlacedSurfacePositions.add(surfacePos); // 记录被修改的地表位置
+                        newlyPlacedSurfacePositions.add(surfacePos);
                     }
                     break; // 只处理第一个地表
                 }
@@ -267,8 +269,6 @@ public class SurfaceConvertHandler {
                 affectedPositions.add(pos);
                 originalStates.add(state);
                 newStates.add(Blocks.AIR.getDefaultState());
-                
-                world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
             }
         }
     }
