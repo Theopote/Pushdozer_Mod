@@ -29,14 +29,14 @@ public class PushdozerClient implements ClientModInitializer {
         // 注册按键绑定
         KeyBindings.register();
 
-        // 注册世界渲染事件
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(this::onWorldRenderAfterTranslucent);
+        // 注册世界渲染事件（END_MAIN 替代已移除的 AFTER_TRANSLUCENT）
+        WorldRenderEvents.END_MAIN.register(this::onWorldRenderEndMain);
 
         // 注册客户端网络处理器
         ClientNetworkHandler.registerClientNetworking();
     }
 
-    private void onWorldRenderAfterTranslucent(WorldRenderContext context) {
+    private void onWorldRenderEndMain(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity player = client.player;
         if (player != null && player.getMainHandStack().getItem() instanceof PushdozerItem) {
@@ -51,9 +51,9 @@ public class PushdozerClient implements ClientModInitializer {
     }
 
     private void renderGeometryShape(WorldRenderContext context, GeometryShape shape, PushdozerConfig config, PushdozerConfig.DisplayMode displayMode) {
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider vertexConsumers = context.consumers();
-        Vec3d cameraPos = context.camera().getPos();
+        Vec3d cameraPos = context.worldState().cameraRenderState.pos;
 
         if (matrices != null) {
             matrices.push();
@@ -68,6 +68,10 @@ public class PushdozerClient implements ClientModInitializer {
             targetPos = ShapeUtil.getTargetBlockPos(MinecraftClient.getInstance().player, config);
         }
         GeometryRenderer.renderGeometryShape(matrices, vertexConsumers, shape, displayMode, targetPos);
+
+        if (vertexConsumers instanceof VertexConsumerProvider.Immediate immediate) {
+            immediate.draw();
+        }
 
         if (matrices != null) {
             matrices.pop();
