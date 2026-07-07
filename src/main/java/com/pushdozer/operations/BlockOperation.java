@@ -173,15 +173,27 @@ public class BlockOperation {
         );
     }
 
-    public static final int TERRAIN_NOTIFY_FLAGS = Block.NOTIFY_ALL;
-    public static final int PLACEMENT_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
+    /** 大操作后处理阈值：超过此数量时使用列顶光照而非逐方块更新 */
+    public static final int LARGE_POST_PROCESS_THRESHOLD = 4096;
+
+    /**
+     * 批量写入 flags：仅同步客户端，跳过逐块邻居更新与光照重算（写入完成后统一 post-process）。
+     * 类似 WorldEdit 的 fast mode 写法。
+     */
+    public static final int BULK_WRITE_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
 
     /**
      * 应用地形工具收集的方块变更，大操作自动跨 tick 调度。
+     * 写入阶段使用 {@link #BULK_WRITE_FLAGS}，全部完成后统一 relight / 邻居更新。
      */
     public static void applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
                                            Runnable onComplete) {
-        batchSetBlockStates(positions, newStates, world, TERRAIN_NOTIFY_FLAGS, onComplete);
+        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
+            postProcessBlockChanges(world, positions, newStates);
+            if (onComplete != null) {
+                onComplete.run();
+            }
+        });
     }
 
     /**
@@ -189,32 +201,64 @@ public class BlockOperation {
      */
     public static void applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
                                              Runnable onComplete) {
-        batchSetBlockStates(positions, newStates, world, PLACEMENT_FLAGS, () -> {
-            postProcessPlacements(world, positions, newStates);
+        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
+            scheduleFallingBlockTicks(world, positions, newStates);
+            postProcessBlockChanges(world, positions, newStates);
             if (onComplete != null) {
                 onComplete.run();
             }
         });
     }
 
-    private static void postProcessPlacements(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
-        for (int i = 0; i < positions.size(); i++) {
-            BlockPos pos = positions.get(i);
-            BlockState newState = newStates.get(i);
-            if (newState.getBlock() instanceof FallingBlock) {
-                world.scheduleBlockTick(pos, newState.getBlock(), 2);
-            }
+    /**
+     * 批量写入后的统一后处理：小操作逐方块 relight + 邻居更新；大操作仅按列顶补光照。
+     */
+    public static void postProcessBlockChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
+        if (positions.isEmpty()) {
+            return;
         }
 
-        for (int i = 0; i < positions.size(); i++) {
-            BlockPos pos = positions.get(i);
-            BlockState newState = newStates.get(i);
+        var lightProvider = world.getLightingProvider();
+        boolean isLarge = positions.size() >= LARGE_POST_PROCESS_THRESHOLD;
+
+        if (!isLarge) {
+            for (int i = 0; i < positions.size(); i++) {
+                BlockPos pos = positions.get(i);
+                try {
+                    lightProvider.checkBlock(pos);
+                    BlockState currentState = world.getBlockState(pos);
+                    world.updateNeighbors(pos, currentState.getBlock());
+                    world.updateNeighbors(pos.down(), currentState.getBlock());
+                    world.updateComparators(pos, currentState.getBlock());
+                } catch (Exception e) {
+                    LOGGER.warn("方块后处理失败: {}", pos, e);
+                }
+            }
+            return;
+        }
+
+        Map<Long, Integer> xzToTopY = new HashMap<>();
+        for (BlockPos pos : positions) {
+            long key = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
+            xzToTopY.merge(key, pos.getY(), Math::max);
+        }
+        for (Map.Entry<Long, Integer> entry : xzToTopY.entrySet()) {
+            int x = (int) (entry.getKey() >> 32);
+            int z = (int) entry.getKey().longValue();
+            int topY = entry.getValue();
             try {
-                world.getLightingProvider().checkBlock(pos);
-                world.updateNeighbors(pos, newState.getBlock());
-                world.updateNeighbors(pos.down(), newState.getBlock());
-            } catch (Exception e) {
-                LOGGER.warn("放置后处理失败: {}", pos, e);
+                lightProvider.checkBlock(new BlockPos(x, topY, z));
+                lightProvider.checkBlock(new BlockPos(x, topY + 1, z));
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static void scheduleFallingBlockTicks(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
+        for (int i = 0; i < positions.size(); i++) {
+            BlockState newState = newStates.get(i);
+            if (newState.getBlock() instanceof FallingBlock) {
+                world.scheduleBlockTick(positions.get(i), newState.getBlock(), 2);
             }
         }
     }

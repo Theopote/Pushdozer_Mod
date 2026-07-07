@@ -5,7 +5,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Block;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
@@ -145,10 +144,6 @@ public class UndoRedoManager {
         LOGGER.debug("开始执行{}操作，玩家: {}，涉及 {} 个方块", 
             isUndo ? "撤销" : "重做", player.getName().getString(), positions.size());
 
-        final int BATCH_FLAGS = Block.NOTIFY_ALL | Block.SKIP_DROPS;
-        boolean isLarge = positions.size() >= LARGE_OPERATION_THRESHOLD;
-        
-        // 预先验证并收集有效位置
         List<BlockPos> validPositions = new ArrayList<>(positions.size());
         List<BlockState> validNewStates = new ArrayList<>(positions.size());
         int skipped = 0;
@@ -165,73 +160,53 @@ public class UndoRedoManager {
             LOGGER.debug("位置验证跳过 {} 个不可用位置", skipped);
         }
 
+        boolean isLarge = validPositions.size() >= LARGE_OPERATION_THRESHOLD;
+
         Runnable afterBlocksApplied = () -> {
-            applyPostBlockUpdates(serverWorld, player, validPositions, isLarge, isUndo);
+            BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates);
+            syncUndoChangesToClient(serverWorld, player, validPositions, isLarge, isUndo);
             onFinished.accept(true);
         };
 
         if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
             LOGGER.debug("跨 tick 分批应用 {} 个方块（每 tick 最多 {} 个）",
                 validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld, BATCH_FLAGS, afterBlocksApplied);
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
+                BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
         } else {
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld, BATCH_FLAGS);
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
+                BlockOperation.BULK_WRITE_FLAGS);
             afterBlocksApplied.run();
         }
     }
 
-    private void applyPostBlockUpdates(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
-                                       boolean isLarge, boolean isUndo) {
+    private void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
+                                         boolean isLarge, boolean isUndo) {
+        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+            LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
+                isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
+            return;
+        }
+
         LightingProvider lightProvider = serverWorld.getLightingProvider();
         if (!isLarge) {
             for (BlockPos pos : validPositions) {
                 try {
-                    lightProvider.checkBlock(pos);
                     BlockState currentState = serverWorld.getBlockState(pos);
-                    serverWorld.updateNeighbors(pos, currentState.getBlock());
-                    serverWorld.updateComparators(pos, currentState.getBlock());
+                    serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
                 } catch (Exception e) {
-                    LOGGER.warn("更新位置失败: {}", pos, e);
+                    LOGGER.warn("发送方块更新失败: {}", pos, e);
                 }
             }
         } else {
-            Map<Long, Integer> xzToTopY = new HashMap<>();
+            Set<ChunkPos> affectedChunks = new HashSet<>();
             for (BlockPos pos : validPositions) {
-                long key = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
-                xzToTopY.merge(key, pos.getY(), Math::max);
+                affectedChunks.add(new ChunkPos(pos));
             }
-            for (Map.Entry<Long, Integer> e : xzToTopY.entrySet()) {
-                int x = (int) (e.getKey() >> 32);
-                int z = (int) (e.getKey().longValue());
-                int topY = e.getValue();
-                try {
-                    lightProvider.checkBlock(new BlockPos(x, topY, z));
-                    lightProvider.checkBlock(new BlockPos(x, topY + 1, z));
-                } catch (Exception ignored) {
-                }
-            }
-        }
-
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            if (!isLarge) {
-                for (BlockPos pos : validPositions) {
-                    try {
-                        BlockState currentState = serverWorld.getBlockState(pos);
-                        serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
-                    } catch (Exception e) {
-                        LOGGER.warn("发送方块更新失败: {}", pos, e);
-                    }
-                }
-            } else {
-                Set<ChunkPos> affectedChunks = new HashSet<>();
-                for (BlockPos pos : validPositions) {
-                    affectedChunks.add(new ChunkPos(pos));
-                }
-                sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
-                Objects.requireNonNull(serverWorld.getServer()).execute(() ->
-                    sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
-                );
-            }
+            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
+            Objects.requireNonNull(serverWorld.getServer()).execute(() ->
+                sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
+            );
         }
 
         LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
