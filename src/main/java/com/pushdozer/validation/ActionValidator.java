@@ -84,7 +84,7 @@ public class ActionValidator {
      */
     private static boolean hasPermission(ServerPlayerEntity player, String permission) {
         // TODO: 实现实际的权限检查逻辑
-        return player.hasPermissionLevel(2); // 临时使用原版权限等级
+        return player.getCommandSource().hasPermissionLevel(2); // 临时使用原版权限等级
     }
 
     /**

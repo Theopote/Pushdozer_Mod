@@ -11,6 +11,7 @@ import java.util.HashMap;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
@@ -598,7 +599,10 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(Click click, boolean doubled) {
+            double mouseX = click.x();
+            double mouseY = click.y();
+            int button = click.button();
             if (isMouseOver(mouseX, mouseY) && button == 0) {
                 // 检查是否点击了滚动条
                 int scrollBarX = getX() + width - SCROLL_BAR_WIDTH;
@@ -648,7 +652,9 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         }
         
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+            double mouseY = click.y();
+            int button = click.button();
             if (isDraggingScrollBar && button == 0) {
                 int contentHeight = height - PANEL_PADDING * 2;
                 int visibleRows = contentHeight / (BLOCK_SIZE + BLOCK_SPACING);
@@ -672,8 +678,8 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         }
         
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseReleased(Click click) {
+            if (click.button() == 0) {
                 isDraggingScrollBar = false;
             }
             return false;
