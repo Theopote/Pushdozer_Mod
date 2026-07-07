@@ -53,6 +53,10 @@ public class UndoRedoManager {
 
         if (isCoolingDownOrExecuting(playerId)) return;
         markExecuting(playerId);
+        Runnable finish = () -> {
+            updateCooldown(playerId);
+            unmarkExecuting(playerId);
+        };
         try {
             PlayerUndoRedoStacks stacks = playerStacks.get(playerId);
             LOGGER.debug("玩家 {} 的撤销栈状态: undoStack={}, redoStack={}", 
@@ -63,19 +67,23 @@ public class UndoRedoManager {
             if (stacks != null && !stacks.undoStack.isEmpty()) {
                 UndoAction action = stacks.undoStack.pop();
                 LOGGER.debug("开始执行撤销操作，类型: {}, 方块数: {}", action.getType(), action.getPositions().size());
-                boolean success = executeUndoRedoAction(action, player, world, true);
-                if (success) {
-                    stacks.redoStack.push(action);
-                    LOGGER.debug("玩家 {} 撤销成功，类型：{}，涉及 {} 个方块", player.getName().getString(), action.getType(), action.getPositions().size());
-                } else {
-                    LOGGER.warn("玩家 {} 撤销失败，操作被忽略", player.getName().getString());
-                }
-            } else {
-                LOGGER.debug("玩家 {} 尝试撤销，但没有可撤销的操作", player.getName().getString());
+                executeUndoRedoAction(action, player, world, true, success -> {
+                    if (success) {
+                        stacks.redoStack.push(action);
+                        LOGGER.debug("玩家 {} 撤销成功，类型：{}，涉及 {} 个方块",
+                            player.getName().getString(), action.getType(), action.getPositions().size());
+                    } else {
+                        LOGGER.warn("玩家 {} 撤销失败，操作被忽略", player.getName().getString());
+                    }
+                    finish.run();
+                });
+                return;
             }
-        } finally {
-            updateCooldown(playerId);
-            unmarkExecuting(playerId);
+            LOGGER.debug("玩家 {} 尝试撤销，但没有可撤销的操作", player.getName().getString());
+            finish.run();
+        } catch (Exception e) {
+            LOGGER.error("玩家 {} 撤销操作异常", player.getName().getString(), e);
+            finish.run();
         }
     }
 
@@ -83,39 +91,51 @@ public class UndoRedoManager {
         UUID playerId = player.getUuid();
         if (isCoolingDownOrExecuting(playerId)) return;
         markExecuting(playerId);
+        Runnable finish = () -> {
+            updateCooldown(playerId);
+            unmarkExecuting(playerId);
+        };
         try {
             PlayerUndoRedoStacks stacks = playerStacks.get(playerId);
             if (stacks != null && !stacks.redoStack.isEmpty()) {
                 UndoAction action = stacks.redoStack.pop();
-                boolean success = executeUndoRedoAction(action, player, world, false);
-                if (success) {
-                    stacks.undoStack.push(action);
-                    LOGGER.debug("玩家 {} 重做成功，类型：{}，涉及 {} 个方块", player.getName().getString(), action.getType(), action.getPositions().size());
-                } else {
-                    LOGGER.warn("玩家 {} 重做失败，操作被忽略", player.getName().getString());
-                }
-            } else {
-                LOGGER.debug("玩家 {} 尝试重做，但没有可重做的操作", player.getName().getString());
+                executeUndoRedoAction(action, player, world, false, success -> {
+                    if (success) {
+                        stacks.undoStack.push(action);
+                        LOGGER.debug("玩家 {} 重做成功，类型：{}，涉及 {} 个方块",
+                            player.getName().getString(), action.getType(), action.getPositions().size());
+                    } else {
+                        LOGGER.warn("玩家 {} 重做失败，操作被忽略", player.getName().getString());
+                    }
+                    finish.run();
+                });
+                return;
             }
-        } finally {
-            updateCooldown(playerId);
-            unmarkExecuting(playerId);
+            LOGGER.debug("玩家 {} 尝试重做，但没有可重做的操作", player.getName().getString());
+            finish.run();
+        } catch (Exception e) {
+            LOGGER.error("玩家 {} 重做操作异常", player.getName().getString(), e);
+            finish.run();
         }
     }
 
-    private boolean executeUndoRedoAction(UndoAction action, PlayerEntity player, World world, boolean isUndo) {
+    private void executeUndoRedoAction(UndoAction action, PlayerEntity player, World world, boolean isUndo,
+                                       java.util.function.Consumer<Boolean> onFinished) {
         if (!(world instanceof ServerWorld serverWorld)) {
             LOGGER.error("Action must be performed on the server side.");
-            return false;
+            onFinished.accept(false);
+            return;
         }
         if (action == null || player == null) {
             LOGGER.error("Invalid action or player.");
-            return false;
+            onFinished.accept(false);
+            return;
         }
         
         if (!action.isValid()) {
             LOGGER.error("Invalid action data.");
-            return false;
+            onFinished.accept(false);
+            return;
         }
         
         List<BlockPos> positions = action.getPositions();
@@ -144,14 +164,26 @@ public class UndoRedoManager {
         if (skipped > 0) {
             LOGGER.debug("位置验证跳过 {} 个不可用位置", skipped);
         }
-        
-        // 批量设置方块
-        BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld, BATCH_FLAGS);
 
-        // 光照与邻居更新：小操作精细处理；大操作按列顶层补光照check
+        Runnable afterBlocksApplied = () -> {
+            applyPostBlockUpdates(serverWorld, player, validPositions, isLarge, isUndo);
+            onFinished.accept(true);
+        };
+
+        if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
+            LOGGER.debug("跨 tick 分批应用 {} 个方块（每 tick 最多 {} 个）",
+                validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld, BATCH_FLAGS, afterBlocksApplied);
+        } else {
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld, BATCH_FLAGS);
+            afterBlocksApplied.run();
+        }
+    }
+
+    private void applyPostBlockUpdates(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
+                                       boolean isLarge, boolean isUndo) {
         LightingProvider lightProvider = serverWorld.getLightingProvider();
         if (!isLarge) {
-            // 小操作：逐方块邻居与光照
             for (BlockPos pos : validPositions) {
                 try {
                     lightProvider.checkBlock(pos);
@@ -163,25 +195,23 @@ public class UndoRedoManager {
                 }
             }
         } else {
-            // 大操作：依赖引擎异步光照，不逐方块 check
-            // 仅对每个 XZ 列的顶层位置做少量 check，帮助清理残影
             Map<Long, Integer> xzToTopY = new HashMap<>();
             for (BlockPos pos : validPositions) {
-                long key = (((long)pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
+                long key = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
                 xzToTopY.merge(key, pos.getY(), Math::max);
             }
             for (Map.Entry<Long, Integer> e : xzToTopY.entrySet()) {
-                int x = (int)(e.getKey() >> 32);
-                int z = (int)(e.getKey().longValue());
+                int x = (int) (e.getKey() >> 32);
+                int z = (int) (e.getKey().longValue());
                 int topY = e.getValue();
                 try {
                     lightProvider.checkBlock(new BlockPos(x, topY, z));
                     lightProvider.checkBlock(new BlockPos(x, topY + 1, z));
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         }
 
-        // 客户端同步：小操作逐方块；大操作按区块（并在下一tick再发一次区块刷新以确保光照到位）
         if (player instanceof ServerPlayerEntity serverPlayer) {
             if (!isLarge) {
                 for (BlockPos pos : validPositions) {
@@ -194,15 +224,18 @@ public class UndoRedoManager {
                 }
             } else {
                 Set<ChunkPos> affectedChunks = new HashSet<>();
-                for (BlockPos pos : validPositions) affectedChunks.add(new ChunkPos(pos));
+                for (BlockPos pos : validPositions) {
+                    affectedChunks.add(new ChunkPos(pos));
+                }
                 sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
-                // 下一tick再次发送，等待光照线程推进
-                serverWorld.getServer().execute(() -> sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步"));
+                serverWorld.getServer().execute(() ->
+                    sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
+                );
             }
         }
-        
-        LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})", isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
-        return true;
+
+        LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
+            isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
     }
 
     private void sendChunks(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, Set<ChunkPos> chunks,

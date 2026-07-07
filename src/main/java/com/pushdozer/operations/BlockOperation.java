@@ -8,7 +8,10 @@ import net.minecraft.server.world.ServerWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * BlockOperation 工具类
@@ -17,8 +20,10 @@ import java.util.*;
 public class BlockOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     
-    // 边界扩展配置
-    private static final int MAX_BATCH_SIZE = 4096; // 提升批量大小减少循环次数
+    /** 低于此数量时在同一 tick 内同步完成 */
+    public static final int SYNC_BLOCK_LIMIT = 512;
+    /** 跨 tick 调度时，每个 tick 最多应用的方块数 */
+    public static final int BLOCKS_PER_TICK = 1024;
     
     /**
      * 收集边界扩展位置
@@ -94,36 +99,79 @@ public class BlockOperation {
     }
     
     /**
-     * 批量设置方块状态
-     * @param positions 位置列表
-     * @param states 状态列表
-     * @param world 世界实例
-     * @param flags 设置标志
+     * 批量设置方块状态（同步完成）。
+     * 超过 {@link #SYNC_BLOCK_LIMIT} 的大操作请使用带 {@code onComplete} 的重载以跨 tick 调度。
      */
     public static void batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world, int flags) {
+        batchSetBlockStates(positions, states, world, flags, null);
+    }
+
+    /**
+     * 批量设置方块状态。
+     * <p>
+     * 小操作在同一 tick 内完成；大操作通过 {@code server.execute()} 拆到后续 tick，
+     * 全部完成后调用 {@code onComplete}（仍在服务端主线程）。
+     *
+     * @return 若工作已同步完成返回 {@code true}，若已排队跨 tick 执行返回 {@code false}
+     */
+    public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
+                                              int flags, Runnable onComplete) {
         if (positions.size() != states.size()) {
             LOGGER.error("位置和状态列表大小不匹配: {} vs {}", positions.size(), states.size());
-            return;
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return true;
         }
-        
-        // 分批处理以避免一次性占用过长时间
-        for (int i = 0; i < positions.size(); i += MAX_BATCH_SIZE) {
-            int endIndex = Math.min(i + MAX_BATCH_SIZE, positions.size());
-            List<BlockPos> batchPositions = positions.subList(i, endIndex);
-            List<BlockState> batchStates = states.subList(i, endIndex);
-            
-            // 批量设置方块
-            for (int j = 0; j < batchPositions.size(); j++) {
-                BlockPos pos = batchPositions.get(j);
-                BlockState newState = batchStates.get(j);
-                
-                try {
-                    world.setBlockState(pos, newState, flags);
-                } catch (Exception e) {
-                    LOGGER.error("设置方块状态失败: {} -> {}", pos, newState, e);
-                }
+
+        if (positions.isEmpty()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return true;
+        }
+
+        if (!(world instanceof ServerWorld serverWorld) || positions.size() <= SYNC_BLOCK_LIMIT) {
+            applyBlockStates(positions, states, world, flags, 0, positions.size());
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return true;
+        }
+
+        scheduleBlockStatesAcrossTicks(serverWorld, positions, states, flags, 0, onComplete);
+        return false;
+    }
+
+    private static void applyBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
+                                         int flags, int startIndex, int endIndex) {
+        for (int i = startIndex; i < endIndex; i++) {
+            BlockPos pos = positions.get(i);
+            BlockState newState = states.get(i);
+            try {
+                world.setBlockState(pos, newState, flags);
+            } catch (Exception e) {
+                LOGGER.error("设置方块状态失败: {} -> {}", pos, newState, e);
             }
         }
+    }
+
+    private static void scheduleBlockStatesAcrossTicks(ServerWorld world, List<BlockPos> positions,
+                                                       List<BlockState> states, int flags, int startIndex,
+                                                       Runnable onComplete) {
+        int endIndex = Math.min(startIndex + BLOCKS_PER_TICK, positions.size());
+        applyBlockStates(positions, states, world, flags, startIndex, endIndex);
+
+        if (endIndex >= positions.size()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+
+        world.getServer().execute(() ->
+            scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, onComplete)
+        );
     }
 
     /**
