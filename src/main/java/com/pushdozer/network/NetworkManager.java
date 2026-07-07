@@ -105,9 +105,7 @@ public class NetworkManager {
      */
     private static void registerConnectionEvents() {
         // 玩家加入时的处理
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            ConfigService.getInstance().removePlayer(handler.player.getUuid());
-        });
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> ConfigService.getInstance().removePlayer(handler.player.getUuid()));
     }
     
     /**

@@ -293,8 +293,8 @@ public class PushdozerConfig {
 
     // 表层转换方块列表（最多5个）
     @Expose
-    private List<SurfaceConvertBlock> surfaceConvertBlocks = new ArrayList<>(Arrays.asList(
-        new SurfaceConvertBlock("minecraft:grass_block", 100.0f)
+    private List<SurfaceConvertBlock> surfaceConvertBlocks = new ArrayList<>(List.of(
+            new SurfaceConvertBlock("minecraft:grass_block", 100.0f)
     ));
 
     // 批量种植模式配置

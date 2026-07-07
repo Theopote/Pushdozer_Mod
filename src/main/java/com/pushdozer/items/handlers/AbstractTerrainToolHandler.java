@@ -73,7 +73,7 @@ public abstract class AbstractTerrainToolHandler {
             PushdozerMod.pushUndoAction(player, undoAction);
             
             // 在多人游戏中广播地形操作到其他玩家
-            if (world instanceof ServerWorld serverWorld && !serverWorld.getServer().isSingleplayer()) {
+            if (world instanceof ServerWorld serverWorld && !Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
                 NetworkManager.broadcastTerrainOperation(
                     serverWorld,
                     actionType.name(),

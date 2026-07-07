@@ -1,9 +1,6 @@
 package com.pushdozer.items.handlers;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
@@ -188,7 +185,7 @@ public class PlacementHandler {
             PushdozerMod.debugUndoStacks(player);
             
             // 在多人游戏中广播放置操作到其他玩家
-            if (world instanceof ServerWorld serverWorld && !serverWorld.getServer().isSingleplayer()) {
+            if (world instanceof ServerWorld serverWorld && !Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
                 NetworkManager.broadcastTerrainOperation(
                     serverWorld,
                     "PLACE",
