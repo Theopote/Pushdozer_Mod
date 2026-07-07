@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
@@ -203,21 +204,32 @@ public class BatchPlantHandler {
         // 执行批量种植操作
         BatchPlantingResult result = executeBatchPlanting(serverWorld, plantingPositions);
 
-        // 创建单个撤销操作
-        if (!result.isEmpty()) {
-            UndoAction undoAction = new UndoAction(
+        Runnable pushUndo = () -> {
+            if (!result.isEmpty()) {
+                UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.BATCH_PLANT,
                     result.getAllPositions(),
                     result.getAllOriginalStates(),
                     result.getAllNewStates()
-            );
-            PushdozerMod.pushUndoAction(player, undoAction);
-        }
+                );
+                PushdozerMod.pushUndoAction(player, undoAction);
+            }
 
-        // 性能统计
-        if (result.getTotalCount() > 0) {
-            PushdozerMod.LOGGER.info("Batch planting completed: {} plants, {} trees, {} total blocks changed",
+            if (result.getTotalCount() > 0) {
+                PushdozerMod.LOGGER.info("Batch planting completed: {} plants, {} trees, {} total blocks changed",
                     result.getSimplePlantCount(), result.getTreeCount(), result.getTotalCount());
+            }
+        };
+
+        if (result.hasSimplePlants()) {
+            BlockOperation.applyTerrainChanges(
+                serverWorld,
+                result.getSimplePlantPositions(),
+                result.getSimplePlantNewStates(),
+                pushUndo
+            );
+        } else {
+            pushUndo.run();
         }
     }
 
@@ -464,8 +476,6 @@ public class BatchPlantHandler {
                     continue;
                 }
 
-                // 放置花盆
-                world.setBlockState(basePos, newState);
                 result.addSimplePlant(basePos, originalStateLower, newState);
                 continue;
             }
@@ -491,9 +501,6 @@ public class BatchPlantHandler {
                     }
                     BlockState lower = newState.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
                     BlockState upper = newState.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
-
-                    world.setBlockState(basePos, lower);
-                    world.setBlockState(upperPos, upper);
 
                     result.addSimplePlant(basePos, originalStateLower, lower);
                     result.addSimplePlant(upperPos, originalStateUpper, upper);
@@ -527,14 +534,9 @@ public class BatchPlantHandler {
                     } else {
                         upper = newState.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
                     }
-                    world.setBlockState(upperPos, upper);
                     result.addSimplePlant(upperPos, originalStateUpper, upper);
-
-                    // 放置下半部分
-                    world.setBlockState(basePos, lower);
                     result.addSimplePlant(basePos, originalStateLower, lower);
 
-                    // 添加调试日志
                     PushdozerMod.LOGGER.debug("Placed Small Dripleaf at {}, height: 2, inWater: {}", basePos, inWater);
                     continue;
                 }
@@ -566,14 +568,9 @@ public class BatchPlantHandler {
                     } else {
                         upper = newState.with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
                     }
-                    world.setBlockState(upperPos, upper);
                     result.addSimplePlant(upperPos, originalStateUpper, upper);
-
-                    // 放置下半部分
-                    world.setBlockState(basePos, lower);
                     result.addSimplePlant(basePos, originalStateLower, lower);
 
-                    // 添加调试日志
                     PushdozerMod.LOGGER.debug("Placed Big Dripleaf at {}, height: 2, inWater: {}", basePos, inWater);
                     continue;
                 }
@@ -591,35 +588,12 @@ public class BatchPlantHandler {
                     continue;
                 }
 
-                world.setBlockState(basePos, lower);
-                world.setBlockState(upperPos, upper);
-
                 result.addSimplePlant(basePos, originalStateLower, lower);
                 result.addSimplePlant(upperPos, originalStateUpper, upper);
                 continue;
             }
 
-            // 单格植物常规可放置性检查（失活珊瑚已在上方分支放置，这里跳过其 canPlaceAt）
             if (!isDeadCoral(newState.getBlock()) && !newState.canPlaceAt(world, basePos)) {
-                continue;
-            }
-
-            world.setBlockState(basePos, newState);
-
-            // 放置后验证：检查植物是否正确放置
-            BlockState placedState = world.getBlockState(basePos);
-            if (!placedState.equals(newState)) {
-                // 如果放置失败（如珊瑚死亡），回滚并记录
-                world.setBlockState(basePos, originalStateLower);
-                PushdozerMod.LOGGER.debug("Plant placement failed at {}: expected {}, got {}",
-                        basePos, newState.getBlock(), placedState.getBlock());
-                continue;
-            }
-
-            // 额外检查活珊瑚是否存活
-            if (isLiveCoral(newState.getBlock()) && isDeadCoral(placedState.getBlock())) {
-                world.setBlockState(basePos, originalStateLower);
-                PushdozerMod.LOGGER.debug("Live coral at {} turned into dead coral, reverting", basePos);
                 continue;
             }
 
@@ -690,7 +664,6 @@ public class BatchPlantHandler {
                 return false;
             }
 
-            world.setBlockState(basePos, toPlace);
             result.addSimplePlant(basePos, originalState, toPlace);
             return true;
         }
@@ -709,7 +682,6 @@ public class BatchPlantHandler {
             toPlace = toPlace.with(Properties.WATERLOGGED, false);
         }
 
-        world.setBlockState(basePos, toPlace);
         result.addSimplePlant(basePos, originalState, toPlace);
         return true;
 
@@ -1628,6 +1600,8 @@ public class BatchPlantHandler {
         private final List<BlockPos> allPositions = new ArrayList<>();
         private final List<BlockState> allOriginalStates = new ArrayList<>();
         private final List<BlockState> allNewStates = new ArrayList<>();
+        private final List<BlockPos> simplePlantPositions = new ArrayList<>();
+        private final List<BlockState> simplePlantNewStates = new ArrayList<>();
         private int simplePlantCount = 0;
         private int treeCount = 0;
 
@@ -1635,6 +1609,8 @@ public class BatchPlantHandler {
             allPositions.add(pos);
             allOriginalStates.add(original);
             allNewStates.add(newState);
+            simplePlantPositions.add(pos);
+            simplePlantNewStates.add(newState);
             simplePlantCount++;
         }
 
@@ -1658,6 +1634,18 @@ public class BatchPlantHandler {
 
         List<BlockState> getAllNewStates() {
             return allNewStates;
+        }
+
+        boolean hasSimplePlants() {
+            return !simplePlantPositions.isEmpty();
+        }
+
+        List<BlockPos> getSimplePlantPositions() {
+            return simplePlantPositions;
+        }
+
+        List<BlockState> getSimplePlantNewStates() {
+            return simplePlantNewStates;
         }
 
         boolean isEmpty() {

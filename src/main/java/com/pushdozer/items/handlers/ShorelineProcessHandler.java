@@ -321,10 +321,25 @@ public class ShorelineProcessHandler {
         BlockOperation.applyTerrainChanges(serverWorld, result.affectedPositions, result.newStates, () -> {
             List<VegetationPlacement> vegetationPlacements =
                 collectVegetationPositions(world, result.vegetationPositions);
-            int vegetationCount = plantVegetation(
-                world, vegetationPlacements, result.affectedPositions, result.originalStates, result.newStates, player
+            List<BlockPos> vegetationPositions = new ArrayList<>();
+            List<BlockState> vegetationOriginal = new ArrayList<>();
+            List<BlockState> vegetationNew = new ArrayList<>();
+            int vegetationCount = planVegetation(
+                world, vegetationPlacements, vegetationPositions, vegetationOriginal, vegetationNew, player
             );
-            createUndoActionAndNotifyPlayer(player, result, vegetationCount);
+
+            Runnable finish = () -> {
+                result.affectedPositions.addAll(vegetationPositions);
+                result.originalStates.addAll(vegetationOriginal);
+                result.newStates.addAll(vegetationNew);
+                createUndoActionAndNotifyPlayer(player, result, vegetationCount);
+            };
+
+            if (vegetationPositions.isEmpty()) {
+                finish.run();
+            } else {
+                BlockOperation.applyTerrainChanges(serverWorld, vegetationPositions, vegetationNew, finish);
+            }
         });
     }
     
@@ -1231,7 +1246,7 @@ public class ShorelineProcessHandler {
      * 修复：添加player参数用于标高检查
      * 性能优化：添加植物数量限制，防止性能问题
      */
-    private int plantVegetation(World world, List<VegetationPlacement> placements, 
+    private int planVegetation(World world, List<VegetationPlacement> placements,
                                List<BlockPos> affectedPositions, List<BlockState> originalStates, List<BlockState> newStates,
                                PlayerEntity player) {
         int plantedCount = 0;
@@ -1300,11 +1315,7 @@ public class ShorelineProcessHandler {
                     originalStates.add(world.getBlockState(upperPos));
                     affectedPositions.add(plantPos);
                     affectedPositions.add(upperPos);
-                    
-                    // 放置植物
-                    world.setBlockState(plantPos, lowerPlant);
-                    world.setBlockState(upperPos, upperPlant);
-                    
+
                     newStates.add(lowerPlant);
                     newStates.add(upperPlant);
                     plantedCount++;
@@ -1356,22 +1367,17 @@ public class ShorelineProcessHandler {
                             plantToPlace = plantToPlace.with(Properties.WATERLOGGED, false);
                         }
                     }
-                    
-                    world.setBlockState(plantPos, plantToPlace);
+
                     newStates.add(plantToPlace);
                 } else {
-                    // 高植物：根据类型进行特殊处理
-                    placeHighPlant(world, plantPos, placement.plant, requiredHeight, newStates);
-                    
-                    // 特殊处理：仙人掌有机会在顶部放置仙人掌花
-                    if (placement.plant.getBlock() == Blocks.CACTUS && 
+                    collectHighPlant(world, plantPos, placement.plant, requiredHeight, newStates);
+
+                    if (placement.plant.getBlock() == Blocks.CACTUS &&
                         config.getShorelineType() == PushdozerConfig.ShorelineType.BEACH) {
-                        // 在沙滩类型时，仙人掌有30%概率在顶部放置仙人掌花
                         if (world.getRandom().nextFloat() < 0.3f) {
                             BlockPos flowerPos = plantPos.up(requiredHeight);
                             if (world.getBlockState(flowerPos).isAir()) {
                                 BlockState flowerState = Blocks.CACTUS_FLOWER.getDefaultState();
-                                world.setBlockState(flowerPos, flowerState);
                                 newStates.add(flowerState);
                                 originalStates.add(world.getBlockState(flowerPos));
                                 affectedPositions.add(flowerPos);
@@ -1407,7 +1413,7 @@ public class ShorelineProcessHandler {
      * @param height 植物高度
      * @param newStates 新状态列表（用于撤销）
      */
-    private void placeHighPlant(World world, BlockPos pos, BlockState plantState, int height, List<BlockState> newStates) {
+    private void collectHighPlant(World world, BlockPos pos, BlockState plantState, int height, List<BlockState> newStates) {
         Block plantBlock = plantState.getBlock();
         Random random = world.getRandom();
         
@@ -1457,7 +1463,6 @@ public class ShorelineProcessHandler {
             for (int i = 0; i < height; i++) {
                 BlockPos plantPos = pos.up(i);
                 BlockState kelpState = Blocks.KELP.getDefaultState().with(KelpBlock.AGE, random.nextInt(4));
-                world.setBlockState(plantPos, kelpState);
                 newStates.add(kelpState);
             }
         } else if (plantBlock == Blocks.CHORUS_PLANT) {
@@ -1465,7 +1470,6 @@ public class ShorelineProcessHandler {
             for (int i = 0; i < height; i++) {
                 BlockPos plantPos = pos.up(i);
                 BlockState chorusState = Blocks.CHORUS_PLANT.getDefaultState();
-                world.setBlockState(plantPos, chorusState);
                 newStates.add(chorusState);
             }
         } else if (plantBlock == Blocks.CHORUS_FLOWER) {
@@ -1473,12 +1477,9 @@ public class ShorelineProcessHandler {
             for (int i = 0; i < height; i++) {
                 BlockPos plantPos = pos.up(i);
                 BlockState flowerState = Blocks.CHORUS_FLOWER.getDefaultState();
-                world.setBlockState(plantPos, flowerState);
                 newStates.add(flowerState);
             }
         } else {
-            // 其他高植物：默认放置
-            world.setBlockState(pos, plantState);
             newStates.add(plantState);
         }
     }
