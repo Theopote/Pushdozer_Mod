@@ -108,7 +108,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
                 (currentTime - lastCacheTime) > CACHE_DURATION) {
                 // 缓存失效，重新计算
                 cachedPlantBlocks = getPlantBlocks();
-                cachedCategorizedBlocks = categorizeBlocksStatic(cachedPlantBlocks);
+                categorizeBlocksStatic(cachedPlantBlocks);
                 lastCacheTime = currentTime;
             }
             

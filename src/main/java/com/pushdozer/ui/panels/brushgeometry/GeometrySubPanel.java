@@ -319,18 +319,6 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 处理鼠标释放事件。
-     */
-    public boolean mouseReleased(Click click) {
-        for (Element widget : widgets) {
-            if (widget.mouseReleased(click)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * 渲染面板背景和边框（优化的渲染顺序）
      * @param context 绘图上下文
      */
