@@ -425,7 +425,7 @@ public class BatchPlantHandler {
             return;
         }
 
-        world.getServer().execute(() ->
+        Objects.requireNonNull(world.getServer()).execute(() ->
             scheduleTreesAcrossTicks(world, treePositions, endIndex, blockedColumns, result, onComplete)
         );
     }
