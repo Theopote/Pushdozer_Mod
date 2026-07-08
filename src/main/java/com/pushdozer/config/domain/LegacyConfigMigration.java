@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * 旧版扁平 JSON 迁移与默认值修复。
@@ -85,23 +86,7 @@ public final class LegacyConfigMigration {
         }
         brush.setLockedOnceMode(snapshot.isLockedOnceMode);
 
-        SurfaceConfig surface = config.getSurface();
-        if (snapshot.placeMode != null) {
-            surface.setPlaceMode(snapshot.placeMode);
-        }
-        if (snapshot.selectedNaturalBlockId != null) {
-            surface.setSelectedNaturalBlockId(snapshot.selectedNaturalBlockId);
-        }
-        surface.setSmoothStrength(snapshot.smoothStrength);
-        if (snapshot.smoothVariant != null) {
-            surface.setSmoothVariant(snapshot.smoothVariant);
-        }
-        surface.setRoughnessStrength(snapshot.roughnessStrength);
-        surface.setSmoothingIntensity(snapshot.smoothingIntensity);
-        surface.setNoiseAutoScale(snapshot.noiseAutoScale);
-        surface.setNoiseFrequency(snapshot.noiseFrequency);
-        surface.setNoisePersistence(snapshot.noisePersistence);
-        surface.setNoiseOctaves(snapshot.noiseOctaves);
+        SurfaceConfig surface = getSurfaceConfig(config, snapshot);
         if (snapshot.surfaceConvertBlocks != null) {
             surface.getSurfaceConvertBlocks().clear();
             surface.getSurfaceConvertBlocks().addAll(snapshot.surfaceConvertBlocks);
@@ -139,6 +124,27 @@ public final class LegacyConfigMigration {
         }
         shoreline.setShorelineHeightAboveEnabled(snapshot.shorelineHeightAboveEnabled);
         shoreline.setShorelineHeightBelowEnabled(snapshot.shorelineHeightBelowEnabled);
+    }
+
+    private static @NotNull SurfaceConfig getSurfaceConfig(PushdozerConfig config, LegacyFlatSnapshot snapshot) {
+        SurfaceConfig surface = config.getSurface();
+        if (snapshot.placeMode != null) {
+            surface.setPlaceMode(snapshot.placeMode);
+        }
+        if (snapshot.selectedNaturalBlockId != null) {
+            surface.setSelectedNaturalBlockId(snapshot.selectedNaturalBlockId);
+        }
+        surface.setSmoothStrength(snapshot.smoothStrength);
+        if (snapshot.smoothVariant != null) {
+            surface.setSmoothVariant(snapshot.smoothVariant);
+        }
+        surface.setRoughnessStrength(snapshot.roughnessStrength);
+        surface.setSmoothingIntensity(snapshot.smoothingIntensity);
+        surface.setNoiseAutoScale(snapshot.noiseAutoScale);
+        surface.setNoiseFrequency(snapshot.noiseFrequency);
+        surface.setNoisePersistence(snapshot.noisePersistence);
+        surface.setNoiseOctaves(snapshot.noiseOctaves);
+        return surface;
     }
 
     public static void ensureDefaults(PushdozerConfig config) {

@@ -215,13 +215,6 @@ public class PushdozerConfig {
         }
     }
 
-    /** Backward-compatible alias for {@link SurfaceConfig.SurfaceConvertBlock}. */
-    public static class SurfaceConvertBlock extends SurfaceConfig.SurfaceConvertBlock {
-        public SurfaceConvertBlock(String blockId, float percentage) {
-            super(blockId, percentage);
-        }
-    }
-
     @Expose
     private WorkMode workMode = WorkMode.EXCAVATE;
     @Expose
@@ -668,16 +661,8 @@ public class PushdozerConfig {
         return brush.getIgnoredBlockIds();
     }
 
-    public Set<Block> getIgnoredBlocks() {
-        return brush.getIgnoredBlocks();
-    }
-
     public boolean isBlockIgnored(Block block) {
         return brush.isBlockIgnored(block);
-    }
-
-    public void rebuildIgnoredBlocksCache() {
-        brush.rebuildIgnoredBlocksCache();
     }
 
     public List<Block> getBreakableBlocks() {
