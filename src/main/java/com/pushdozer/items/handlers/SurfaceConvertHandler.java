@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.config.domain.SurfaceConfig;
 import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
@@ -151,7 +152,7 @@ public class SurfaceConvertHandler {
      * 根据配置比例选择目标方块
      */
     private Block selectTargetBlock() {
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         
         if (surfaceBlocks.isEmpty()) {
             // 如果没有配置方块，默认使用草方块
@@ -160,7 +161,7 @@ public class SurfaceConvertHandler {
 
         // 计算总百分比
         float totalPercentage = 0f;
-        for (PushdozerConfig.SurfaceConvertBlock block : surfaceBlocks) {
+        for (SurfaceConfig.SurfaceConvertBlock block : surfaceBlocks) {
             totalPercentage += block.getPercentage();
         }
 
@@ -173,7 +174,7 @@ public class SurfaceConvertHandler {
         float random = RANDOM.nextFloat() * totalPercentage;
         float currentSum = 0f;
 
-        for (PushdozerConfig.SurfaceConvertBlock surfaceBlock : surfaceBlocks) {
+        for (SurfaceConfig.SurfaceConvertBlock surfaceBlock : surfaceBlocks) {
             currentSum += surfaceBlock.getPercentage();
             if (random <= currentSum) {
                 Block block = RegistryBlocks.resolveOrAir(surfaceBlock.getBlockId());

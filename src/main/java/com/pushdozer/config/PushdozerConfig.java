@@ -548,9 +548,8 @@ public class PushdozerConfig {
         surface.setNoiseOctaves(value);
     }
 
-    @SuppressWarnings("unchecked")
-    public List<SurfaceConvertBlock> getSurfaceConvertBlocks() {
-        return (List<SurfaceConvertBlock>) (List<?>) surface.getSurfaceConvertBlocks();
+    public List<SurfaceConfig.SurfaceConvertBlock> getSurfaceConvertBlocks() {
+        return surface.getSurfaceConvertBlocks();
     }
 
     public PlantType getPlantType() {

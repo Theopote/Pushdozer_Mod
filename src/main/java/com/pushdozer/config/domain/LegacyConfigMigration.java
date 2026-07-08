@@ -174,6 +174,7 @@ public final class LegacyConfigMigration {
         config.getBrush().clampAllDimensions();
         config.getBrush().markIgnoredBlocksCacheDirty();
         config.getBrush().rebuildIgnoredBlocksCache();
+        config.getSurface().ensureSurfaceConvertDefaults();
     }
 
     /** 旧版扁平 JSON 字段快照，仅用于迁移。 */

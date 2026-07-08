@@ -164,4 +164,13 @@ public class SurfaceConfig {
     public List<SurfaceConvertBlock> getSurfaceConvertBlocks() {
         return surfaceConvertBlocks;
     }
+
+    public void ensureSurfaceConvertDefaults() {
+        if (surfaceConvertBlocks == null) {
+            surfaceConvertBlocks = new ArrayList<>();
+        }
+        if (surfaceConvertBlocks.isEmpty()) {
+            surfaceConvertBlocks.add(new SurfaceConvertBlock("minecraft:grass_block", 100.0f));
+        }
+    }
 }

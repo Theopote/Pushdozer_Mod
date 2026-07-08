@@ -1,6 +1,7 @@
 package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.config.domain.SurfaceConfig;
 import com.pushdozer.util.BlockDisplayIcons;
 import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.ui.screens.NaturalBlockSelectionScreen;
@@ -58,7 +59,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         int contentLeft;
         int contentTop = tempPanelTop + TITLE_HEIGHT + WIDGET_MARGIN;
         int contentWidth;
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         int currentY = contentTop;
         for (int i = 0; i < surfaceBlocks.size() && i < MAX_BLOCKS; i++) {
             currentY += ROW_HEIGHT + WIDGET_MARGIN;
@@ -95,7 +96,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         contentWidth = PANEL_WIDTH - (WIDGET_MARGIN * 2);
         currentY = contentTop;
         for (int i = 0; i < surfaceBlocks.size() && i < MAX_BLOCKS; i++) {
-            PushdozerConfig.SurfaceConvertBlock block = surfaceBlocks.get(i);
+            SurfaceConfig.SurfaceConvertBlock block = surfaceBlocks.get(i);
             BlockConfigRow row = new BlockConfigRow(contentLeft, currentY, contentWidth, block, i);
             blockRows.add(row);
             widgets.addAll(row.getWidgets());
@@ -167,14 +168,14 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     }
 
     private void addSelectedBlock(Block block) {
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         
         // 检查是否已经存在该方块
         String blockId = Registries.BLOCK.getId(block).toString();
         boolean exists = surfaceBlocks.stream().anyMatch(b -> b.getBlockId().equals(blockId));
         
         if (!exists && surfaceBlocks.size() < MAX_BLOCKS) {
-            surfaceBlocks.add(new PushdozerConfig.SurfaceConvertBlock(blockId, 0f));
+            surfaceBlocks.add(new SurfaceConfig.SurfaceConvertBlock(blockId, 0f));
             normalizePercentages(); // 自动分配百分比
         }
     }
@@ -186,7 +187,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     }
 
     private void removeBlock(int index) {
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         if (index >= 0 && index < surfaceBlocks.size() && surfaceBlocks.size() > 1) {
             surfaceBlocks.remove(index);
             initializeWidgets(); // 重新初始化界面
@@ -194,14 +195,14 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     }
 
     private void normalizePercentages() {
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         if (surfaceBlocks.size() == 1) {
             // 单个方块时，强制设为100%
             surfaceBlocks.getFirst().setPercentage(100.0f);
         } else if (surfaceBlocks.size() > 1) {
             // 多个方块时，平均分配
             float equalPercentage = 100.0f / surfaceBlocks.size();
-            for (PushdozerConfig.SurfaceConvertBlock block : surfaceBlocks) {
+            for (SurfaceConfig.SurfaceConvertBlock block : surfaceBlocks) {
                 block.setPercentage(equalPercentage);
             }
         }
@@ -322,7 +323,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         }
         
         // 重新计算按钮位置（包括确认按钮）
-        List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         if (surfaceBlocks.size() == 1) {
             // 重新定位添加方块按钮和确认按钮
             if (widgets.size() >= 2) {
@@ -368,14 +369,14 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
      * 包含方块图标、删除按钮和占比滑动条
      */
     private class BlockConfigRow {
-        private final PushdozerConfig.SurfaceConvertBlock block;
+        private final SurfaceConfig.SurfaceConvertBlock block;
         private final int index;
         private final int x, y, width;
         private ButtonWidget removeButton;
         private PercentageSlider percentageSlider;
         private List<net.minecraft.client.gui.Element> rowWidgets = new ArrayList<>();
 
-        public BlockConfigRow(int x, int y, int width, PushdozerConfig.SurfaceConvertBlock block, int index) {
+        public BlockConfigRow(int x, int y, int width, SurfaceConfig.SurfaceConvertBlock block, int index) {
             this.block = block;
             this.index = index;
             this.x = x;
@@ -387,7 +388,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
 
         private void initializeRowWidgets() {
             // 只有当方块数量大于1时才显示删除按钮
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             int sliderX = x + BLOCK_ICON_SIZE + 5; // 基础位置
             int sliderWidth = width - BLOCK_ICON_SIZE - 5; // 基础宽度
             
@@ -442,7 +443,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
 
         public void recalculatePosition(int newX, int newY, int newWidth) {
             // 重新计算控件位置
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             int sliderX = newX + BLOCK_ICON_SIZE + 5; // 基础位置
             
             if (surfaceBlocks.size() > 1) {
@@ -462,9 +463,9 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
      * 占比滑动条 - 优化的更新策略
      */
     private class PercentageSlider extends SliderWidget {
-        private final PushdozerConfig.SurfaceConvertBlock block;
+        private final SurfaceConfig.SurfaceConvertBlock block;
 
-        public PercentageSlider(int x, int y, int width, int height, float percentage, PushdozerConfig.SurfaceConvertBlock block) {
+        public PercentageSlider(int x, int y, int width, int height, float percentage, SurfaceConfig.SurfaceConvertBlock block) {
             super(x, y, width, height, 
                 Text.translatable("pushdozer.config.percentage", String.format("%.1f", percentage)), 
                 getInitialValue(percentage));
@@ -488,7 +489,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
 
         @Override
         protected void applyValue() {
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             
             // 如果只有一个方块，强制设为100%并且不允许调整
             if (surfaceBlocks.size() == 1) {
@@ -512,7 +513,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         @Override
         public boolean mouseClicked(Click click, boolean doubleClick) {
             // 如果只有一个方块，禁用滑动条交互
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             if (surfaceBlocks.size() == 1) {
                 return false; // 不处理点击事件
             }
@@ -522,7 +523,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         @Override
         public boolean mouseDragged(Click click, double deltaX, double deltaY) {
             // 如果只有一个方块，禁用滑动条拖拽
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             if (surfaceBlocks.size() == 1) {
                 return false; // 不处理拖拽事件
             }
@@ -532,7 +533,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         @Override
         public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
             // 如果只有一个方块，禁用滑动条滚轮
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             if (surfaceBlocks.size() == 1) {
                 return false; // 不处理滚轮事件
             }
@@ -554,7 +555,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
          * 从配置数据更新滑块状态 - 避免触发applyValue造成无限循环
          */
         public void updateValueFromConfig() {
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             
             // 如果只有一个方块，强制显示为100%
             if (surfaceBlocks.size() == 1) {
@@ -567,13 +568,13 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             updateMessage(); // 只更新显示文本
         }
         
-        private void adjustOtherPercentages(PushdozerConfig.SurfaceConvertBlock currentBlock, float currentPercentage) {
-            List<PushdozerConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        private void adjustOtherPercentages(SurfaceConfig.SurfaceConvertBlock currentBlock, float currentPercentage) {
+            List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
             
             // 计算其他方块的总百分比
             float otherTotal = 0f;
             int otherCount = 0;
-            for (PushdozerConfig.SurfaceConvertBlock block : surfaceBlocks) {
+            for (SurfaceConfig.SurfaceConvertBlock block : surfaceBlocks) {
                 if (block != currentBlock) {
                     otherTotal += block.getPercentage();
                     otherCount++;
@@ -585,7 +586,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             
             if (otherCount > 0 && remainingPercentage >= 0) {
                 // 按比例分配剩余百分比给其他方块
-                for (PushdozerConfig.SurfaceConvertBlock block : surfaceBlocks) {
+                for (SurfaceConfig.SurfaceConvertBlock block : surfaceBlocks) {
                     if (block != currentBlock) {
                         if (otherTotal > 0) {
                             // 按原比例分配
@@ -601,10 +602,10 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             
             // *** 新增：浮点数精度校准 ***
             float totalPercentage = 0f;
-            PushdozerConfig.SurfaceConvertBlock largestBlock = null;
+            SurfaceConfig.SurfaceConvertBlock largestBlock = null;
             float maxPercentage = -1f;
 
-            for (PushdozerConfig.SurfaceConvertBlock b : surfaceBlocks) {
+            for (SurfaceConfig.SurfaceConvertBlock b : surfaceBlocks) {
                 totalPercentage += b.getPercentage();
                 if (b != currentBlock && b.getPercentage() > maxPercentage) {
                     maxPercentage = b.getPercentage();
