@@ -29,10 +29,10 @@
 
 ### 适配与依赖
 
-- Minecraft: 1.21.4（Fabric）
-- Fabric Loader >= 0.16.9
+- Minecraft: 1.21.11（Fabric）
+- Fabric Loader >= 0.18.2
 - Fabric API
-- Java >= 17
+- Java 21（开发与运行均需 JDK 21）
 - 可选：ModMenu（用于在模组列表中快速跳转链接）
 
 ### 安装
@@ -82,6 +82,9 @@
 
 ### 构建与开发
 
+- 环境要求
+  - JDK 21（Gradle Java Toolchain 会自动校验；未安装时 Gradle 可尝试自动下载）
+  - 版本号以 `gradle.properties` 为准（Minecraft、Loader、Fabric API、Loom）
 - 构建
   - Windows: `gradlew.bat build`
   - macOS/Linux: `./gradlew build`
