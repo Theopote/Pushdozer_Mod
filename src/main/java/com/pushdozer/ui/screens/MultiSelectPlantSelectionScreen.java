@@ -1,6 +1,8 @@
 package com.pushdozer.ui.screens;
 
-import com.pushdozer.util.BlockDisplayIcons;
+import com.pushdozer.ui.selection.BlockCellRenderer;
+import com.pushdozer.ui.selection.BlockGridScrollPanel;
+import com.pushdozer.ui.selection.MultiSelectStrategy;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -13,17 +15,11 @@ import java.util.HashMap;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
-import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import org.jetbrains.annotations.NotNull;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.PlantBlock;
@@ -42,8 +38,8 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     private final List<Block> plantBlocks;
     private List<Block> filteredBlocksCache;
     private String currentSearchText = "";
-    private ScrollableBlockPanel scrollPanel;
-    private final Set<Block> selectedBlocks = new HashSet<>(); // 多选的方块集合
+    private BlockGridScrollPanel scrollPanel;
+    private final MultiSelectStrategy<Block> multiSelect;
     
     // 分类相关
     private final Map<String, List<Block>> categorizedBlocks = new HashMap<>();
@@ -84,11 +80,9 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         super(Text.translatable("pushdozer.screen.plant_selection.title"));
         this.parent = parent;
         this.onBlocksSelected = onBlocksSelected;
-        this.plantBlocks = new ArrayList<>(); 
+        this.plantBlocks = new ArrayList<>();
         this.filteredBlocksCache = this.plantBlocks;
-        if (initialSelectedBlocks != null) {
-            this.selectedBlocks.addAll(initialSelectedBlocks);
-        }
+        this.multiSelect = new MultiSelectStrategy<>(initialSelectedBlocks);
     }
 
     @Override
@@ -157,7 +151,8 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         updateCategoryButtonStates(); // 初始化按钮状态
 
         // 6. 添加所有UI元素
-        scrollPanel = new ScrollableBlockPanel(panelX, topMargin, panelWidth, panelHeight, filteredBlocksCache);
+        scrollPanel = new BlockGridScrollPanel(panelX, topMargin, panelWidth, panelHeight, filteredBlocksCache,
+            BLOCKS_PER_ROW, multiSelect, BlockCellRenderer.DisplayMode.PLANT, BlockCellRenderer.POTTED_RING, block -> {});
         addDrawableChild(scrollPanel);
 
         TextFieldWidget searchBox = new TextFieldWidget(textRenderer, searchBoxX, searchBoxY, searchBoxWidth, BUTTON_HEIGHT, Text.empty());
@@ -264,8 +259,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     }
     
     private void selectAll() {
-        selectedBlocks.clear();
-        selectedBlocks.addAll(filteredBlocksCache);
+        multiSelect.selectAll(filteredBlocksCache);
         // 提示用户全选仅限当前视图
         if (client != null && client.player != null) {
             client.player.sendMessage(Text.literal("已全选当前视图中的 " + filteredBlocksCache.size() + " 种植物"), false);
@@ -273,12 +267,12 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     }
     
     private void clearAll() {
-        selectedBlocks.clear();
+        multiSelect.clearAll();
     }
     
     private void onConfirm() {
         // 返回选中的方块列表
-        onBlocksSelected.accept(new ArrayList<>(selectedBlocks));
+        onBlocksSelected.accept(new ArrayList<>(multiSelect.snapshot()));
         close();
     }
 
@@ -351,8 +345,8 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         
         // 将已选择数量和总数放在同一行显示
         int totalPlants = plantBlocks.size();
-        String countText = String.format("已选择: %d / 总计: %d 种植物", selectedBlocks.size(), totalPlants);
-        int countColor = selectedBlocks.isEmpty() ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
+        String countText = String.format("已选择: %d / 总计: %d 种植物", multiSelect.selectedCount(), totalPlants);
+        int countColor = multiSelect.selectedCount() == 0 ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(countText), width / 2, 15, countColor);
         
         // 在左侧中部显示当前分类信息
@@ -371,280 +365,6 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         }
     }
 
-    private class ScrollableBlockPanel extends ClickableWidget {
-        private List<Block> blocks;
-        private int scrollOffset = 0;
-        private boolean isDraggingScrollBar = false;
-        private int dragStartY = 0;
-        private int dragStartScrollOffset = 0;
-
-        public ScrollableBlockPanel(int x, int y, int width, int height, List<Block> blocks) {
-            super(x, y, width, height, Text.empty());
-            this.blocks = blocks;
-        }
-
-        public void updateBlocks(List<Block> newBlocks) {
-            this.blocks = newBlocks;
-            this.scrollOffset = 0;
-        }
-
-        @Override
-        protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-            Block hoveredBlock = null;
-            int hoveredX = 0, hoveredY = 0;
-
-            // 1. 定义面板的实际内容区域边界
-            int contentX = getX() + PANEL_PADDING;
-            int contentY = getY() + PANEL_PADDING;
-            int contentWidth = width - SCROLL_BAR_WIDTH - PANEL_PADDING * 2;
-            int contentHeight = height - PANEL_PADDING * 2;
-
-            // 2. 绘制面板背景
-            context.fill(getX(), getY(), getX() + width - SCROLL_BAR_WIDTH, getY() + height, PANEL_BACKGROUND_COLOR);
-
-            // 3. 启用裁剪
-            context.enableScissor(contentX - 1, contentY - 1, contentX + contentWidth + 1, contentY + contentHeight + 1);
-
-            // 计算方块网格的总尺寸
-            int gridWidth = BLOCKS_PER_ROW * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-            int offsetX = (contentWidth - gridWidth) / 2;
-            
-            // 性能优化：只渲染可见的方块
-            int startRow = Math.max(0, scrollOffset / (BLOCK_SIZE + BLOCK_SPACING));
-            int endRow = Math.min((blocks.size() + BLOCKS_PER_ROW - 1) / BLOCKS_PER_ROW, 
-                                 startRow + (contentHeight / (BLOCK_SIZE + BLOCK_SPACING)) + 1);
-            
-            for (int row = startRow; row <= endRow; row++) {
-                for (int col = 0; col < BLOCKS_PER_ROW; col++) {
-                    int i = row * BLOCKS_PER_ROW + col;
-                    if (i >= blocks.size()) break;
-                    
-                    int blockX = contentX + offsetX + col * (BLOCK_SIZE + BLOCK_SPACING);
-                    int blockY = contentY + row * (BLOCK_SIZE + BLOCK_SPACING) - scrollOffset;
-
-                    // 只渲染可见的方块 - 边框向内收缩1像素
-                    if (blockY + BLOCK_SIZE >= contentY && blockY < contentY + contentHeight) {
-                    // 确定边框颜色：如果被选中则使用白色，否则使用默认灰色
-                    boolean isSelected = selectedBlocks.contains(blocks.get(i));
-                    int borderColor = isSelected ? SELECTED_BLOCK_BORDER_COLOR : BLOCK_BORDER_COLOR;
-                    
-                    // 绘制边框和背景 - 边框向内扩展
-                    context.fill(blockX, blockY, blockX + BLOCK_SIZE, blockY + BLOCK_SIZE, borderColor);
-                    context.fill(blockX + 1, blockY + 1, blockX + BLOCK_SIZE - 1, blockY + BLOCK_SIZE - 1, BLOCK_BACKGROUND_COLOR);
-
-                    // 检查鼠标悬停
-                    if (isMouseOver(mouseX, mouseY) && mouseX >= blockX && mouseX < blockX + BLOCK_SIZE && mouseY >= blockY && mouseY < blockY + BLOCK_SIZE) {
-                        context.fill(blockX + 1, blockY + 1, blockX + BLOCK_SIZE - 1, blockY + BLOCK_SIZE - 1, BLOCK_HOVER_COLOR);
-                        hoveredBlock = blocks.get(i);
-                        hoveredX = mouseX;
-                        hoveredY = mouseY;
-                    }
-
-                    // 绘制方块图标
-                    ItemStack itemStack = getItemStack(i);
-                    if (!itemStack.isEmpty()) {
-                        context.drawItem(itemStack, blockX + (BLOCK_SIZE - 16) / 2, blockY + (BLOCK_SIZE - 16) / 2);
-                    }
-
-                    // 盆栽：在图标下方绘制大圆环作为标识（保持植物本体图标不变）
-                    if (isPottedBlock(blocks.get(i))) {
-                        int cx = blockX + BLOCK_SIZE / 2;
-                        int cy = blockY + BLOCK_SIZE / 2;
-                        int outerR = Math.max(7, (BLOCK_SIZE - 4) / 2); // 稍小于边框
-                        int thickness = 3;
-                        int ringColor = 0x88FFFFFF; // 半透明白色
-                        drawRing(context, blockX, blockY, cx, cy, outerR, thickness, ringColor);
-                    }
-
-                    // 如果方块被选中，绘制背景高亮和选中标记
-                    if (isSelected) {
-                        context.fill(blockX + 1, blockY + 1, blockX + BLOCK_SIZE - 1, blockY + BLOCK_SIZE - 1, 0x80FFFFFF);
-                        context.drawText(textRenderer, Text.literal("☑"), blockX + BLOCK_SIZE - 8, blockY + BLOCK_SIZE - 9, 0xFF000000, false);
-                    }
-                }
-            }
-        }
-
-            // 绘制完所有方块后，关闭裁剪
-            context.disableScissor();
-
-            // 在裁剪区域外绘制滚动条和提示文本
-            drawScrollBar(context);
-
-            if (hoveredBlock != null) {
-                context.drawTooltip(textRenderer, Text.translatable(hoveredBlock.getTranslationKey()), hoveredX, hoveredY);
-            }
-        }
-
-        private boolean isPottedBlock(Block b) {
-            String id = Registries.BLOCK.getId(b).getPath().toLowerCase();
-            String key = b.getTranslationKey().toLowerCase();
-            return id.startsWith("potted_") || key.contains("potted");
-        }
-
-        private void drawRing(DrawContext ctx,
-                              int clipX, int clipY,
-                              int cx, int cy, int outerR, int thickness, int color) {
-            int innerR = Math.max(0, outerR - thickness);
-            int minY = Math.max(clipY, cy - outerR);
-            int maxY = Math.min(clipY + MultiSelectPlantSelectionScreen.BLOCK_SIZE - 1, cy + outerR);
-            for (int y = minY; y <= maxY; y++) {
-                int dy = y - cy;
-                int y2 = dy * dy;
-                int xOuter = (int) Math.floor(Math.sqrt(Math.max(0, outerR * outerR - y2)));
-                int xInner = innerR > 0 ? (int) Math.floor(Math.sqrt(Math.max(0, innerR * innerR - y2))) : -1;
-
-                int leftOuter = cx - xOuter;
-                int rightOuter = cx + xOuter;
-                int leftInner = cx - xInner;
-                int rightInner = cx + xInner;
-
-                // 左半环
-                int lx1 = Math.max(clipX, leftOuter);
-                int lx2 = Math.min(clipX + MultiSelectPlantSelectionScreen.BLOCK_SIZE - 1, leftInner - 1);
-                if (lx1 <= lx2) ctx.fill(lx1, y, lx2 + 1, y + 1, color);
-                // 右半环
-                int rx1 = Math.max(clipX, rightInner + 1);
-                int rx2 = Math.min(clipX + MultiSelectPlantSelectionScreen.BLOCK_SIZE - 1, rightOuter);
-                if (rx1 <= rx2) ctx.fill(rx1, y, rx2 + 1, y + 1, color);
-            }
-        }
-
-
-
-        private @NotNull ItemStack getItemStack(int i) {
-            return BlockDisplayIcons.getPlantDisplayStack(blocks.get(i));
-        }
-
-        private void drawScrollBar(DrawContext context) {
-            int scrollBarX = getX() + width - SCROLL_BAR_WIDTH;
-            int contentHeight = height - PANEL_PADDING * 2;
-            context.fill(scrollBarX, getY(), scrollBarX + SCROLL_BAR_WIDTH, getY() + height, SCROLL_BAR_BACKGROUND_COLOR);
-
-            int visibleRows = contentHeight / (BLOCK_SIZE + BLOCK_SPACING);
-            int totalRows = (blocks.size() + BLOCKS_PER_ROW - 1) / BLOCKS_PER_ROW;
-            
-            // 只有在需要滚动时才绘制滚动条
-            if (totalRows > visibleRows) {
-                int scrollBarHeight = Math.max(20, contentHeight * visibleRows / totalRows);
-                int scrollBarY = getY() + (int) ((contentHeight - scrollBarHeight) * (float) scrollOffset / ((totalRows - visibleRows) * (BLOCK_SIZE + BLOCK_SPACING)));
-                
-                // 绘制3D滚动条
-                context.fill(scrollBarX, scrollBarY, scrollBarX + SCROLL_BAR_WIDTH, scrollBarY + scrollBarHeight, SCROLL_BAR_COLOR);
-                context.fill(scrollBarX, scrollBarY, scrollBarX + SCROLL_BAR_WIDTH - 1, scrollBarY + 1, SCROLL_BAR_HIGHLIGHT_COLOR);
-                context.fill(scrollBarX, scrollBarY, scrollBarX + 1, scrollBarY + scrollBarHeight - 1, SCROLL_BAR_HIGHLIGHT_COLOR);
-                context.fill(scrollBarX + SCROLL_BAR_WIDTH - 1, scrollBarY, scrollBarX + SCROLL_BAR_WIDTH, scrollBarY + scrollBarHeight, SCROLL_BAR_SHADOW_COLOR);
-                context.fill(scrollBarX, scrollBarY + scrollBarHeight - 1, scrollBarX + SCROLL_BAR_WIDTH, scrollBarY + scrollBarHeight, SCROLL_BAR_SHADOW_COLOR);
-            }
-        }
-
-        @Override
-        public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-            if (isMouseOver(mouseX, mouseY)) {
-                int contentHeight = height - PANEL_PADDING * 2;
-                int visibleRows = contentHeight / (BLOCK_SIZE + BLOCK_SPACING);
-                int totalRows = (blocks.size() + BLOCKS_PER_ROW - 1) / BLOCKS_PER_ROW;
-                // 使用 long 避免整数溢出
-                long maxScrollLong = Math.max(0L, (long)(totalRows - visibleRows) * (BLOCK_SIZE + BLOCK_SPACING));
-                int maxScroll = maxScrollLong > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxScrollLong;
-                scrollOffset = Math.max(0, Math.min(scrollOffset - (int)(verticalAmount * 10), maxScroll));
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean mouseClicked(Click click, boolean doubled) {
-            double mouseX = click.x();
-            double mouseY = click.y();
-            int button = click.button();
-            if (isMouseOver(mouseX, mouseY) && button == 0) {
-                // 检查是否点击了滚动条
-                int scrollBarX = getX() + width - SCROLL_BAR_WIDTH;
-                if (mouseX >= scrollBarX && mouseX < scrollBarX + SCROLL_BAR_WIDTH) {
-                    // 开始拖动滚动条
-                    isDraggingScrollBar = true;
-                    dragStartY = (int) mouseY;
-                    dragStartScrollOffset = scrollOffset;
-                    return true;
-                }
-                
-                // 计算内容区域边界
-                int contentX = getX() + PANEL_PADDING;
-                int contentY = getY() + PANEL_PADDING;
-                int contentWidth = width - SCROLL_BAR_WIDTH - PANEL_PADDING * 2;
-                int contentHeight = height - PANEL_PADDING * 2;
-                
-                // 计算居中偏移
-                int gridWidth = BLOCKS_PER_ROW * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-                int offsetX = (contentWidth - gridWidth) / 2;
-                
-                for (int i = 0; i < blocks.size(); i++) {
-                    int row = i / BLOCKS_PER_ROW;
-                    int col = i % BLOCKS_PER_ROW;
-                    
-                    int blockX = contentX + offsetX + col * (BLOCK_SIZE + BLOCK_SPACING);
-                    int blockY = contentY + row * (BLOCK_SIZE + BLOCK_SPACING) - scrollOffset;
-                    
-                    // 只检查可见的方块 - 考虑边框向内收缩
-                    if (blockY + BLOCK_SIZE >= contentY && blockY < contentY + contentHeight) {
-                        if (mouseX >= blockX && mouseX < blockX + BLOCK_SIZE && mouseY >= blockY && mouseY < blockY + BLOCK_SIZE) {
-                            Block clickedBlock = blocks.get(i);
-                            
-                            // 多选逻辑：切换选中状态
-                            if (selectedBlocks.contains(clickedBlock)) {
-                                selectedBlocks.remove(clickedBlock);
-                            } else {
-                                selectedBlocks.add(clickedBlock);
-                            }
-                            
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-        
-        @Override
-        public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-            double mouseY = click.y();
-            int button = click.button();
-            if (isDraggingScrollBar && button == 0) {
-                int contentHeight = height - PANEL_PADDING * 2;
-                int visibleRows = contentHeight / (BLOCK_SIZE + BLOCK_SPACING);
-                int totalRows = (blocks.size() + BLOCKS_PER_ROW - 1) / BLOCKS_PER_ROW;
-                // 使用 long 避免整数溢出
-                long maxScrollLong = Math.max(0L, (long)(totalRows - visibleRows) * (BLOCK_SIZE + BLOCK_SPACING));
-                int maxScroll = maxScrollLong > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxScrollLong;
-                
-                if (maxScroll > 0) {
-                    int dragDistance = (int) mouseY - dragStartY;
-                    int scrollBarHeight = Math.max(20, contentHeight * visibleRows / totalRows);
-                    int scrollableHeight = contentHeight - scrollBarHeight;
-                    
-                    float scrollRatio = (float) dragDistance / scrollableHeight;
-                    int newScrollOffset = dragStartScrollOffset + (int) (scrollRatio * maxScroll);
-                    scrollOffset = Math.max(0, Math.min(newScrollOffset, maxScroll));
-                }
-                return true;
-            }
-            return false;
-        }
-        
-        @Override
-        public boolean mouseReleased(Click click) {
-            if (click.button() == 0) {
-                isDraggingScrollBar = false;
-            }
-            return false;
-        }
-        
-        @Override
-        protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-            builder.put(NarrationPart.TITLE, Text.translatable("pushdozer.narrator.plant_panel"));
-        }
-    }
     
     /**
      * 获取所有可种植的植物方块

@@ -1,672 +1,93 @@
 package com.pushdozer.ui.screens;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
 import com.pushdozer.config.PushdozerConfig;
-import com.pushdozer.util.BlockDisplayIcons;
+import com.pushdozer.ui.selection.AbstractPagedCategorySelectionScreen;
+import com.pushdozer.ui.selection.BlockSearchIndex;
+import com.pushdozer.ui.selection.MultiSelectStrategy;
+import com.pushdozer.ui.selection.SelectionCategory;
+import com.pushdozer.ui.selection.SelectionScreenStyle;
 import com.pushdozer.util.ExceptionPolicy;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import net.minecraft.block.Block;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
 
-public class BlockSelectionScreen extends Screen {
-    private final PushdozerConfigScreen parent;
+public class BlockSelectionScreen extends AbstractPagedCategorySelectionScreen {
     private final PushdozerConfig config;
-    private List<BlockCategory> blockCategories;
-    private final Set<Block> selectedBlocks; // 改为HashSet以提高性能
-    
-    // 性能优化：静态缓存
-    private static List<BlockCategory> cachedCategories = null;
-    // 全局搜索字符串缓存 - 性能优化
-    private static Map<Block, String> globalSearchStrings = new HashMap<>();
-    
-    private int currentPage = 0;
-    private String searchText = "";
-    private TextFieldWidget searchBox;
-    
-    // UI常量
-    private static final int BUTTON_HEIGHT = 20;
-    private static final int BUTTON_WIDTH = 80;
-    private static final int BUTTON_SPACING = 10;
-    private static final int SEARCH_WIDTH = BUTTON_WIDTH * 3 + BUTTON_SPACING * 2;
-    private static final int CATEGORIES_PER_PAGE = 4;
-    private static final int CATEGORY_BUTTON_HEIGHT = 20;
-    private static final int BLOCK_SIZE = 20;
-    private static final int TOP_MARGIN = 35;
-    private static final int BOTTOM_MARGIN = 10;
-    private static final int SEARCH_BOTTOM_SPACING = 5;
-    private static final int PAGE_NUMBER_SPACING = 10;
-    
-    // UI样式常量 - 参考NaturalBlockSelectionScreen
-    private static final int PANEL_BACKGROUND_COLOR = 0x40000000;
-    private static final int BLOCK_BORDER_COLOR = 0xFF8B8B8B;
-    private static final int BLOCK_BACKGROUND_COLOR = 0xFF373737;
-    private static final int BLOCK_HOVER_COLOR = 0xFF555555;
-    private static final int SCROLL_BAR_BACKGROUND_COLOR = 0x33FFFFFF;
-    private static final int SCROLL_BAR_COLOR = 0xFFAAAAAA;
-    private static final int SCROLL_BAR_HIGHLIGHT_COLOR = 0xFFFFFFFF;
-    private static final int SCROLL_BAR_SHADOW_COLOR = 0xFF555555;
-    private static final int SELECTED_BLOCK_BORDER_COLOR = 0xFFFFFFFF; // 选中方块的白色边框
+    private static List<SelectionCategory<Block>> cachedCategories;
 
     public BlockSelectionScreen(PushdozerConfigScreen parent, PushdozerConfig config) {
-        super(Text.translatable("pushdozer.screen.block_selection.title"));
-        this.parent = parent;
+        super(parent,
+            Text.translatable("pushdozer.screen.block_selection.title"),
+            loadCategories(),
+            new MultiSelectStrategy<>(config.getBreakableBlocks()),
+            4,
+            3);
         this.config = config;
-        this.blockCategories = getAllRelevantBlocks();
-        this.selectedBlocks = new HashSet<>(config.getBreakableBlocks());
     }
 
-    @Override
-    protected void init() {
-        super.init();
-        addSearchAndButtons(false);
-        refreshCategoryButtons();
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-    }
-
-    // 提取重复的搜索框和按钮添加逻辑
-    private void addSearchAndButtons(boolean restoreFocus) {
-        // 计算布局位置
-        int totalWidth = BUTTON_WIDTH * 3 + BUTTON_SPACING * 2;
-        int startX = (width - totalWidth) / 2;
-        int buttonY = height - BUTTON_HEIGHT - BOTTOM_MARGIN;
-        int searchBoxY = buttonY - BUTTON_HEIGHT - SEARCH_BOTTOM_SPACING;
-        
-        // 添加搜索框
-        searchBox = new TextFieldWidget(textRenderer, startX, searchBoxY, SEARCH_WIDTH, BUTTON_HEIGHT, 
-            Text.translatable("pushdozer.screen.block_selection.search"));
-        searchBox.setMaxLength(50);
-        searchBox.setDrawsBackground(true);
-        searchBox.setVisible(true);
-        searchBox.setEditable(true);
-        searchBox.setText(searchText);
-        searchBox.setFocused(restoreFocus);
-        searchBox.setChangedListener(this::onSearchTextChanged);
-        addDrawableChild(searchBox);
-        
-        addPageButtons();
-        addSelectionButtons();
-    }
-
-    @Override
-    public boolean mouseClicked(Click click, boolean doubleClick) {
-        boolean result = super.mouseClicked(click, doubleClick);
-        if (searchBox != null) {
-            double mouseX = click.x();
-            double mouseY = click.y();
-            if (searchBox.isMouseOver(mouseX, mouseY)) {
-                searchBox.setFocused(true);
-                return true;
-            } else {
-                searchBox.setFocused(false);
-            }
-        }
-        return result;
-    }
-
-    @Override
-    public boolean keyPressed(KeyInput input) {
-        if (searchBox != null && searchBox.isFocused()) {
-            int keyCode = input.key();
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                searchBox.setFocused(false);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_ENTER) {
-                focusOnMatch();
-                return true;
-            }
-            if (searchBox.keyPressed(input)) {
-                return true;
-            }
-        }
-        return super.keyPressed(input);
-    }
-
-    @Override
-    public boolean charTyped(CharInput input) {
-        if (searchBox != null && searchBox.isFocused()) {
-            if (searchBox.charTyped(input)) {
-                return true;
-            }
-        }
-        return super.charTyped(input);
-    }
-
-    private void focusOnMatch() {
-        if (searchText.isEmpty()) {
-            return;
-        }
-
-        // 遍历所有类别和方块
-        for (int i = 0; i < blockCategories.size(); i++) {
-            BlockCategory category = blockCategories.get(i);
-            for (int j = 0; j < category.blocks.size(); j++) {
-                Block block = category.blocks.get(j);
-                // 获取方块的本地化名称和ID
-                String blockName = Text.translatable(block.getTranslationKey()).getString().toLowerCase();
-                String blockId = Registries.BLOCK.getId(block).getPath().toLowerCase();
-                
-                // 检查是否匹配
-                if (blockName.contains(searchText.toLowerCase()) || blockId.contains(searchText.toLowerCase())) {
-                    // 计算并切换到包含该方块的页面
-                    int targetPage = i / CATEGORIES_PER_PAGE;
-                    if (currentPage != targetPage) {
-                        currentPage = targetPage;
-                        refreshCategoryButtons();
-                    }
-                    
-                    // 找到对应的ScrollablePanel并滚动到目标方块
-                    scrollToBlock(block, j);
-                    return;
-                }
-            }
-        }
-    }
-
-    private void scrollToBlock(Block targetBlock, int blockIndex) {
-        // 找到包含目标方块的ScrollablePanel
-        for (Element child : children()) {
-            if (child instanceof ScrollablePanel panel) {
-                if (panel.blocks.contains(targetBlock)) {
-                    // 计算方块在面板中的位置
-                    int row = blockIndex / 4;
-                    int targetScrollOffset = row * (BLOCK_SIZE + ScrollablePanel.BLOCK_SPACING);
-                    
-                    // 确保目标方块在可见区域内
-                    int maxScroll = Math.max(0, (panel.blocks.size() + 3) / 4 - panel.getVisibleRows()) * (BLOCK_SIZE + ScrollablePanel.BLOCK_SPACING);
-                    panel.scrollOffset = Math.max(0, Math.min(targetScrollOffset, maxScroll));
-                    break;
-                }
-            }
-        }
-    }
-
-    private void onSearchTextChanged(String text) {
-        if (!text.equals(searchText)) {
-            searchText = text;
-            refreshCategoryButtons();
-        }
-    }
-
-    private boolean matchesSearch(Block block) {
-        if (searchText.isEmpty()) {
-            return true;
-        }
-        // 性能优化：使用全局缓存的搜索字符串
-        String searchLower = searchText.toLowerCase();
-        
-        // 从全局缓存获取搜索字符串
-        String searchString = globalSearchStrings.get(block);
-        if (searchString != null) {
-            return searchString.contains(searchLower);
-        }
-        
-        // 如果缓存中没有找到，回退到原始方法
-        String blockName = Text.translatable(block.getTranslationKey()).getString().toLowerCase();
-        String blockId = Registries.BLOCK.getId(block).getPath().toLowerCase();
-        return blockName.contains(searchLower) || blockId.contains(searchLower);
-    }
-
-    private void addPageButtons() {
-        ButtonWidget prevButton = ButtonWidget.builder(net.minecraft.text.Text.literal("<"), button -> changePage(-1))
-                .dimensions(10, height / 2, 20, 20)
-                .tooltip(Tooltip.of(net.minecraft.text.Text.translatable("pushdozer.screen.block_selection.previous_page")))
-                .build();
-        addDrawableChild(prevButton);
-
-        ButtonWidget nextButton = ButtonWidget.builder(net.minecraft.text.Text.literal(">"), button -> changePage(1))
-                .dimensions(width - 30, height / 2, 20, 20)
-                .tooltip(Tooltip.of(net.minecraft.text.Text.translatable("pushdozer.screen.block_selection.next_page")))
-                .build();
-        addDrawableChild(nextButton);
-    }
-
-    private void changePage(int delta) {
-        int totalPages = (blockCategories.size() - 1) / CATEGORIES_PER_PAGE + 1;
-        currentPage += delta;
-        
-        // 实现循环导航
-        if (currentPage < 0) {
-            currentPage = totalPages - 1; // 从第一页往前翻到最后一页
-        } else if (currentPage >= totalPages) {
-            currentPage = 0; // 从最后一页往后翻到第一页
-        }
-        
-        refreshCategoryButtons();
-    }
-
-    private void refreshCategoryButtons() {
-        boolean wasFocused = searchBox != null && searchBox.isFocused();
-        
-        clearChildren();
-        
-        // 重新添加搜索框，优化底部布局
-        addSearchAndButtons(wasFocused);
-
-        int categorySpacing = 8;
-        int blockSpacing = 4;
-        int categoryToBlockSpacing = 10;
-        int scrollBarWidth = 4;
-
-        int categoryWidth = BLOCK_SIZE * 4 + blockSpacing * 3 + scrollBarWidth;
-        int totalWidth2 = CATEGORIES_PER_PAGE * categoryWidth + (CATEGORIES_PER_PAGE - 1) * categorySpacing;
-        int startX2 = (width - totalWidth2) / 2;
-        int startY = TOP_MARGIN; // 调整起始Y坐标，为顶部显示留出空间
-
-        int startIndex = currentPage * CATEGORIES_PER_PAGE;
-        for (int i = 0; i < CATEGORIES_PER_PAGE && startIndex + i < blockCategories.size(); i++) {
-            BlockCategory category = blockCategories.get(startIndex + i);
-            int columnX = startX2 + i * (categoryWidth + categorySpacing);
-
-            // 获取过滤后的方块数量
-            List<Block> filteredBlocks = category.blocks.stream()
-                .filter(this::matchesSearch)
-                .collect(Collectors.toList());
-            
-            // 创建带方块总数的标签文本
-            Text categoryText = Text.literal(category.getTranslatedName().getString() + 
-                " (" + filteredBlocks.size() + ")");
-            
-            addDrawableChild(ButtonWidget.builder(
-                categoryText,
-                button -> toggleCategorySelection(category))
-                .dimensions(columnX, startY, categoryWidth, CATEGORY_BUTTON_HEIGHT)
-                .build());
-
-            // 面板高度：增加2像素，优化底部布局
-            int bottomSpace = BUTTON_HEIGHT + BOTTOM_MARGIN + BUTTON_HEIGHT + SEARCH_BOTTOM_SPACING + PAGE_NUMBER_SPACING; // 按钮+底部间距+搜索框+搜索框间距+页码间距
-            int panelHeight = height - startY - CATEGORY_BUTTON_HEIGHT - categoryToBlockSpacing - bottomSpace + 2;
-            ScrollablePanel scrollPanel = new ScrollablePanel(
-                    columnX,
-                    startY + CATEGORY_BUTTON_HEIGHT + categoryToBlockSpacing,
-                    categoryWidth,
-                    panelHeight,
-                    filteredBlocks
-            );
-
-            addDrawableChild(scrollPanel);
-        }
-    }
-
-    private void addSelectionButtons() {
-        // 按钮位置：距离底部10像素
-        int y = height - BUTTON_HEIGHT - BOTTOM_MARGIN;
-        int totalWidth = BUTTON_WIDTH * 3 + BUTTON_SPACING * 2;
-        int startX = (width - totalWidth) / 2;
-
-        // "Select All" button
-        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.select_all"), 
-            button -> selectAll())
-            .dimensions(startX, y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-
-        // "Deselect All" button
-        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.deselect_all"), 
-            button -> deselectAll())
-            .dimensions(startX + BUTTON_WIDTH + BUTTON_SPACING, y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-
-        // "Confirm" button
-        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.confirm"), 
-            button -> confirmSelection())
-            .dimensions(startX + (BUTTON_WIDTH + BUTTON_SPACING) * 2, y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-    }
-
-    private String getPageText() {
-        int totalPages = (blockCategories.size() - 1) / CATEGORIES_PER_PAGE + 1;
-        return String.format("%d/%d", currentPage + 1, totalPages);
-    }
-
-    private void renderCustomBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 绘制半透明背景，避免使用renderBackground导致的blur冲突
-        context.fill(0, 0, width, height, 0x80000000);
-    }
-
-    @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 使用自定义背景渲染避免blur冲突
-        renderCustomBackground(context, mouseX, mouseY, delta);
-
-        super.render(context, mouseX, mouseY, delta);
-        
-        // 绘制顶部标题背景
-        int titleBackgroundHeight = 35;
-        context.fill(0, 0, width, titleBackgroundHeight, 0x80000000);
-        
-        // 绘制标题
-        context.drawCenteredTextWithShadow(textRenderer, getTitle(), width / 2, 8, 0xFFFFFF);
-
-        // 将已选择数量和总数放在同一行显示
-        int totalBlocks = blockCategories.stream().mapToInt(cat -> cat.blocks.size()).sum();
-        String countText = String.format("已选择: %d / 总计: %d 个方块", selectedBlocks.size(), totalBlocks);
-        int countColor = selectedBlocks.isEmpty() ? 0xFFAAAAAA : 0xFFFFFFFF; // 白色表示有选择，灰色表示无选择
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(countText), width / 2, 20, countColor);
-
-        // 页码位置：搜索框上方10像素
-        String pageText = getPageText();
-        int searchBoxY = height - BUTTON_HEIGHT - BOTTOM_MARGIN - BUTTON_HEIGHT - SEARCH_BOTTOM_SPACING;
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(pageText), width / 2, searchBoxY - PAGE_NUMBER_SPACING, 0xFFFFFF);
-    }
-    private void toggleBlockSelection(Block block) {
-        if (selectedBlocks.contains(block)) {
-            selectedBlocks.remove(block);
-        } else {
-            selectedBlocks.add(block);
-        }
-    }
-
-    private void toggleCategorySelection(BlockCategory category) {
-        boolean allSelected = selectedBlocks.containsAll(category.blocks);
-        if (allSelected) {
-            category.blocks.forEach(selectedBlocks::remove);
-        } else {
-            selectedBlocks.addAll(category.blocks);
-        }
-        refreshCategoryButtons();
-    }
-
-    private void selectAll() {
-        selectedBlocks.clear();
-        for (BlockCategory category : blockCategories) {
-            selectedBlocks.addAll(category.blocks);
-        }
-        refreshCategoryButtons();
-    }
-
-    private void deselectAll() {
-        selectedBlocks.clear();
-        refreshCategoryButtons();
-    }
-
-    private void confirmSelection() {
-        config.setBreakableBlocks(new ArrayList<>(selectedBlocks));
-        MinecraftClient.getInstance().setScreen(parent);
-    }
-
-    // 修改 ScrollablePanel 类
-    private class ScrollablePanel extends ButtonWidget {
-        private final List<Block> blocks;
-        private int scrollOffset = 0;
-        private static final int SCROLL_BAR_WIDTH = 4;
-        private static final int BLOCK_SPACING = 4;
-
-        private int hoveredX;
-        private int hoveredY;
-        private boolean isDraggingScrollBar = false;
-        private int dragStartY = 0;
-        private int dragStartScrollOffset = 0;
-        private long hoverStartTime = 0;
-        private static final long TOOLTIP_DELAY = 500; // 500ms延迟
-        private Block lastHoveredBlock = null;
-
-        public ScrollablePanel(int x, int y, int width, int height, List<Block> blocks) {
-            super(x, y, width, height, net.minecraft.text.Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
-            this.blocks = blocks;
-        }
-        
-        // 动态计算可见行数
-        private int getVisibleRows() {
-            return height / (BLOCK_SIZE + BLOCK_SPACING);
-        }
-
-        @Override
-        protected void drawIcon(DrawContext context, int mouseX, int mouseY, float delta) {
-            int totalRows = (blocks.size() + 3) / 4;
-            int visibleRows = getVisibleRows();
-
-            Block hoveredBlock = null;
-
-            // 绘制面板背景
-            int backgroundWidth = 4 * BLOCK_SIZE + 3 * BLOCK_SPACING;
-            int backgroundHeight = visibleRows * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-            context.fill(getX(), getY(), getX() + backgroundWidth, getY() + backgroundHeight, PANEL_BACKGROUND_COLOR);
-
-            context.enableScissor(getX(), getY(), getX() + width, getY() + height);
-            for (int i = 0; i < blocks.size(); i++) {
-                int row = i / 4;
-                int col = i % 4;
-                if (row >= scrollOffset / (BLOCK_SIZE + BLOCK_SPACING) && row < scrollOffset / (BLOCK_SIZE + BLOCK_SPACING) + visibleRows) {
-                    int blockX = getX() + col * (BLOCK_SIZE + BLOCK_SPACING);
-                    int blockY = getY() + (row - scrollOffset / (BLOCK_SIZE + BLOCK_SPACING)) * (BLOCK_SIZE + BLOCK_SPACING);
-                    renderBlockButton(context, blocks.get(i), blockX, blockY, mouseX, mouseY);
-                    
-                    if (mouseX >= blockX && mouseX < blockX + BLOCK_SIZE && mouseY >= blockY && mouseY < blockY + BLOCK_SIZE) {
-                        hoveredBlock = blocks.get(i);
-                        hoveredX = mouseX;
-                        hoveredY = mouseY;
-                    }
-                }
-            }
-            context.disableScissor();
-
-            // 绘制滚动条背景槽
-            context.fill(getX() + width - SCROLL_BAR_WIDTH, getY(), getX() + width, getY() + backgroundHeight, SCROLL_BAR_BACKGROUND_COLOR);
-
-            // 只有在需要滚动时才绘制滚动条
-            if (totalRows > visibleRows) {
-                int scrollBarHeight = Math.max(20, backgroundHeight * visibleRows / totalRows);
-                int scrollBarY = getY() + (int) ((backgroundHeight - scrollBarHeight) * (float) scrollOffset / ((totalRows - visibleRows) * (BLOCK_SIZE + BLOCK_SPACING)));
-                
-                // 绘制滚动条
-                drawScrollBar(context, getX() + width - SCROLL_BAR_WIDTH, scrollBarY, scrollBarHeight);
-            }
-
-            // 在最后渲染工具提示 - 添加延迟
-            if (hoveredBlock != null) {
-                long currentTime = System.currentTimeMillis();
-                if (lastHoveredBlock != hoveredBlock) {
-                    hoverStartTime = currentTime;
-                    lastHoveredBlock = hoveredBlock;
-                }
-                
-                if (currentTime - hoverStartTime >= TOOLTIP_DELAY) {
-                    context.drawTooltip(textRenderer, hoveredBlock.getName(), hoveredX, hoveredY);
-                }
-            } else {
-                lastHoveredBlock = null;
-            }
-        }
-
-        private void renderBlockButton(DrawContext context, Block block, int x, int y, int mouseX, int mouseY) {
-            // 确定边框颜色：如果被选中则使用白色，否则使用默认灰色
-            int borderColor = selectedBlocks.contains(block) ? SELECTED_BLOCK_BORDER_COLOR : BLOCK_BORDER_COLOR;
-            
-            // 绘制边框和背景 - 边框向内扩展
-            context.fill(x, y, x + BLOCK_SIZE, y + BLOCK_SIZE, borderColor);
-            context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, BLOCK_BACKGROUND_COLOR);
-            
-            // 检查鼠标悬停
-            if (mouseX >= x && mouseX < x + BLOCK_SIZE && mouseY >= y && mouseY < y + BLOCK_SIZE) {
-                context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, BLOCK_HOVER_COLOR);
-            }
-            
-            // 特殊处理没有物品形态的方块
-            ItemStack displayStack = getDisplayStack(block);
-            if (!displayStack.isEmpty()) {
-                context.drawItem(displayStack, x + (BLOCK_SIZE - 16) / 2, y + (BLOCK_SIZE - 16) / 2);
-            }
-            
-            // 检查是否为墙面变体，如果是则绘制下划线
-            String blockId = Registries.BLOCK.getId(block).getPath();
-            if (blockId.contains("wall_head") || blockId.contains("wall_skull") || blockId.contains("wall_sign")) {
-                // 绘制下划线，表示这是墙面变体
-                int underlineY = y + BLOCK_SIZE - 3;
-                int underlineColor = selectedBlocks.contains(block) ? 0xFFFFFFFF : 0xFF666666;
-                context.fill(x + 2, underlineY, x + BLOCK_SIZE - 2, underlineY + 1, underlineColor);
-            }
-            
-            // 如果方块被选中，绘制背景高亮和选中标记
-            if (selectedBlocks.contains(block)) {
-                context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, 0x80FFFFFF);
-                context.drawText(textRenderer, net.minecraft.text.Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
-            }
-        }
-
-        private ItemStack getDisplayStack(Block block) {
-            return BlockDisplayIcons.getDisplayStack(block);
-        }
-
-        @Override
-        public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-            if (isMouseOver(mouseX, mouseY)) {
-                int totalRows = (blocks.size() + 3) / 4;
-                int maxScroll = Math.max(0, (totalRows - getVisibleRows()) * (BLOCK_SIZE + BLOCK_SPACING));
-                scrollOffset = Math.max(0, Math.min(scrollOffset - (int)(verticalAmount * 10), maxScroll));
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean mouseClicked(Click click, boolean doubleClick) {
-            double mouseX = click.x();
-            double mouseY = click.y();
-            int button = click.button();
-            if (isMouseOver(mouseX, mouseY)) {
-                // 检查是否点击了滚动条区域
-                int totalRows = (blocks.size() + 3) / 4;
-                int backgroundHeight = getVisibleRows() * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-                
-                // 检查是否点击了滚动条区域
-                if (mouseX >= getX() + width - SCROLL_BAR_WIDTH && mouseX < getX() + width && 
-                    mouseY >= getY() && mouseY < getY() + backgroundHeight) {
-                    if (totalRows > getVisibleRows()) {
-                        isDraggingScrollBar = true;
-                        dragStartY = (int) mouseY;
-                        dragStartScrollOffset = scrollOffset;
-                        return true;
-                    }
-                }
-                
-                // 检查是否点击了方块
-                int startRow = scrollOffset / (BLOCK_SIZE + BLOCK_SPACING);
-                for (int i = startRow * 4; i < Math.min(blocks.size(), (startRow + getVisibleRows()) * 4); i++) {
-                    int row = i / 4 - startRow;
-                    int col = i % 4;
-                    int blockX = getX() + col * (BLOCK_SIZE + BLOCK_SPACING);
-                    int blockY = getY() + row * (BLOCK_SIZE + BLOCK_SPACING);
-                    if (mouseX >= blockX && mouseX < blockX + BLOCK_SIZE && mouseY >= blockY && mouseY < blockY + BLOCK_SIZE) {
-                        toggleBlockSelection(blocks.get(i));
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public boolean mouseDragged(Click click, double deltaX, double deltaY) {
-            double mouseY = click.y();
-            if (isDraggingScrollBar) {
-                int totalRows = (blocks.size() + 3) / 4;
-                int backgroundHeight = getVisibleRows() * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-                int maxScroll = Math.max(0, (totalRows - getVisibleRows()) * (BLOCK_SIZE + BLOCK_SPACING));
-                
-                // 计算拖动距离对应的滚动偏移
-                int dragDistance = (int) mouseY - dragStartY;
-                int scrollBarHeight = Math.max(20, backgroundHeight * getVisibleRows() / totalRows);
-                int scrollableHeight = backgroundHeight - scrollBarHeight;
-                
-                if (scrollableHeight > 0) {
-                    double scrollRatio = (double) dragDistance / scrollableHeight;
-                    int newScrollOffset = dragStartScrollOffset + (int) (scrollRatio * maxScroll);
-                    scrollOffset = Math.max(0, Math.min(newScrollOffset, maxScroll));
-                }
-                
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean mouseReleased(Click click) {
-            if (isDraggingScrollBar) {
-                isDraggingScrollBar = false;
-                return true;
-            }
-            return false;
-        }
-
-        private void drawScrollBar(DrawContext context, int x, int y, int height) {
-            // 绘制滚动条背景
-            context.fill(x, y, x + SCROLL_BAR_WIDTH, y + height, SCROLL_BAR_BACKGROUND_COLOR);
-            
-            // 绘制3D滚动条
-            context.fill(x, y, x + SCROLL_BAR_WIDTH, y + height, SCROLL_BAR_COLOR);
-            context.fill(x, y, x + SCROLL_BAR_WIDTH - 1, y + 1, SCROLL_BAR_HIGHLIGHT_COLOR);
-            context.fill(x, y, x + 1, y + height - 1, SCROLL_BAR_HIGHLIGHT_COLOR);
-            context.fill(x + SCROLL_BAR_WIDTH - 1, y, x + SCROLL_BAR_WIDTH, y + height, SCROLL_BAR_SHADOW_COLOR);
-            context.fill(x, y + height - 1, x + SCROLL_BAR_WIDTH, y + height, SCROLL_BAR_SHADOW_COLOR);
-        }
-    }
-
-    // 修改 BlockCategory 类 - 支持多分类和搜索字符串缓存
-    private static class BlockCategory {
-        String translationKey;  // 分类翻译键
-        List<Block> blocks;
-        // 分类优先级，用于排序
-        private int priority;
-        // 使用Set来跟踪已添加的方块ID，避免重复
-        private Set<String> addedBlockIds;
-
-        BlockCategory(String translationKey, int priority) {
-            this.translationKey = translationKey;
-            this.priority = priority;
-            this.blocks = new ArrayList<>();
-            this.addedBlockIds = new HashSet<>();
-        }
-
-        // 添加获取翻译后文本的方法
-        public Text getTranslatedName() {
-            return Text.translatable(translationKey);
-        }
-        
-        // 添加方块时同时缓存搜索字符串到全局缓存
-        public void addBlock(Block block) {
-            String blockId = Registries.BLOCK.getId(block).toString();
-            if (!addedBlockIds.contains(blockId)) { // 使用方块ID避免重复添加
-                blocks.add(block);
-                addedBlockIds.add(blockId);
-                // 预计算搜索字符串并存储到全局缓存
-                if (!globalSearchStrings.containsKey(block)) {
-                    String blockName = Text.translatable(block.getTranslationKey()).getString().toLowerCase();
-                    String blockIdPath = Registries.BLOCK.getId(block).getPath().toLowerCase();
-                    globalSearchStrings.put(block, blockName + "|" + blockIdPath);
-                }
-            }
-        }
-        
-        // 获取分类优先级
-        public int getPriority() {
-            return priority;
-        }
-    }
-
-    private List<BlockCategory> getAllRelevantBlocks() {
-        // 性能优化：使用静态缓存
+    private static List<SelectionCategory<Block>> loadCategories() {
         if (cachedCategories == null) {
+            cachedCategories = buildCategories();
+        }
+        return cachedCategories;
+    }
+
+    @Override
+    protected Text searchFieldLabel() {
+        return Text.translatable("pushdozer.screen.block_selection.search");
+    }
+
+    @Override
+    protected Text previousPageTooltip() {
+        return Text.translatable("pushdozer.screen.block_selection.previous_page");
+    }
+
+    @Override
+    protected Text nextPageTooltip() {
+        return Text.translatable("pushdozer.screen.block_selection.next_page");
+    }
+
+    @Override
+    protected void addFooterButtons(int startX, int buttonY) {
+        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.select_all"), button -> selectAllVisibleItems())
+            .dimensions(startX, buttonY, SelectionScreenStyle.BUTTON_WIDTH, SelectionScreenStyle.BUTTON_HEIGHT).build());
+        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.deselect_all"), button -> clearSelection())
+            .dimensions(startX + SelectionScreenStyle.BUTTON_WIDTH + SelectionScreenStyle.BUTTON_SPACING, buttonY,
+                SelectionScreenStyle.BUTTON_WIDTH, SelectionScreenStyle.BUTTON_HEIGHT).build());
+        addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.screen.block_selection.confirm"), button -> onConfirm())
+            .dimensions(startX + 2 * (SelectionScreenStyle.BUTTON_WIDTH + SelectionScreenStyle.BUTTON_SPACING), buttonY,
+                SelectionScreenStyle.BUTTON_WIDTH, SelectionScreenStyle.BUTTON_HEIGHT).build());
+    }
+
+    @Override
+    protected String formatStatusLine(int selectedCount, int totalCount) {
+        return String.format("已选择: %d / 总计: %d 个方块", selectedCount, totalCount);
+    }
+
+    @Override
+    protected void onConfirm() {
+        config.setBreakableBlocks(new ArrayList<>(((MultiSelectStrategy<Block>) selectionStrategy).snapshot()));
+        returnToParent();
+    }
+
+
+    private static List<SelectionCategory<Block>> buildCategories() {
             // 使用 Map 来动态创建和填充分类
-            Map<String, BlockCategory> categoryMap = new LinkedHashMap<>();
+            Map<String, SelectionCategory<Block>> categoryMap = new LinkedHashMap<>();
             // 全局重复检查，确保每个方块只被处理一次
             Set<String> processedBlockIds = new HashSet<>();
 
@@ -698,26 +119,24 @@ public class BlockSelectionScreen extends Screen {
                 }
                 
                 for (String categoryKey : categoryKeys) {
-                    BlockCategory category = categoryMap.computeIfAbsent(categoryKey, 
-                        key -> new BlockCategory(key, getCategoryPriority(key)));
-                    category.addBlock(block);
+                    SelectionCategory<Block> category = categoryMap.computeIfAbsent(categoryKey, 
+                        key -> new SelectionCategory<>(key, getCategoryPriority(key)));
+                    category.addItem(block, blockId);
+                    BlockSearchIndex.indexBlock(block);
                 }
             }
 
             // 按优先级排序分类，并对每个分类内的方块进行排序
-            cachedCategories = new ArrayList<>(categoryMap.values());
-            cachedCategories.sort(Comparator.comparingInt(BlockCategory::getPriority));
-            
-            // 对每个分类内的方块按ID排序
-            for (BlockCategory category : cachedCategories) {
-                category.blocks.sort(Comparator.comparing(b -> Registries.BLOCK.getId(b).getPath()));
+            List<SelectionCategory<Block>> result = new ArrayList<>(categoryMap.values());
+            SelectionCategory.sortByPriority(result);
+            for (SelectionCategory<Block> category : result) {
+                category.getItems().sort(Comparator.comparing(b -> Registries.BLOCK.getId(b).getPath()));
             }
-        }
-        return cachedCategories;
+            return result;
     }
     
     // 获取分类优先级
-    private int getCategoryPriority(String categoryKey) {
+    private static int getCategoryPriority(String categoryKey) {
         return switch (categoryKey) {
             case "pushdozer.category.terrain" -> 1;
             case "pushdozer.category.ores" -> 2;
@@ -751,7 +170,7 @@ public class BlockSelectionScreen extends Screen {
     }
 
     // 新的多分类方法 - 基于用户要求的28个分类
-    private List<String> getCategoriesForBlock(Block block) {
+    private static List<String> getCategoriesForBlock(Block block) {
         List<String> categories = new ArrayList<>();
         String blockId = Registries.BLOCK.getId(block).getPath().toLowerCase();
 
@@ -948,7 +367,7 @@ public class BlockSelectionScreen extends Screen {
     }
 
     // 手动分类方法 - 补充标签系统
-    private boolean isTerrainManual(String blockId) {
+    private static boolean isTerrainManual(String blockId) {
         return blockId.equals("obsidian") || blockId.equals("bedrock") ||
                blockId.equals("mud") || blockId.equals("muddy_mangrove_roots") ||
                blockId.equals("packed_mud") || blockId.equals("dirt_path") ||
@@ -963,12 +382,12 @@ public class BlockSelectionScreen extends Screen {
                (blockId.contains("soil") && !blockId.contains("soul"));
     }
     
-    private boolean isWoodManual(String blockId) {
+    private static boolean isWoodManual(String blockId) {
         return blockId.contains("bamboo_block") || blockId.contains("stripped_bamboo") ||
                blockId.contains("hyphae") || blockId.equals("bamboo_mosaic");
     }
     
-    private boolean isPlantManual(String blockId) {
+    private static boolean isPlantManual(String blockId) {
         return (blockId.contains("grass") && !blockId.equals("grass_block") && !blockId.contains("seagrass")) ||
                blockId.contains("fern") || blockId.contains("vine") ||
                blockId.contains("azalea") || blockId.contains("bush") ||
@@ -983,7 +402,7 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("kelp") || blockId.contains("leaf_litter");
     }
     
-    private boolean isCropManual(String blockId) {
+    private static boolean isCropManual(String blockId) {
         // 排除下界疣、紫菘花和紫颂植株
         if (blockId.equals("nether_wart") || blockId.equals("torchflower_crop") || 
             blockId.equals("chorus_plant") || blockId.equals("chorus_flower")) {
@@ -996,18 +415,18 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("sweet_berry_bush");
     }
     
-    private boolean isFungiManual(String blockId) {
+    private static boolean isFungiManual(String blockId) {
         return blockId.equals("brown_mushroom") || blockId.equals("red_mushroom") ||
                blockId.equals("brown_mushroom_block") || blockId.equals("red_mushroom_block") ||
                blockId.equals("mushroom_stem");
     }
     
-    private boolean isCoralManual(String blockId) {
+    private static boolean isCoralManual(String blockId) {
         return blockId.contains("coral") || blockId.contains("coral_block") ||
                blockId.contains("coral_fan") || blockId.contains("coral_wall_fan");
     }
     
-    private boolean isNetherManual(String blockId) {
+    private static boolean isNetherManual(String blockId) {
         return blockId.equals("netherrack") || blockId.equals("magma_block") ||
                blockId.equals("soul_sand") || blockId.equals("soul_soil") ||
                blockId.equals("nether_quartz_ore") || blockId.equals("nether_gold_ore") ||
@@ -1026,21 +445,21 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("lodestone");
     }
     
-    private boolean isCopperManual(String blockId) {
+    private static boolean isCopperManual(String blockId) {
         return blockId.contains("copper") && !blockId.contains("copper_ore");
     }
     
-    private boolean isAmethystManual(String blockId) {
+    private static boolean isAmethystManual(String blockId) {
         return blockId.contains("amethyst");
     }
     
-    private boolean isValuableManual(String blockId) {
+    private static boolean isValuableManual(String blockId) {
         return blockId.endsWith("_block") && 
                (blockId.contains("gold") || blockId.contains("iron") || blockId.contains("diamond") || 
                 blockId.contains("emerald") || blockId.contains("netherite") || blockId.contains("lapis"));
     }
     
-    private boolean isRedstoneManual(String blockId) {
+    private static boolean isRedstoneManual(String blockId) {
         return blockId.contains("redstone") || blockId.contains("piston") ||
                blockId.contains("dispenser") || blockId.contains("observer") ||
                blockId.contains("hopper") || blockId.contains("comparator") ||
@@ -1049,7 +468,7 @@ public class BlockSelectionScreen extends Screen {
                blockId.contains("jukebox") || blockId.contains("daylight_detector");
     }
     
-    private boolean isDecorativeManual(String blockId) {
+    private static boolean isDecorativeManual(String blockId) {
         return (blockId.contains("torch") && !blockId.contains("torchflower")) ||
                blockId.contains("lantern") || blockId.contains("frame") || 
                blockId.contains("bell") || blockId.equals("scaffolding") || 
@@ -1065,7 +484,7 @@ public class BlockSelectionScreen extends Screen {
                blockId.startsWith("potted_") || blockId.contains("flower_pot");
     }
     
-    private boolean isDyedManual(String blockId) {
+    private static boolean isDyedManual(String blockId) {
         // 明确排除基岩
         if (blockId.equals("bedrock")) {
             return false;
@@ -1102,7 +521,7 @@ public class BlockSelectionScreen extends Screen {
         return false;
     }
     
-    private boolean isFunctionalManual(String blockId) {
+    private static boolean isFunctionalManual(String blockId) {
         return blockId.contains("table") || blockId.contains("chest") ||
                blockId.contains("sign") || blockId.contains("anvil") ||
                blockId.contains("barrel") || blockId.contains("furnace") ||
@@ -1119,25 +538,25 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("vault");
     }
     
-    private boolean isHeadManual(String blockId) {
+    private static boolean isHeadManual(String blockId) {
         // 包含所有头颅方块，包括地面变体和墙面变体
         return blockId.endsWith("_head") || blockId.endsWith("_skull");
     }
     
-    private boolean isCaveManual(String blockId) {
+    private static boolean isCaveManual(String blockId) {
         return blockId.contains("dripstone") || 
                (blockId.contains("spore") && !blockId.equals("spore_blossom")) ||
                blockId.contains("lichen") || blockId.contains("moss") ||
                blockId.contains("sculk");
     }
     
-    private boolean isFluidManual(String blockId) {
+    private static boolean isFluidManual(String blockId) {
         return blockId.equals("water") || blockId.equals("lava");
     }
     
   
     
-    private boolean isBrickManual(String blockId) {
+    private static boolean isBrickManual(String blockId) {
         return blockId.contains("brick") || blockId.contains("tile") ||
                blockId.contains("sandstone") || blockId.contains("prismarine") ||
                blockId.contains("quartz") || blockId.equals("smooth_stone") ||
@@ -1155,7 +574,7 @@ public class BlockSelectionScreen extends Screen {
                blockId.equals("reinforced_deepslate");
     }
     
-    private boolean isTechnicalManual(String blockId) {
+    private static boolean isTechnicalManual(String blockId) {
         return blockId.equals("barrier") || blockId.equals("command_block") ||
                blockId.equals("repeating_command_block") || blockId.equals("chain_command_block") ||
                blockId.equals("structure_block") || blockId.equals("jigsaw") ||

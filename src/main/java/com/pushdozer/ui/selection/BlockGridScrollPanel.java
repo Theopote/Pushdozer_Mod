@@ -59,6 +59,11 @@ public class BlockGridScrollPanel extends ButtonWidget {
         return blocks;
     }
 
+    public void updateBlocks(List<Block> newBlocks) {
+        this.blocks = new ArrayList<>(newBlocks);
+        this.scrollOffset = 0;
+    }
+
     public int getScrollOffset() {
         return scrollOffset;
     }

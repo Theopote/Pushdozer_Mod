@@ -78,4 +78,49 @@ public final class BlockCellRenderer {
     public interface BlockCellDecorator {
         void decorate(DrawContext context, Block block, int x, int y);
     }
+
+    public static final BlockCellDecorator POTTED_RING = (context, block, x, y) -> {
+        if (isPottedBlock(block)) {
+            drawPottedRing(context, x, y);
+        }
+    };
+
+    private static boolean isPottedBlock(Block block) {
+        String id = Registries.BLOCK.getId(block).getPath().toLowerCase();
+        String key = block.getTranslationKey().toLowerCase();
+        return id.startsWith("potted_") || key.contains("potted");
+    }
+
+    private static void drawPottedRing(DrawContext context, int clipX, int clipY) {
+        int cx = clipX + SelectionScreenStyle.BLOCK_SIZE / 2;
+        int cy = clipY + SelectionScreenStyle.BLOCK_SIZE / 2;
+        int outerR = Math.max(7, (SelectionScreenStyle.BLOCK_SIZE - 4) / 2);
+        int thickness = 3;
+        int ringColor = 0x88FFFFFF;
+        int innerR = Math.max(0, outerR - thickness);
+        int minY = Math.max(clipY, cy - outerR);
+        int maxY = Math.min(clipY + SelectionScreenStyle.BLOCK_SIZE - 1, cy + outerR);
+        for (int y = minY; y <= maxY; y++) {
+            int dy = y - cy;
+            int y2 = dy * dy;
+            int xOuter = (int) Math.floor(Math.sqrt(Math.max(0, outerR * outerR - y2)));
+            int xInner = innerR > 0 ? (int) Math.floor(Math.sqrt(Math.max(0, innerR * innerR - y2))) : -1;
+
+            int leftOuter = cx - xOuter;
+            int rightOuter = cx + xOuter;
+            int leftInner = cx - xInner;
+            int rightInner = cx + xInner;
+
+            int lx1 = Math.max(clipX, leftOuter);
+            int lx2 = Math.min(clipX + SelectionScreenStyle.BLOCK_SIZE - 1, leftInner - 1);
+            if (lx1 <= lx2) {
+                context.fill(lx1, y, lx2 + 1, y + 1, ringColor);
+            }
+            int rx1 = Math.max(clipX, rightInner + 1);
+            int rx2 = Math.min(clipX + SelectionScreenStyle.BLOCK_SIZE - 1, rightOuter);
+            if (rx1 <= rx2) {
+                context.fill(rx1, y, rx2 + 1, y + 1, ringColor);
+            }
+        }
+    }
 }
