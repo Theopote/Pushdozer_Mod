@@ -12,6 +12,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -270,8 +271,8 @@ public class HeightConfigPanel {
         if (!visible) return;
 
         renderBackground(context);
-        renderTitle(context);
         renderButtons(context, mouseX, mouseY, delta);
+        renderTitle(context);
     }
 
     /**
@@ -307,9 +308,18 @@ public class HeightConfigPanel {
      * @param context 绘制上下文
      */
     private void renderTitle(DrawContext context) {
-        if (titleText != null && parent.getClient() != null) {
-            context.drawTextWithShadow(parent.getClient().textRenderer, titleText, titleX, titleY, COLOR_WHITE);
+        if (titleText == null) {
+            titleText = Text.translatable("pushdozer.panel.height_config.title");
         }
+        if (parent.getClient() == null) {
+            return;
+        }
+
+        Text displayTitle = titleText.copy().formatted(Formatting.BOLD, Formatting.YELLOW);
+        int titleWidth = parent.getClient().textRenderer.getWidth(displayTitle);
+        int x = panelLeft + (PANEL_WIDTH - titleWidth) / 2;
+        int y = panelTop + (TITLE_HEIGHT - parent.getClient().textRenderer.fontHeight) / 2;
+        context.drawText(parent.getClient().textRenderer, displayTitle, x, y, 0xFFFFFFFF, true);
     }
 
     /**

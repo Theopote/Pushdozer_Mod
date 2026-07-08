@@ -36,14 +36,11 @@ public class EllipsoidSubPanel extends GeometrySubPanel {
         // 绘制面板背景、标题背景和边框（优化的渲染顺序）
         renderPanelBackground(context);
 
-        // 渲染标题文本
-        renderTitle(context, Text.translatable("pushdozer.panel.ellipsoid.title"));
-
-        // 渲染长度、宽度和高度滑动条以及确认按钮
         lengthSlider.render(context, mouseX, mouseY, delta);
         widthSlider.render(context, mouseX, mouseY, delta);
         heightSlider.render(context, mouseX, mouseY, delta);
         confirmButton.render(context, mouseX, mouseY, delta);
+        renderTitle(context, Text.translatable("pushdozer.panel.ellipsoid.title"));
     }
 
     @Override

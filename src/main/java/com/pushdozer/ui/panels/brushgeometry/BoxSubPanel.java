@@ -52,14 +52,11 @@ public class BoxSubPanel extends GeometrySubPanel {
         // 1-3. 绘制面板背景、标题背景和边框（优化的渲染顺序）
         renderPanelBackground(context);
 
-        // 4. 渲染标题文本
-        renderTitle(context, Text.translatable("pushdozer.panel.box.title"));
-
-        // 5. 渲染各个滑动条和确认按钮
         lengthSlider.render(context, mouseX, mouseY, delta);
         widthSlider.render(context, mouseX, mouseY, delta);
         heightSlider.render(context, mouseX, mouseY, delta);
         confirmButton.render(context, mouseX, mouseY, delta);
+        renderTitle(context, Text.translatable("pushdozer.panel.box.title"));
     }
 
     /**

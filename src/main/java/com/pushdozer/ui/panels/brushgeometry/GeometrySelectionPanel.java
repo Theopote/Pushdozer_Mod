@@ -9,6 +9,7 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -198,8 +199,8 @@ public class GeometrySelectionPanel {
         if (!visible) return;
 
         renderBackground(context);
-        renderTitle(context);
         renderButtons(context, mouseX, mouseY, delta);
+        renderTitle(context);
     }
 
     /**
@@ -240,10 +241,15 @@ public class GeometrySelectionPanel {
             titleText = Text.translatable("pushdozer.panel.brush_shape_selection.title");
         }
         TextRenderer textRenderer = parent.resolveTextRenderer();
-        if (textRenderer != null) {
-            int y = panelTop + (TITLE_HEIGHT - textRenderer.fontHeight) / 2;
-            context.drawCenteredTextWithShadow(textRenderer, titleText, panelLeft + PANEL_WIDTH / 2, y, COLOR_WHITE);
+        if (textRenderer == null) {
+            return;
         }
+
+        Text displayTitle = titleText.copy().formatted(Formatting.BOLD, Formatting.YELLOW);
+        int titleWidth = textRenderer.getWidth(displayTitle);
+        int x = panelLeft + (PANEL_WIDTH - titleWidth) / 2;
+        int y = panelTop + (TITLE_HEIGHT - textRenderer.fontHeight) / 2;
+        context.drawText(textRenderer, displayTitle, x, y, 0xFFFFFFFF, true);
     }
 
     /**

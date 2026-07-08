@@ -10,6 +10,7 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.ArrayList;
@@ -56,19 +57,20 @@ public abstract class GeometrySubPanel {
      * 此方法会在屏幕首次打开和每次窗口尺寸改变时被调用。
      */
     public void init() {
-        // 清空旧的组件，为重新创建做准备
         this.widgets.clear();
 
-        // 调用子类和基类的初始化逻辑
+        this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
+        this.panelTop = (parent.getScreenHeight() - estimatePanelHeight()) / 2;
+
         this.initPanel();
         this.initConfirmButton();
-        
-        // 计算面板位置（居中），使用动态高度
-        this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
+
         this.panelTop = (parent.getScreenHeight() - getPanelHeight()) / 2;
-        
-        // 重新初始化控件位置，确保位置正确
         updateWidgetPositions();
+    }
+
+    private int estimatePanelHeight() {
+        return TITLE_HEIGHT + 3 * (SLIDER_HEIGHT + WIDGET_MARGIN_VERTICAL) + CONFIRM_BUTTON_HEIGHT + CONFIRM_BUTTON_MARGIN;
     }
 
     /**
@@ -101,11 +103,25 @@ public abstract class GeometrySubPanel {
      * 更新控件位置
      */
     protected void updateWidgetPositions() {
-        // 重新计算确认按钮位置
+        int contentX = panelLeft + WIDGET_MARGIN_HORIZONTAL;
+        int contentWidth = PANEL_WIDTH - (2 * WIDGET_MARGIN_HORIZONTAL);
+        int currentY = panelTop + TITLE_HEIGHT + WIDGET_MARGIN_VERTICAL;
+
+        for (Element widget : widgets) {
+            if (widget == confirmButton) {
+                continue;
+            }
+            if (widget instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
+                clickableWidget.setPosition(contentX, currentY);
+                clickableWidget.setWidth(contentWidth);
+                currentY += SLIDER_HEIGHT + WIDGET_MARGIN_VERTICAL;
+            }
+        }
+
         if (confirmButton != null) {
             int confirmButtonY = panelTop + getPanelHeight() - CONFIRM_BUTTON_HEIGHT - CONFIRM_BUTTON_MARGIN;
-            confirmButton.setPosition(panelLeft + WIDGET_MARGIN_HORIZONTAL, confirmButtonY);
-            confirmButton.setWidth(PANEL_WIDTH - (2 * WIDGET_MARGIN_HORIZONTAL));
+            confirmButton.setPosition(contentX, confirmButtonY);
+            confirmButton.setWidth(contentWidth);
         }
     }
 
@@ -235,10 +251,7 @@ public abstract class GeometrySubPanel {
      */
     public void show() {
         visible = true;
-        // 重新计算位置以防窗口大小改变
-        this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
-        this.panelTop = (parent.getScreenHeight() - getPanelHeight()) / 2;
-        init(); // 重新初始化控件，确保位置正确
+        init();
     }
 
     /**
@@ -354,10 +367,15 @@ public abstract class GeometrySubPanel {
      */
     protected void renderTitle(DrawContext context, Text title) {
         TextRenderer renderer = parent != null ? parent.resolveTextRenderer() : textRenderer;
-        if (renderer != null) {
-            int y = panelTop + (TITLE_HEIGHT - renderer.fontHeight) / 2;
-            context.drawCenteredTextWithShadow(renderer, title, panelLeft + PANEL_WIDTH / 2, y, 0xFFFFFF);
+        if (renderer == null) {
+            return;
         }
+
+        Text displayTitle = title.copy().formatted(Formatting.BOLD, Formatting.YELLOW);
+        int titleWidth = renderer.getWidth(displayTitle);
+        int x = panelLeft + (PANEL_WIDTH - titleWidth) / 2;
+        int y = panelTop + (TITLE_HEIGHT - renderer.fontHeight) / 2;
+        context.drawText(renderer, displayTitle, x, y, 0xFFFFFFFF, true);
     }
 
     /**

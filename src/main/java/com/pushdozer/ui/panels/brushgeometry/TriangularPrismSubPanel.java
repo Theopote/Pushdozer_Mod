@@ -32,13 +32,10 @@ public class TriangularPrismSubPanel extends GeometrySubPanel {
         // 绘制面板背景、标题背景和边框（优化的渲染顺序）
         renderPanelBackground(context);
 
-        // 渲染标题文本
-        renderTitle(context, Text.translatable("pushdozer.panel.triangular_prism.title"));
-
-        // 渲染边长滑动条、高度滑动条和确认按钮
         sideLengthSlider.render(context, mouseX, mouseY, delta);
         heightSlider.render(context, mouseX, mouseY, delta);
         confirmButton.render(context, mouseX, mouseY, delta);
+        renderTitle(context, Text.translatable("pushdozer.panel.triangular_prism.title"));
     }
 
     @Override
