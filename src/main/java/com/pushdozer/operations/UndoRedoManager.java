@@ -6,6 +6,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.util.math.ChunkPos;
@@ -214,7 +215,7 @@ public class UndoRedoManager {
             }
             ExceptionPolicy.runPerItem("发送方块更新 " + pos, () -> {
                 BlockState currentState = serverWorld.getBlockState(pos);
-                serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
+                sendPacket(serverPlayer, new BlockUpdateS2CPacket(pos, currentState));
             }, LOGGER);
         }
     }
@@ -243,11 +244,18 @@ public class UndoRedoManager {
                 continue;
             }
             ExceptionPolicy.runPerItem("发送区块数据 " + chunkPos, () ->
-                serverPlayer.networkHandler.sendPacket(new ChunkDataS2CPacket(chunk, lightProvider, null, null)),
+                sendPacket(serverPlayer, new ChunkDataS2CPacket(chunk, lightProvider, null, null)),
                 LOGGER);
             sent++;
         }
         LOGGER.debug("{}：发送 {} 个区块到玩家 {}", reason, sent, serverPlayer.getName().getString());
+    }
+
+    /**
+     * 发送数据包到客户端。抽为可覆盖点，便于在 GameTest 中捕获实际发送的包类型。
+     */
+    protected void sendPacket(ServerPlayerEntity player, Packet<?> packet) {
+        player.networkHandler.sendPacket(packet);
     }
     
     private boolean isValidPosition(BlockPos pos, ServerWorld world) {
