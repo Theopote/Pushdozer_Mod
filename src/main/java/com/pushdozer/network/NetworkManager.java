@@ -10,6 +10,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import com.pushdozer.util.ExceptionPolicy;
+import com.pushdozer.util.OperationPermissions;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,18 +84,12 @@ public class NetworkManager {
             PermissionCheckPayload.ID,
             (payload, context) -> context.server().execute(() -> {
                 try {
-                    boolean hasPermission = checkTerrainOperationPermission(
-                        context.player(), 
+                    checkTerrainOperationPermission(
+                        context.player(),
                         payload.operationType(),
                         payload.centerPos(),
                         payload.radius()
                     );
-                    
-                    if (!hasPermission) {
-                        LOGGER.warn("玩家 {} 尝试执行未授权的地形操作: {}", 
-                            context.player().getName().getString(), payload.operationType());
-                        // 可以发送错误消息给客户端
-                    }
                 } catch (RuntimeException e) {
                     ExceptionPolicy.logBenignOrRethrow("处理权限检查", e, LOGGER);
                 }
@@ -163,20 +158,8 @@ public class NetworkManager {
     /**
      * 检查玩家是否有权限执行地形操作
      */
-    private static boolean checkTerrainOperationPermission(ServerPlayerEntity player, String operationType, 
+    private static boolean checkTerrainOperationPermission(ServerPlayerEntity player, String operationType,
                                                          BlockPos centerPos, int radius) {
-        // 所有玩家都可以使用地形工具
-        
-        // 检查区域是否受保护（可以集成LuckPerms或其他权限系统）
-        // 这里可以添加更复杂的区域保护逻辑
-        
-        // 检查操作范围是否合理（防止恶意大范围操作）
-        if (!PushdozerConfig.isBrushSizeAllowed(radius)) {
-            LOGGER.warn("玩家 {} 尝试执行过大范围的操作: 半径 {} (上限 {})",
-                player.getName().getString(), radius, PushdozerConfig.MAX_BRUSH_RADIUS);
-            return false;
-        }
-        
-        return true;
+        return OperationPermissions.checkBrushRadius(player, radius);
     }
 }

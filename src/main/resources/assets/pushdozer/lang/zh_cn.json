@@ -56,6 +56,7 @@
     "pushdozer.message.locked_direction": "已锁定视角方向",
     "pushdozer.message.unlocked_direction": "已解锁视角方向",
     "pushdozer.message.cannot_break_below": "无法破坏低于锁定标高的方块（Y=%d）",
+    "pushdozer.message.operation_denied.brush_too_large": "笔刷尺寸 %d 超出允许范围（%d–%d），请在配置中调整。",
     "pushdozer.message.config_saved": "配置已保存",
     "pushdozer.message.mode_switch": "模式已切换为：%s",
     "pushdozer.message.working_mode_switch": "工作模式已切换为：%s",

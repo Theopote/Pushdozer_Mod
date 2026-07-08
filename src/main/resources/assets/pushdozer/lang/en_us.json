@@ -62,6 +62,7 @@
   "pushdozer.message.locked_direction": "Locked view direction",
   "pushdozer.message.unlocked_direction": "Unlocked view direction",
   "pushdozer.message.cannot_break_below": "Cannot break blocks below locked height (Y=%d)",
+  "pushdozer.message.operation_denied.brush_too_large": "Brush size %d is out of range (%d–%d). Open config to adjust.",
   "pushdozer.message.config_saved": "Configuration saved",
   "pushdozer.message.working_mode_changed": "Working mode changed to: %s",
   "pushdozer.message.display_mode_changed": "Display mode changed to: %s",

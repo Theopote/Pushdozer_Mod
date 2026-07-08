@@ -3,6 +3,7 @@ package com.pushdozer.items.handlers;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
+import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.BlockOperation;
@@ -11,7 +12,6 @@ import net.minecraft.block.*;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -45,7 +45,7 @@ public abstract class AbstractTerrainToolHandler {
         if (world.isClient()) return;
 
         // 多人游戏权限检查
-        if (!hasOperationPermission(player, world, actionType)) {
+        if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
             return;
         }
 
@@ -102,31 +102,6 @@ public abstract class AbstractTerrainToolHandler {
             newStates.addAll(vegetationNew);
             BlockOperation.applyTerrainChanges(serverWorld, vegetationPositions, vegetationNew, finalizeOperation);
         });
-    }
-    
-    /**
-     * 检查玩家是否有执行此操作的权限
-     */
-    private boolean hasOperationPermission(PlayerEntity player, World world, UndoAction.ActionType actionType) {
-        // 单人游戏总是允许
-        if (world.getServer() != null && world.getServer().isSingleplayer()) {
-            return true;
-        }
-        
-        // 多人游戏中所有玩家都可以使用地形工具
-        if (player instanceof ServerPlayerEntity) {
-            // 检查操作范围限制（防止恶意大范围操作）
-            if (!PushdozerConfig.isBrushSizeAllowed(config.getLargestBrushDimension())) {
-                LOGGER.warn("玩家 {} 尝试执行过大范围操作: 最大笔刷尺寸 {} (上限 {})",
-                    player.getName().getString(), config.getLargestBrushDimension(), PushdozerConfig.MAX_BRUSH_RADIUS);
-                return false;
-            }
-            
-            // 可以在这里添加区域保护检查
-            // 例如检查是否在保护区内等
-        }
-        
-        return true;
     }
 
     /**
