@@ -260,7 +260,7 @@ public class PushdozerConfig {
     }
 
     void wireChangeListeners() {
-        Runnable notifier = this::notifyListeners;
+        com.pushdozer.config.domain.ConfigChangeNotifier notifier = this::notifyListeners;
         brush.setOnChange(notifier);
         surface.setOnChange(notifier);
         planting.setOnChange(notifier);

@@ -73,7 +73,7 @@ class PushdozerConfigTest extends PushdozerTestBase {
         original.setSmoothStrength(0.75f);
         original.setPlantType(PushdozerConfig.PlantType.FLOWERS);
         original.setShorelineWidth(5);
-        original.setDisplayMode(PushdozerConfig.DisplayMode.POINT_CLOUD);
+        original.getPreview().setDisplayMode(PushdozerConfig.DisplayMode.POINT_CLOUD);
 
         PushdozerConfig loaded = PushdozerConfig.fromJson(original.toJson());
 
@@ -97,7 +97,7 @@ class PushdozerConfigTest extends PushdozerTestBase {
             """);
 
         assertEquals(42, config.getRadius());
-        assertEquals("Sphere", config.getShape());
+        assertEquals("sphere", config.getShape());
         assertEquals(PushdozerConfig.GeometryType.SPHERE, config.getGeometryType());
         assertEquals(42, config.getBrush().getRadius());
     }
