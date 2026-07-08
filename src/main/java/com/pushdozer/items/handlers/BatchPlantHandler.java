@@ -71,7 +71,7 @@ public class BatchPlantHandler {
         List<PlantingPosition> treePositions = new ArrayList<>();
         List<PlantingPosition> simplePlantPositions = new ArrayList<>();
         for (PlantingPosition pos : plantingPositions) {
-            if (pos.plantType == PushdozerConfig.PlantType.TREES) {
+            if (pos.plantType() == PushdozerConfig.PlantType.TREES) {
                 treePositions.add(pos);
             } else {
                 simplePlantPositions.add(pos);

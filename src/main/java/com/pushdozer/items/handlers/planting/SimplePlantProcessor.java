@@ -38,9 +38,9 @@ public class SimplePlantProcessor {
     public void process(ServerWorld world, List<PlantingPosition> positions, BatchPlantingResult result) {
         PushdozerMod.LOGGER.info("Processing {} simple plants", positions.size());
         for (PlantingPosition pos : positions) {
-            BlockPos basePos = pos.position;
+            BlockPos basePos = pos.position();
             BlockState originalStateLower = world.getBlockState(basePos);
-            BlockState newState = generateSimplePlant(world, basePos, pos.plantType);
+            BlockState newState = generateSimplePlant(world, basePos, pos.plantType());
 
             if (newState == null) {
                 PushdozerMod.LOGGER.debug("No plant generated for position: {}", basePos);
@@ -71,20 +71,20 @@ public class SimplePlantProcessor {
             }
 
             // 统一处理珊瑚（活珊瑚和失活珊瑚）
-            if (pos.plantType == PushdozerConfig.PlantType.CUSTOM && (PlantBlockClassifier.isLiveCoral(newState.getBlock()) || PlantBlockClassifier.isDeadCoral(newState.getBlock()))) {
+            if (pos.plantType() == PushdozerConfig.PlantType.CUSTOM && (PlantBlockClassifier.isLiveCoral(newState.getBlock()) || PlantBlockClassifier.isDeadCoral(newState.getBlock()))) {
                 if (handleCoralPlacement(world, basePos, newState, originalStateLower, result)) {
                     continue;
                 }
             }
 
             // 统一处理垂滴叶（两栖植物，可以在水中或地面上种植）
-            if (pos.plantType == PushdozerConfig.PlantType.CUSTOM && (newState.getBlock() == Blocks.SMALL_DRIPLEAF || newState.getBlock() == Blocks.BIG_DRIPLEAF)) {
+            if (pos.plantType() == PushdozerConfig.PlantType.CUSTOM && (newState.getBlock() == Blocks.SMALL_DRIPLEAF || newState.getBlock() == Blocks.BIG_DRIPLEAF)) {
                 // 垂滴叶的处理逻辑已经在双高植物处理部分实现
                 // 这里不需要额外处理，继续执行后续的双高植物逻辑
             }
 
             // 自定义盆栽规则：只能放在实体方块上，不能放在水中
-            if (pos.plantType == PushdozerConfig.PlantType.CUSTOM && PlantBlockClassifier.isPotted(newState.getBlock())) {
+            if (pos.plantType() == PushdozerConfig.PlantType.CUSTOM && PlantBlockClassifier.isPotted(newState.getBlock())) {
                 // 检查是否在水中
                 if (originalStateLower.getFluidState().isIn(FluidTags.WATER)) {
                     continue;

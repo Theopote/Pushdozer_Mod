@@ -70,14 +70,6 @@ public abstract class WorkModeConfigPanel {
     }
 
     /**
-     * 重新计算所有控件的位置
-     */
-    protected void recalculateWidgetPositions() {
-        // 这个方法由子类重写，用于重新计算控件位置
-        // 基类默认不做任何操作
-    }
-
-    /**
      * 初始化控件，由子类实现具体逻辑
      */
     protected abstract void initializeWidgets();
@@ -115,23 +107,6 @@ public abstract class WorkModeConfigPanel {
             // 没有内容控件时，确认按钮紧贴标题栏
             return panelTop + TITLE_HEIGHT + WIDGET_MARGIN + CONFIRM_BUTTON_MARGIN;
         }
-    }
-
-    /**
-     * 计算内容区域高度
-     */
-    protected int calculateContentHeight() {
-        int widgetCount = widgets.size() - 1; // 减去确认按钮
-        if (widgetCount <= 0) {
-            return WIDGET_MARGIN * 2; // 至少保留上下边距
-        }
-        
-        // 计算控件总高度：
-        // - 控件本身的高度：widgetCount * WIDGET_HEIGHT
-        // - 控件之间的间距：(widgetCount - 1) * WIDGET_MARGIN
-        // - 第一个控件与标题的间距：WIDGET_MARGIN
-        // - 最后一个控件与确认按钮的间距：CONFIRM_BUTTON_MARGIN
-        return widgetCount * WIDGET_HEIGHT + (widgetCount - 1) * WIDGET_MARGIN + WIDGET_MARGIN + CONFIRM_BUTTON_MARGIN;
     }
 
     /**
@@ -404,24 +379,6 @@ public abstract class WorkModeConfigPanel {
      */
     public List<Element> getWidgets() {
         return widgets;
-    }
-
-    /**
-     * 创建一个自定义滑动条
-     */
-    protected SliderWidget createSlider(int x, int y, int width, Text message, double value, 
-                                       SliderApplyValue applyValue) {
-        return new SliderWidget(x, y, width, WIDGET_HEIGHT, message, value) {
-            @Override
-            protected void updateMessage() {
-                // 由子类实现具体的消息更新逻辑
-            }
-
-            @Override
-            protected void applyValue() {
-                applyValue.apply(this);
-            }
-        };
     }
 
     @FunctionalInterface

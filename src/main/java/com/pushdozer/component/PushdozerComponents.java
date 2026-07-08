@@ -43,10 +43,4 @@ public class PushdozerComponents {
         );
     }
 
-    /**
-     * 主注册方法，确保这个类被加载
-     */
-    public static void registerComponents() {
-        PushdozerMod.LOGGER.info("Registering Pushdozer's custom data components...");
-    }
 } 

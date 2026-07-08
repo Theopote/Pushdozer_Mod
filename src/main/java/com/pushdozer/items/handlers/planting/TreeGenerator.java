@@ -66,16 +66,16 @@ public class TreeGenerator {
 
     private void processSingleTree(ServerWorld world, PlantingPosition pos, Set<Long> blockedColumns,
                                    BatchPlantingResult result) {
-        long colKey = BlockPos.asLong(pos.position.getX(), 0, pos.position.getZ());
+        long colKey = BlockPos.asLong(pos.position().getX(), 0, pos.position().getZ());
         if (blockedColumns.contains(colKey)) {
             return;
         }
 
-        if (!canPlantAt(world, pos.position)) {
+        if (!canPlantAt(world, pos.position())) {
             return;
         }
 
-        TreeGenerationResult treeResult = generateTreeWithSmartBoundary(world, pos.position);
+        TreeGenerationResult treeResult = generateTreeWithSmartBoundary(world, pos.position());
         if (treeResult.isEmpty()) {
             return;
         }
@@ -84,7 +84,7 @@ public class TreeGenerator {
 
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
-                long nearbyColKey = BlockPos.asLong(pos.position.getX() + dx, 0, pos.position.getZ() + dz);
+                long nearbyColKey = BlockPos.asLong(pos.position().getX() + dx, 0, pos.position().getZ() + dz);
                 blockedColumns.add(nearbyColKey);
             }
         }
