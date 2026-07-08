@@ -62,6 +62,21 @@ public class ExcavationHandler {
     }
 
     /**
+     * 在指定世界坐标执行挖掘并记录撤销栈（供 Game Test 与确定性调用场景使用）。
+     */
+    public void excavateBlocksAt(PlayerEntity player, ServerWorld world, PushdozerConfig config, List<BlockPos> worldPositions) {
+        this.config = config;
+        List<BlockPos> filtered = worldPositions.stream()
+            .filter(pos -> isValidBreakTarget(world.getBlockState(pos), world, pos))
+            .filter(pos -> isValidHeightForExcavation(pos, player))
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        if (!filtered.isEmpty()) {
+            performExcavation(world, filtered, player);
+        }
+    }
+
+    /**
      * 获取需要挖掘的方块列表
      */
     private List<BlockPos> getBlocksToBreak(PlayerEntity player, World world, GeometryShape shape) {

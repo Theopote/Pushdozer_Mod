@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "pushdozer-gametest",
+  "version": "${version}",
+  "name": "Pushdozer Game Tests",
+  "description": "Server and client game tests for Pushdozer.",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "com.pushdozer.gametest.PushdozerGameTest"
+    ],
+    "fabric-client-gametest": [
+      "com.pushdozer.gametest.PushdozerClientGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*",
+    "pushdozer": "*"
+  }
+}
