@@ -29,16 +29,22 @@ import net.minecraft.text.Text;
  * 专门用于表层转换配置，包含自然方块、地形方块和流体
  */
 public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionScreen {
+    private final SingleSelectStrategy<Block> singleSelect;
     private final Consumer<Block> onBlockSelected;
     private static List<SelectionCategory<Block>> cachedCategories;
 
     public NaturalBlockSelectionScreen(Screen parent, Consumer<Block> onBlockSelected) {
+        this(parent, onBlockSelected, new SingleSelectStrategy<>());
+    }
+
+    private NaturalBlockSelectionScreen(Screen parent, Consumer<Block> onBlockSelected, SingleSelectStrategy<Block> singleSelect) {
         super(parent,
             Text.translatable("pushdozer.screen.terrain_block_selection.title"),
             loadCategories(),
-            new SingleSelectStrategy<>(),
+            singleSelect,
             4,
             2);
+        this.singleSelect = singleSelect;
         this.onBlockSelected = onBlockSelected;
     }
 
@@ -75,7 +81,7 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
 
     @Override
     protected String formatStatusLine(int selectedCount, int totalCount) {
-        Block selected = ((SingleSelectStrategy<Block>) selectionStrategy).getSelected();
+        Block selected = singleSelect.getSelected();
         if (selected != null) {
             String selectedBlockName = Text.translatable(selected.getTranslationKey()).getString();
             return String.format("选中: %s / 总计: %d 个方块", selectedBlockName, totalCount);
@@ -85,7 +91,7 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
 
     @Override
     protected void onConfirm() {
-        Block selected = ((SingleSelectStrategy<Block>) selectionStrategy).getSelected();
+        Block selected = singleSelect.getSelected();
         if (selected != null) {
             onBlockSelected.accept(selected);
         }

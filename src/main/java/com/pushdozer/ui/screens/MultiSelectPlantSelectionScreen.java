@@ -2,7 +2,9 @@ package com.pushdozer.ui.screens;
 
 import com.pushdozer.ui.selection.BlockCellRenderer;
 import com.pushdozer.ui.selection.BlockGridScrollPanel;
+import com.pushdozer.ui.selection.BlockSearchIndex;
 import com.pushdozer.ui.selection.MultiSelectStrategy;
+import com.pushdozer.ui.selection.SelectionScreenStyle;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -55,14 +57,9 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     private static final long SEARCH_DEBOUNCE_DELAY = 300; // 300ms防抖延迟
     private final List<Block> reusableFilteredList = new ArrayList<>(); // 可重用的过滤列表
 
-    // 常量定义
     private static final int BLOCKS_PER_ROW = 8;
-    private static final int BLOCK_SIZE = 20;
-    private static final int BLOCK_SPACING = 4;
-    private static final int BUTTON_HEIGHT = 20;
-    private static final int SCROLL_BAR_WIDTH = 4;
-    private static final int PANEL_PADDING = 5; // 面板内边距
-    private static final int ELEMENT_SPACING = 5; // 元素间距
+    private static final int PANEL_PADDING = 5;
+    private static final int ELEMENT_SPACING = 5;
 
     public MultiSelectPlantSelectionScreen(Screen parent, Consumer<List<Block>> onBlocksSelected, List<Block> initialSelectedBlocks) {
         super(Text.translatable("pushdozer.screen.plant_selection.title"));
@@ -121,16 +118,17 @@ public class MultiSelectPlantSelectionScreen extends Screen {
         int searchBoxX = (width - searchBoxWidth) / 2;
 
         // 2. 从下往上放置页脚元素
-        int buttonsY = this.height - 20 - BUTTON_HEIGHT; // 距离底部20px
-        int searchBoxY = buttonsY - ELEMENT_SPACING - BUTTON_HEIGHT; // 在按钮上方
+        int buttonsY = this.height - 20 - SelectionScreenStyle.BUTTON_HEIGHT;
+        int searchBoxY = buttonsY - ELEMENT_SPACING - SelectionScreenStyle.BUTTON_HEIGHT;
 
         // 3. 定义顶部和底部边距
         int topMargin = 70; // 减少顶部边距，为方块展示界面腾出更多空间
         int bottomMargin = this.height - searchBoxY + ELEMENT_SPACING; // 搜索框到屏幕底部的总高度
 
         // 4. 计算滚动面板的尺寸和位置 - 添加最小高度检查
-        int panelContentWidth = BLOCKS_PER_ROW * (BLOCK_SIZE + BLOCK_SPACING) - BLOCK_SPACING;
-        int panelWidth = panelContentWidth + SCROLL_BAR_WIDTH + PANEL_PADDING * 2;
+        int panelContentWidth = BLOCKS_PER_ROW * (SelectionScreenStyle.BLOCK_SIZE + SelectionScreenStyle.BLOCK_SPACING)
+            - SelectionScreenStyle.BLOCK_SPACING;
+        int panelWidth = panelContentWidth + SelectionScreenStyle.SCROLL_BAR_WIDTH + PANEL_PADDING * 2;
         int panelX = (this.width - panelWidth) / 2;
         int panelHeight = Math.max(100, this.height - topMargin - bottomMargin); // 确保最小高度
 
@@ -140,10 +138,11 @@ public class MultiSelectPlantSelectionScreen extends Screen {
 
         // 6. 添加所有UI元素
         scrollPanel = new BlockGridScrollPanel(panelX, topMargin, panelWidth, panelHeight, filteredBlocksCache,
-            BLOCKS_PER_ROW, multiSelect, BlockCellRenderer.DisplayMode.PLANT, BlockCellRenderer.POTTED_RING, block -> {});
+            BLOCKS_PER_ROW, multiSelect, BlockCellRenderer.DisplayMode.PLANT, BlockCellRenderer.PottedCellDecorator, block -> {});
         addDrawableChild(scrollPanel);
 
-        TextFieldWidget searchBox = new TextFieldWidget(textRenderer, searchBoxX, searchBoxY, searchBoxWidth, BUTTON_HEIGHT, Text.empty());
+        TextFieldWidget searchBox = new TextFieldWidget(textRenderer, searchBoxX, searchBoxY, searchBoxWidth,
+            SelectionScreenStyle.BUTTON_HEIGHT, Text.empty());
         searchBox.setMaxLength(50);
         searchBox.setDrawsBackground(true);
         searchBox.setVisible(true);
@@ -155,13 +154,13 @@ public class MultiSelectPlantSelectionScreen extends Screen {
 
         // 三个按钮：全选、清空、确定、取消
         addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.button.select_all"), button -> selectAll())
-                .dimensions(buttonStartX, buttonsY, buttonWidth, BUTTON_HEIGHT).build());
-        
+                .dimensions(buttonStartX, buttonsY, buttonWidth, SelectionScreenStyle.BUTTON_HEIGHT).build());
+
         addDrawableChild(ButtonWidget.builder(Text.translatable("pushdozer.button.clear_all"), button -> clearAll())
-                .dimensions(buttonStartX + buttonWidth + buttonSpacing, buttonsY, buttonWidth, BUTTON_HEIGHT).build());
-        
+                .dimensions(buttonStartX + buttonWidth + buttonSpacing, buttonsY, buttonWidth, SelectionScreenStyle.BUTTON_HEIGHT).build());
+
         addDrawableChild(ButtonWidget.builder(Text.translatable("gui.ok"), button -> onConfirm())
-                .dimensions(buttonStartX + 2 * (buttonWidth + buttonSpacing), buttonsY, buttonWidth, BUTTON_HEIGHT).build());
+                .dimensions(buttonStartX + 2 * (buttonWidth + buttonSpacing), buttonsY, buttonWidth, SelectionScreenStyle.BUTTON_HEIGHT).build());
     }
 
     /**
@@ -191,12 +190,12 @@ public class MultiSelectPlantSelectionScreen extends Screen {
             int startX = (width - totalRowWidth) / 2;
             
             int x = startX + col * (buttonWidth + buttonSpacing);
-            int buttonY = 25 + row * (BUTTON_HEIGHT + 2); // 将按钮向上移动25像素
-            
+            int buttonY = 25 + row * (SelectionScreenStyle.BUTTON_HEIGHT + 2);
+
             ButtonWidget button = ButtonWidget.builder(
-                Text.translatable("pushdozer.category.plant." + category), 
+                Text.translatable("pushdozer.category.plant." + category),
                 buttonWidget -> selectCategory(category)
-            ).dimensions(x, buttonY, buttonWidth, BUTTON_HEIGHT).build();
+            ).dimensions(x, buttonY, buttonWidth, SelectionScreenStyle.BUTTON_HEIGHT).build();
             
             categoryButtons.add(button);
             addDrawableChild(button);
@@ -301,9 +300,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
             reusableFilteredList.addAll(baseBlocks);
         } else {
             for (Block block : baseBlocks) {
-                String translation = Text.translatable(block.getTranslationKey()).getString().toLowerCase();
-                String key = block.getTranslationKey().toLowerCase();
-                if (translation.contains(currentSearchText) || key.contains(currentSearchText)) {
+                if (BlockSearchIndex.matches(block, currentSearchText)) {
                     reusableFilteredList.add(block);
                 }
             }
@@ -320,7 +317,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         // 使用自定义背景渲染避免blur冲突
-        context.fill(0, 0, width, height, 0x80000000);
+        context.fill(0, 0, width, height, SelectionScreenStyle.SCREEN_BACKGROUND_COLOR);
         
         super.render(context, mouseX, mouseY, delta);
         

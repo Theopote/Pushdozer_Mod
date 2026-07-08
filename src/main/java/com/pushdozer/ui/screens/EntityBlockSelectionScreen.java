@@ -98,9 +98,7 @@ public class EntityBlockSelectionScreen extends AbstractPagedCategorySelectionSc
     }
 
 
-        private static List<SelectionCategory<Block>> buildCategories() {
-        // 强制重建缓存以反映新的分类系统
-        
+    private static List<SelectionCategory<Block>> buildCategories() {
         System.out.println("正在重建实体方块分类缓存...");
         
         // 检查目标方块是否存在

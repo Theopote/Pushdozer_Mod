@@ -79,7 +79,7 @@ public final class BlockCellRenderer {
         void decorate(DrawContext context, Block block, int x, int y);
     }
 
-    public static final BlockCellDecorator POTTED_RING = (context, block, x, y) -> {
+    public static final BlockCellDecorator PottedCellDecorator = (context, block, x, y) -> {
         if (isPottedBlock(block)) {
             drawPottedRing(context, x, y);
         }
