@@ -3,6 +3,7 @@ package com.pushdozer.items.handlers;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
+import com.pushdozer.util.PositionRandom;
 import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.operations.UndoAction;
@@ -14,6 +15,7 @@ import net.minecraft.fluid.FluidState;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import java.util.*;
 
@@ -105,9 +107,9 @@ public abstract class AbstractTerrainToolHandler {
      * 处理地形的主要方法
      */
     protected void processTerrain(World world, GeometryShape shape, BlockPos brushCenter,
-                                List<BlockPos> affectedPositions,
-                                List<BlockState> originalStates,
-                                List<BlockState> newStates) {
+                                  List<BlockPos> affectedPositions,
+                                  List<BlockState> originalStates,
+                                  List<BlockState> newStates) {
         // 1. 采集地形信息
         Map<BlockPos, TerrainColumn> columns = collectTerrainColumns(world, shape, brushCenter);
         
@@ -219,12 +221,12 @@ public abstract class AbstractTerrainToolHandler {
             // 选择顶层方块与填充方块，使生成的地形更自然
             BlockState topState = fillState;
             BlockState fillerState = fillState;
-            if (fillState.isOf(Blocks.GRASS_BLOCK)) {
+                if (fillState.isOf(Blocks.GRASS_BLOCK)) {
                 fillerState = Blocks.DIRT.getDefaultState();
                 topState = Blocks.GRASS_BLOCK.getDefaultState();
-                
-                // 【优化】表面多样性：草地偶尔添加粗泥土或灰化土以纹理
-                if (Math.random() < 0.1) { // 10%几率
+
+                Random posRandom = PositionRandom.at(columnXZ);
+                if (posRandom.nextFloat() < 0.1f) {
                     fillerState = Blocks.COARSE_DIRT.getDefaultState();
                 }
             } else if (fillState.isOf(Blocks.PODZOL) || fillState.isOf(Blocks.MYCELIUM)) {

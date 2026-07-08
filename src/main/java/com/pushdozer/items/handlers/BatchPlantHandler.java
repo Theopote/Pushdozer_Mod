@@ -53,7 +53,7 @@ public class BatchPlantHandler {
 
         DensitySampler densitySampler = new DensitySampler(config, random, noiseSampler);
         PlantingPositionCollector positionCollector = new PlantingPositionCollector(config, densitySampler);
-        SimplePlantProcessor simplePlantProcessor = new SimplePlantProcessor(config, random);
+        SimplePlantProcessor simplePlantProcessor = new SimplePlantProcessor(config);
         TreeGenerator treeGenerator = new TreeGenerator(config, random);
 
         // 添加调试日志

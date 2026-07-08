@@ -6,6 +6,8 @@ import com.pushdozer.items.handlers.planting.model.BatchPlantingResult;
 import com.pushdozer.items.handlers.planting.model.PlantingPosition;
 import com.pushdozer.items.handlers.vegetation.PlantBlockClassifier;
 import com.pushdozer.items.handlers.vegetation.PlantPlacementValidator;
+import com.pushdozer.items.handlers.vegetation.PlantUnderwaterPolicy;
+import com.pushdozer.util.PositionRandom;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -28,19 +30,24 @@ import java.util.List;
 
 public class SimplePlantProcessor {
     private final PushdozerConfig config;
-    private final Random random;
 
-    public SimplePlantProcessor(PushdozerConfig config, Random random) {
+    public SimplePlantProcessor(PushdozerConfig config) {
         this.config = config;
-        this.random = random;
+    }
+
+    /** @deprecated 使用 {@link #SimplePlantProcessor(PushdozerConfig)}，随机源改为按坐标派生 */
+    @Deprecated
+    public SimplePlantProcessor(PushdozerConfig config, Random ignored) {
+        this(config);
     }
 
     public void process(ServerWorld world, List<PlantingPosition> positions, BatchPlantingResult result) {
         PushdozerMod.LOGGER.info("Processing {} simple plants", positions.size());
         for (PlantingPosition pos : positions) {
             BlockPos basePos = pos.position();
+            Random posRandom = PositionRandom.at(basePos, pos.plantType().ordinal());
             BlockState originalStateLower = world.getBlockState(basePos);
-            BlockState newState = generateSimplePlant(world, basePos, pos.plantType());
+            BlockState newState = generateSimplePlant(world, basePos, pos.plantType(), posRandom);
 
             if (newState == null) {
                 PushdozerMod.LOGGER.debug("No plant generated for position: {}", basePos);
@@ -60,14 +67,8 @@ public class SimplePlantProcessor {
             // 垂滴叶是两栖植物，可以在水中或地面上种植
             boolean waterHere = originalStateLower.getFluidState().isIn(FluidTags.WATER)
                     || world.getFluidState(basePos).isIn(FluidTags.WATER);
-            if (waterHere) {
-                Block block = newState.getBlock();
-                boolean allowedUnderwater = PlantBlockClassifier.isLiveCoral(block) || PlantBlockClassifier.isAquatic(block);
-                boolean isLilyPad = block == Blocks.LILY_PAD;
-                boolean isDripleaf = block == Blocks.SMALL_DRIPLEAF || block == Blocks.BIG_DRIPLEAF;
-                if (!allowedUnderwater && !isLilyPad && !isDripleaf) {
-                    continue;
-                }
+            if (waterHere && !PlantUnderwaterPolicy.isAllowedUnderwater(newState.getBlock())) {
+                continue;
             }
 
             // 统一处理珊瑚（活珊瑚和失活珊瑚）
@@ -320,27 +321,21 @@ public class SimplePlantProcessor {
         return null;
     }
 
-    private BlockState generateSimplePlant(World world, BlockPos pos, PushdozerConfig.PlantType type) {
+    private BlockState generateSimplePlant(World world, BlockPos pos, PushdozerConfig.PlantType type, Random random) {
         RegistryEntry<Biome> biomeEntry = world.getBiome(pos);
         if (type == PushdozerConfig.PlantType.FLOWERS) {
-            // 若当前位置在水中，按需求直接忽略
             if (world.getFluidState(pos).isIn(FluidTags.WATER)) return null;
-            return generateFlowerForBiome(biomeEntry);
+            return generateFlowerForBiome(biomeEntry, random);
         } else if (type == PushdozerConfig.PlantType.GRASS) {
-            // 若当前位置在水中，按需求直接忽略
             if (world.getFluidState(pos).isIn(FluidTags.WATER)) return null;
-            return generateGrassForBiome(biomeEntry);
+            return generateGrassForBiome(biomeEntry, random);
         } else if (type == PushdozerConfig.PlantType.CUSTOM) {
-            return generateCustomPlant(world, pos);
+            return generateCustomPlant(world, pos, random);
         }
         return null;
     }
 
-    /**
-     * 生成自定义选择的植物
-     * 支持农作物：如果包含农作物，检查农田条件并忽略生物群系
-     */
-    private BlockState generateCustomPlant(World world, BlockPos pos) {
+    private BlockState generateCustomPlant(World world, BlockPos pos, Random random) {
         List<Block> customBlocks = config.getCustomPlantBlocks();
         if (customBlocks.isEmpty()) {
             PushdozerMod.LOGGER.debug("No custom plants selected, skipping planting");
@@ -382,7 +377,7 @@ public class SimplePlantProcessor {
         }
 
         // 特殊方块：根据密度设置覆盖程度
-        state = setCoverageBasedOnDensity(state, chosen);
+        state = setCoverageBasedOnDensity(state, chosen, random);
 
         // 为需要随机方向的方块设置朝向
         if (state.contains(Properties.HORIZONTAL_FACING)) {
@@ -404,19 +399,16 @@ public class SimplePlantProcessor {
      * 优化版本：使用数据驱动的植被注册表
      * 增强版本：支持用户选择的花朵组和尊重生物群系设置
      */
-    private BlockState generateFlowerForBiome(RegistryEntry<Biome> biomeEntry) {
-        // 仅受花朵组选项控制
+    private BlockState generateFlowerForBiome(RegistryEntry<Biome> biomeEntry, Random random) {
         PushdozerConfig.FlowerGroup selectedFlowerGroup = config.getSelectedFlowerGroup();
 
-        // 生物群系自适应模式
         if (selectedFlowerGroup == PushdozerConfig.FlowerGroup.BIOME_ADAPTIVE) {
             List<Block> flowerBlocks = BiomeVegetationRegistry.getFlowerBlocks(biomeEntry);
-            return getRandomBlock(flowerBlocks, this.random);
+            return getRandomBlock(flowerBlocks, random);
         }
 
-        // 如果用户选择了特定花朵组，使用对应的花朵列表
         List<Block> flowerBlocks = getFlowerBlocksForGroup(selectedFlowerGroup);
-        return getRandomBlock(flowerBlocks, this.random);
+        return getRandomBlock(flowerBlocks, random);
     }
 
     /**
@@ -447,10 +439,9 @@ public class SimplePlantProcessor {
      * 优化版本：使用数据驱动的植被注册表
      * 增强版本：支持尊重生物群系设置
      */
-    private BlockState generateGrassForBiome(RegistryEntry<Biome> biomeEntry) {
-        // 草类无独立选择项，默认按生物群系自适应生成
+    private BlockState generateGrassForBiome(RegistryEntry<Biome> biomeEntry, Random random) {
         List<Block> grassBlocks = BiomeVegetationRegistry.getGrassBlocks(biomeEntry);
-        return getRandomBlock(grassBlocks, this.random);
+        return getRandomBlock(grassBlocks, random);
     }
 
     /**
@@ -468,7 +459,7 @@ public class SimplePlantProcessor {
      * 根据密度设置方块的覆盖程度
      * 支持粉红色花簇、野花簇、枯叶等有覆盖度属性的方块
      */
-    private BlockState setCoverageBasedOnDensity(BlockState state, Block block) {
+    private BlockState setCoverageBasedOnDensity(BlockState state, Block block, Random random) {
         String blockId = block.toString().toLowerCase();
 
         // 记录调试信息，查看方块的实际名称
