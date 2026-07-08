@@ -2,6 +2,8 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.items.handlers.vegetation.PlantBlockClassifier;
+import com.pushdozer.items.handlers.vegetation.PlantPlacementValidator;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
@@ -1055,7 +1057,7 @@ public class ShorelineProcessHandler {
         }
         
         // 修复：忽略植物等装饰物，直接跳过
-        if (isPlantOrDecoration(state)) {
+        if (PlantBlockClassifier.isPlantOrDecoration(state)) {
             return false;
         }
         
@@ -1125,7 +1127,7 @@ public class ShorelineProcessHandler {
             
             // 检查下方方块是否为实体方块（不能是水方块）
             BlockState belowState = world.getBlockState(pos);
-            if (!isSolidBlock(world, pos, belowState)) {
+            if (!PlantPlacementValidator.isSolidBlock(world, pos, belowState)) {
                 PushdozerMod.LOGGER.debug("Position {} has non-solid block below: {}, skipping", pos, belowState.getBlock().toString());
                 continue;
             }
@@ -1137,7 +1139,7 @@ public class ShorelineProcessHandler {
             if (plant != null && canPlantGrowOnBlock(world, pos, plant.getBlock(), belowState)) {
                 // 优化：检查高植物种植条件
                 int requiredHeight = getPlantRequiredHeight(world, plant.getBlock());
-                if (hasEnoughSpaceForPlant(world, pos, requiredHeight)) {
+                if (PlantPlacementValidator.hasEnoughSpaceForPlant(world, pos, requiredHeight)) {
                     boolean isTallPlant = plant.getBlock() instanceof TallPlantBlock;
                     placements.add(new VegetationPlacement(pos, plant, isTallPlant, belowState));
                     // 调试：记录植物选择
@@ -1325,7 +1327,7 @@ public class ShorelineProcessHandler {
                 int requiredHeight = getPlantRequiredHeight(world, placement.plant.getBlock());
                 
                 // 检查是否有足够空间
-                if (!hasEnoughSpaceForPlant(world, plantPos, requiredHeight)) {
+                if (!PlantPlacementValidator.hasEnoughSpaceForPlant(world, plantPos, requiredHeight)) {
                     continue; // 空间不足，跳过
                 }
                 
@@ -1359,7 +1361,7 @@ public class ShorelineProcessHandler {
                     BlockState plantToPlace = placement.plant;
                     
                     // 特殊处理：失活珊瑚不应该带水
-                    if (isDeadCoral(placement.plant.getBlock())) {
+                    if (PlantBlockClassifier.isDeadCoral(placement.plant.getBlock())) {
                         // 确保失活珊瑚不带有水属性
                         plantToPlace = placement.plant.getBlock().getDefaultState();
                         // 移除任何可能的水属性
@@ -1496,7 +1498,7 @@ public class ShorelineProcessHandler {
             if (!customPlants.isEmpty()) {
                 if (customPlants.contains(plantBlock)) {
                     // 修复：传入种植位置（pos.up()）而不是基底位置（pos）
-                    return canPlantCustomBlockAt(world, pos.up(), plantBlock);
+                    return PlantPlacementValidator.canPlantCustomBlockAt(world, pos.up(), plantBlock);
                 } else {
                     // 如果植物不在自定义列表中，直接返回false
                     PushdozerMod.LOGGER.debug("Plant {} is not in custom plants list, rejecting", plantBlock.toString());
@@ -1530,24 +1532,24 @@ public class ShorelineProcessHandler {
         }
         
         // 盆栽特例：只能放在实体方块上，不能放在花草植物、盆栽或水面上
-        if (isPotted(plantBlock)) {
+        if (PlantBlockClassifier.isPotted(plantBlock)) {
             boolean spotFree = currentState.isAir() || currentState.isReplaceable();
             boolean notInWater = !currentState.getFluidState().isIn(FluidTags.WATER);
             boolean solidBelow = groundBlock.isSolidBlock(world, pos.down());
-            boolean notPlantBelow = !isPlantBlock(groundBlock.getBlock()) && !isPotted(groundBlock.getBlock());
+            boolean notPlantBelow = !PlantBlockClassifier.isPlantBlock(groundBlock.getBlock()) && !PlantBlockClassifier.isPotted(groundBlock.getBlock());
             return spotFree && notInWater && solidBelow && notPlantBelow;
         }
         
         // 农作物（AGE_7 特征或常见作物方块）
-        boolean isCrop = isCropBlock(plantBlock) || plantBlock.getDefaultState().contains(Properties.AGE_7);
+        boolean isCrop = PlantBlockClassifier.isCropBlock(plantBlock) || plantBlock.getDefaultState().contains(Properties.AGE_7);
         if (isCrop) {
             return groundBlock.isOf(Blocks.FARMLAND) && (currentState.isAir() || currentState.isReplaceable());
         }
         
         // 活珊瑚：必须在水中或与水相邻，且下方有合适的基底
-        boolean adjacentToWater = isAdjacentToWater(world, pos);
+        boolean adjacentToWater = PlantPlacementValidator.isAdjacentToWater(world, pos);
         
-        if (isLiveCoral(plantBlock)) {
+        if (PlantBlockClassifier.isLiveCoral(plantBlock)) {
             // 检查上方一格是否也在水中（确保不是水面）
             BlockPos upperPos = pos.up();
             BlockState upperState = world.getBlockState(upperPos);
@@ -1627,12 +1629,12 @@ public class ShorelineProcessHandler {
         }
         
         // 其他水生（如海草/高海草/海带/海带植株/海泡菜）：要求在水中，并满足 canPlaceAt
-        if (isAquatic(plantBlock)) {
+        if (PlantBlockClassifier.isAquatic(plantBlock)) {
             return inWater;
         }
         
         // 失活珊瑚：允许放在任何实体方块上（当前位置需为空气/可替换），忽略具体基底类型
-        if (isDeadCoral(plantBlock)) {
+        if (PlantBlockClassifier.isDeadCoral(plantBlock)) {
             boolean spotFree = currentState.isAir() || currentState.isReplaceable();
             boolean solidBelow = groundBlock.isSolidBlock(world, pos.down());
             return spotFree && solidBelow;
@@ -1722,114 +1724,6 @@ public class ShorelineProcessHandler {
         if (!validBase) return false;
         return (currentState.isAir() || currentState.isReplaceable());
     }
-    
-    /**
-     * 检查方块是否为植物或装饰物
-     * 这些方块应该在水岸处理时被跳过，不被替换
-     * 
-     * @param state 要检查的方块状态
-     * @return 如果方块是植物或装饰物返回true，否则返回false
-     */
-    private boolean isPlantOrDecoration(BlockState state) {
-        // 检查是否为植物方块
-        if (state.getBlock() instanceof PlantBlock ||
-            state.getBlock() instanceof TallPlantBlock ||
-            state.getBlock() instanceof FlowerBlock ||
-            state.getBlock() instanceof SaplingBlock ||
-            state.getBlock() instanceof MushroomBlock) {
-            return true;
-        }
-        
-        // 检查具体的植物和装饰物方块
-        return state.getBlock() == Blocks.SHORT_GRASS ||
-               state.getBlock() == Blocks.TALL_GRASS ||
-               state.getBlock() == Blocks.FERN ||
-               state.getBlock() == Blocks.LARGE_FERN ||
-               state.getBlock() == Blocks.DEAD_BUSH ||
-               state.getBlock() == Blocks.SUGAR_CANE ||
-               state.getBlock() == Blocks.CACTUS ||
-               state.getBlock() == Blocks.CACTUS_FLOWER ||
-               state.getBlock() == Blocks.SEAGRASS ||
-               state.getBlock() == Blocks.KELP ||
-               state.getBlock() == Blocks.DANDELION ||
-               state.getBlock() == Blocks.POPPY ||
-               state.getBlock() == Blocks.BLUE_ORCHID ||
-               state.getBlock() == Blocks.ALLIUM ||
-               state.getBlock() == Blocks.AZURE_BLUET ||
-               state.getBlock() == Blocks.RED_TULIP ||
-               state.getBlock() == Blocks.ORANGE_TULIP ||
-               state.getBlock() == Blocks.WHITE_TULIP ||
-               state.getBlock() == Blocks.PINK_TULIP ||
-               state.getBlock() == Blocks.OXEYE_DAISY ||
-               state.getBlock() == Blocks.CORNFLOWER ||
-               state.getBlock() == Blocks.LILY_OF_THE_VALLEY ||
-               state.getBlock() == Blocks.SUNFLOWER ||
-               state.getBlock() == Blocks.LILAC ||
-               state.getBlock() == Blocks.ROSE_BUSH ||
-               state.getBlock() == Blocks.PEONY ||
-               state.getBlock() == Blocks.OAK_SAPLING ||
-               state.getBlock() == Blocks.SPRUCE_SAPLING ||
-               state.getBlock() == Blocks.BIRCH_SAPLING ||
-               state.getBlock() == Blocks.JUNGLE_SAPLING ||
-               state.getBlock() == Blocks.ACACIA_SAPLING ||
-               state.getBlock() == Blocks.DARK_OAK_SAPLING ||
-               state.getBlock() == Blocks.BROWN_MUSHROOM ||
-               state.getBlock() == Blocks.RED_MUSHROOM ||
-               state.getBlock() == Blocks.CRIMSON_FUNGUS ||
-               state.getBlock() == Blocks.WARPED_FUNGUS ||
-               state.getBlock() == Blocks.CRIMSON_ROOTS ||
-               state.getBlock() == Blocks.WARPED_ROOTS ||
-               state.getBlock() == Blocks.NETHER_SPROUTS ||
-               state.getBlock() == Blocks.WEEPING_VINES ||
-               state.getBlock() == Blocks.TWISTING_VINES ||
-               state.getBlock() == Blocks.GLOW_LICHEN ||
-               state.getBlock() == Blocks.MOSS_CARPET ||
-               state.getBlock() == Blocks.SMALL_DRIPLEAF ||
-               state.getBlock() == Blocks.BIG_DRIPLEAF ||
-               state.getBlock() == Blocks.SPORE_BLOSSOM ||
-               state.getBlock() == Blocks.AZALEA ||
-               state.getBlock() == Blocks.FLOWERING_AZALEA ||
-               state.getBlock() == Blocks.PINK_PETALS ||
-               state.getBlock() == Blocks.TORCHFLOWER ||
-               state.getBlock() == Blocks.PITCHER_PLANT ||
-               state.getBlock() == Blocks.CHERRY_SAPLING ||
-               state.getBlock() == Blocks.BAMBOO ||
-               state.getBlock() == Blocks.BAMBOO_SAPLING ||
-               state.getBlock() == Blocks.CHORUS_PLANT ||
-               state.getBlock() == Blocks.CHORUS_FLOWER ||
-               state.getBlock() == Blocks.NETHER_WART ||
-               state.getBlock() == Blocks.SHROOMLIGHT ||
-               state.getBlock() == Blocks.SOUL_FIRE ||
-               state.getBlock() == Blocks.SOUL_TORCH ||
-               state.getBlock() == Blocks.SOUL_WALL_TORCH ||
-               state.getBlock() == Blocks.SOUL_LANTERN ||
-               state.getBlock() == Blocks.SOUL_CAMPFIRE ||
-               state.getBlock() == Blocks.TORCH ||
-               state.getBlock() == Blocks.WALL_TORCH ||
-               state.getBlock() == Blocks.LANTERN ||
-               state.getBlock() == Blocks.CAMPFIRE ||
-               state.getBlock() == Blocks.SOUL_CAMPFIRE ||
-               state.getBlock() == Blocks.FIRE ||
-               state.getBlock() == Blocks.LAVA ||
-               state.getBlock() == Blocks.WATER ||
-               state.getBlock() == Blocks.BUBBLE_COLUMN ||
-               state.getBlock() == Blocks.SEA_PICKLE ||
-               state.getBlock() == Blocks.TUBE_CORAL ||
-               state.getBlock() == Blocks.BRAIN_CORAL ||
-               state.getBlock() == Blocks.BUBBLE_CORAL ||
-               state.getBlock() == Blocks.FIRE_CORAL ||
-               state.getBlock() == Blocks.HORN_CORAL ||
-               state.getBlock() == Blocks.TUBE_CORAL_FAN ||
-               state.getBlock() == Blocks.BRAIN_CORAL_FAN ||
-               state.getBlock() == Blocks.BUBBLE_CORAL_FAN ||
-               state.getBlock() == Blocks.FIRE_CORAL_FAN ||
-               state.getBlock() == Blocks.HORN_CORAL_FAN ||
-               state.getBlock() == Blocks.TUBE_CORAL_WALL_FAN ||
-               state.getBlock() == Blocks.BRAIN_CORAL_WALL_FAN ||
-               state.getBlock() == Blocks.BUBBLE_CORAL_WALL_FAN ||
-               state.getBlock() == Blocks.FIRE_CORAL_WALL_FAN ||
-               state.getBlock() == Blocks.HORN_CORAL_WALL_FAN;
-    }
 
     /**
      * 检查方块是否为表面方块
@@ -1844,7 +1738,7 @@ public class ShorelineProcessHandler {
         // 检查上方是否为空气、水或植物
         BlockPos above = pos.up();
         BlockState aboveState = world.getBlockState(above);
-        if (aboveState.isAir() || aboveState.getFluidState().isIn(FluidTags.WATER) || isPlantOrDecoration(aboveState)) {
+        if (aboveState.isAir() || aboveState.getFluidState().isIn(FluidTags.WATER) || PlantBlockClassifier.isPlantOrDecoration(aboveState)) {
             return true;
         }
         
@@ -1852,7 +1746,7 @@ public class ShorelineProcessHandler {
         for (Direction dir : Direction.Type.HORIZONTAL) {
             BlockPos neighborPos = pos.offset(dir);
             BlockState neighborState = world.getBlockState(neighborPos);
-            if (neighborState.isAir() || neighborState.getFluidState().isIn(FluidTags.WATER) || isPlantOrDecoration(neighborState)) {
+            if (neighborState.isAir() || neighborState.getFluidState().isIn(FluidTags.WATER) || PlantBlockClassifier.isPlantOrDecoration(neighborState)) {
                 return true;
             }
         }
@@ -1918,316 +1812,6 @@ public class ShorelineProcessHandler {
     }
 
     /**
-     * 检查是否有足够空间种植植物
-     * 支持陆地、水中和半水中的高植物种植
-     * 
-     * @param world 世界实例
-     * @param pos 种植位置
-     * @param requiredHeight 所需高度
-     * @return 如果有足够空间返回true，否则返回false
-     */
-    private boolean hasEnoughSpaceForPlant(World world, BlockPos pos, int requiredHeight) {
-        // 检查从种植位置向上的所有格数
-        for (int i = 1; i < requiredHeight; i++) {
-            BlockPos checkPos = pos.up(i);
-            BlockState checkState = world.getBlockState(checkPos);
-            
-            // 允许空气、水或植物（可以穿过现有植物）
-            if (!checkState.isAir() && 
-                !checkState.getFluidState().isIn(FluidTags.WATER) && 
-                !isPlantOrDecoration(checkState)) {
-                return false; // 空间不足
-            }
-        }
-        
-        return true; // 空间充足
-    }
-
-    /**
-     * 检查方块是否为实体方块
-     * 使用Minecraft内置的更通用的方法来简化判断
-     * 实体方块可以支撑植物，水方块不能
-     */
-    private boolean isSolidBlock(World world, BlockPos pos, BlockState state) {
-        // 检查是否为水方块
-        if (state.getFluidState().isIn(FluidTags.WATER)) {
-            return false;
-        }
-        
-        // 使用Minecraft内置方法判断方块是否有碰撞体积（即是否为实体）
-        return !state.getCollisionShape(world, pos).isEmpty();
-    }
-    
-    /**
-     * 自定义种植时的动态可种规则
-     * 参考批量种植的种植条件逻辑，简化并统一检查逻辑
-     */
-    private boolean canPlantCustomBlockAt(World world, BlockPos pos, Block block) {
-        BlockState targetState = world.getBlockState(pos);
-        BlockState below = world.getBlockState(pos.down());
-        BlockState state = block.getDefaultState();
-
-        // 睡莲：只能种在水面（当前位置为空气，且下方是水）
-        if (block == Blocks.LILY_PAD) {
-            boolean airHere = targetState.isAir();
-            boolean waterBelow = below.getFluidState().isIn(FluidTags.WATER);
-            return airHere && waterBelow && state.canPlaceAt(world, pos);
-        }
-
-        // 双高植物要求上方可替换
-        if (block instanceof TallPlantBlock) {
-            if (!state.contains(Properties.DOUBLE_BLOCK_HALF)) return false;
-            BlockPos upperPos = pos.up();
-            BlockState upperCurrent = world.getBlockState(upperPos);
-            if (!(upperCurrent.isAir() || upperCurrent.isReplaceable())) return false;
-        }
-
-        // 盆栽特例：只能放在实体方块上，不能放在花草植物、盆栽或水面上
-        if (isPotted(block)) {
-            // 检查当前位置：必须是空气或可替换，且不能是水
-            boolean spotFree = targetState.isAir() || targetState.isReplaceable();
-            boolean notInWater = !targetState.getFluidState().isIn(FluidTags.WATER);
-
-            // 检查下方：必须是实体方块，且不能是花草植物或盆栽
-            boolean solidBelow = below.isSolidBlock(world, pos.down());
-            boolean notPlantBelow = !isPlantBlock(below.getBlock()) && !isPotted(below.getBlock());
-
-            // 检查花盆本身是否可以放置
-            boolean potCanPlace = Blocks.FLOWER_POT.getDefaultState().canPlaceAt(world, pos);
-
-            return spotFree && notInWater && solidBelow && notPlantBelow && potCanPlace && state.canPlaceAt(world, pos);
-        }
-
-        // 农作物（AGE_7 特征或常见作物方块）
-        boolean isCrop = isCropBlock(block) || state.contains(Properties.AGE_7);
-        if (isCrop) {
-            return below.isOf(Blocks.FARMLAND) && (targetState.isAir() || targetState.isReplaceable());
-        }
-
-        // 活珊瑚：必须在水中或与水相邻，且下方有合适的基底
-        boolean inWater = targetState.getFluidState().isIn(FluidTags.WATER);
-        boolean adjacentToWater = isAdjacentToWater(world, pos);
-        
-        if (isLiveCoral(block)) {
-            // 检查上方一格是否也在水中（确保不是水面）
-            BlockPos upperPos = pos.up();
-            BlockState upperState = world.getBlockState(upperPos);
-            boolean upperInWater = upperState.getFluidState().isIn(FluidTags.WATER);
-
-            // 检查下方是否有合适的基底
-            boolean validBase = below.isIn(BlockTags.SAND) ||
-                    below.isIn(BlockTags.CORAL_BLOCKS) ||
-                    below.isIn(BlockTags.BASE_STONE_OVERWORLD) ||
-                    below.isIn(BlockTags.BASE_STONE_NETHER) ||
-                    below.isOf(Blocks.END_STONE) ||
-                    below.isOf(Blocks.GRAVEL) ||
-                    below.isOf(Blocks.CLAY);
-
-            // 墙面珊瑚扇需要固体侧面
-            if (block instanceof CoralWallFanBlock) {
-                boolean hasSolidSide = false;
-                for (Direction direction : Direction.Type.HORIZONTAL) {
-                    BlockPos sidePos = pos.offset(direction);
-                    BlockState sideState = world.getBlockState(sidePos);
-                    if (sideState.isSolidBlock(world, sidePos)) {
-                        hasSolidSide = true;
-                        break;
-                    }
-                }
-                return (inWater || adjacentToWater) && upperInWater && hasSolidSide;
-            }
-            
-            // 其他活珊瑚：需下方基底
-            return (inWater || adjacentToWater) && upperInWater && validBase;
-        }
-
-        // 小型垂滴叶：两栖植物，可以在水中或地面上种植
-        if (block == Blocks.SMALL_DRIPLEAF) {
-            // 检查下方方块是否适合种植小型垂滴叶
-            boolean validBase = below.isIn(BlockTags.SMALL_DRIPLEAF_PLACEABLE) ||
-                    below.isOf(Blocks.CLAY) ||
-                    below.isOf(Blocks.MOSS_BLOCK) ||
-                    below.isOf(Blocks.ROOTED_DIRT) ||
-                    below.isOf(Blocks.MYCELIUM) ||
-                    below.isOf(Blocks.PODZOL) ||
-                    // 水下种植的方块
-                    (inWater && (below.isOf(Blocks.DIRT) ||
-                            below.isOf(Blocks.COARSE_DIRT) ||
-                            below.isOf(Blocks.GRASS_BLOCK) ||
-                            below.isOf(Blocks.FARMLAND)));
-            
-            // 检查上方一格是否可替换（双高植物需要）
-            BlockPos upperPos = pos.up();
-            BlockState upperState = world.getBlockState(upperPos);
-            boolean upperReplaceable = upperState.isAir() || upperState.isReplaceable();
-            
-            return validBase && upperReplaceable;
-        }
-
-        // 大型垂滴叶：两栖植物，可以在水中或地面上种植
-        if (block == Blocks.BIG_DRIPLEAF) {
-            // 检查下方方块是否适合种植大型垂滴叶
-            boolean validBase = below.isOf(Blocks.CLAY) ||
-                    below.isOf(Blocks.MOSS_BLOCK) ||
-                    below.isOf(Blocks.GRASS_BLOCK) ||
-                    below.isOf(Blocks.MYCELIUM) ||
-                    below.isOf(Blocks.PODZOL) ||
-                    below.isOf(Blocks.DIRT) ||
-                    below.isOf(Blocks.ROOTED_DIRT) ||
-                    below.isOf(Blocks.COARSE_DIRT) ||
-                    below.isOf(Blocks.FARMLAND) ||
-                    below.isOf(Blocks.MUD) ||
-                    below.isOf(Blocks.MUDDY_MANGROVE_ROOTS);
-            
-            // 检查上方一格是否可替换（双高植物需要）
-            BlockPos upperPos = pos.up();
-            BlockState upperState = world.getBlockState(upperPos);
-            boolean upperReplaceable = upperState.isAir() || upperState.isReplaceable();
-            
-            return validBase && upperReplaceable;
-        }
-
-        // 其他水生（如海草/高海草/海带/海带植株/海泡菜）：要求在水中，并满足 canPlaceAt
-        if (isAquatic(block)) {
-            return inWater && state.canPlaceAt(world, pos);
-        }
-
-        // 失活珊瑚：允许放在任何实体方块上（当前位置需为空气/可替换），忽略具体基底类型
-        if (isDeadCoral(block)) {
-            boolean spotFree = targetState.isAir() || targetState.isReplaceable();
-            boolean solidBelow = below.isSolidBlock(world, pos.down());
-            return spotFree && solidBelow;
-        }
-
-        // Leaf Litter：可以放置在任何具有完整固体顶面的方块上
-        if (block.toString().toLowerCase().contains("leaf_litter")) {
-            boolean spotFree = targetState.isAir() || targetState.isReplaceable();
-            // 检查下方方块是否具有完整固体顶面
-            boolean validBase = below.isSolidBlock(world, pos.down());
-            return spotFree && validBase;
-        }
-
-        // 普通：放宽基底，草/泥土/沙/雪顶/泥土路等，且当前位置可替换或空气
-        boolean validBase = below.isIn(BlockTags.DIRT)
-                || below.isOf(Blocks.GRASS_BLOCK)
-                || below.isIn(BlockTags.SAND)
-                || below.isIn(BlockTags.SNOW)
-                || below.isOf(Blocks.DIRT_PATH)
-                || below.isOf(Blocks.MOSS_BLOCK)
-                || below.isOf(Blocks.CLAY);
-        
-        if (!validBase) {
-            PushdozerMod.LOGGER.debug("Custom plant {} cannot grow on invalid base block {} at pos {}",
-                    block, below.getBlock().toString(), pos);
-            return false;
-        }
-        
-        boolean spotFree = targetState.isAir() || targetState.isReplaceable();
-        boolean canPlace = state.canPlaceAt(world, pos);
-        
-        if (!spotFree) {
-            PushdozerMod.LOGGER.debug("Custom plant {} cannot grow at pos {}: spot not free (current state: {})",
-                    block, pos, targetState.getBlock().toString());
-            return false;
-        }
-        
-        if (!canPlace) {
-            PushdozerMod.LOGGER.debug("Custom plant {} cannot be placed at pos {}: canPlaceAt returned false",
-                    block, pos);
-            return false;
-        }
-        
-        PushdozerMod.LOGGER.debug("Custom plant {} can grow at pos {} on base block {}",
-                block, pos, below.getBlock().toString());
-        return true;
-    }
-    
-    /**
-     * 检查位置是否与水相邻（六个方向）
-     */
-    private boolean isAdjacentToWater(World world, BlockPos pos) {
-        for (Direction direction : Direction.values()) {
-            BlockPos adjacentPos = pos.offset(direction);
-            BlockState adjacentState = world.getBlockState(adjacentPos);
-            if (adjacentState.getFluidState().isIn(FluidTags.WATER)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    /**
-     * 检查方块是否为盆栽
-     */
-    private boolean isPotted(Block block) {
-        return (block instanceof FlowerPotBlock) && block != Blocks.FLOWER_POT;
-    }
-    
-    /**
-     * 检查方块是否为花草植物（包括花朵、草、蕨类等）
-     */
-    private boolean isPlantBlock(Block block) {
-        return block == Blocks.DANDELION || block == Blocks.POPPY || block == Blocks.BLUE_ORCHID ||
-                block == Blocks.ALLIUM || block == Blocks.AZURE_BLUET || block == Blocks.RED_TULIP ||
-                block == Blocks.ORANGE_TULIP || block == Blocks.WHITE_TULIP || block == Blocks.PINK_TULIP ||
-                block == Blocks.OXEYE_DAISY || block == Blocks.CORNFLOWER || block == Blocks.LILY_OF_THE_VALLEY ||
-                block == Blocks.SUNFLOWER || block == Blocks.LILAC || block == Blocks.ROSE_BUSH ||
-                block == Blocks.PEONY || block == Blocks.SHORT_GRASS || block == Blocks.TALL_GRASS ||
-                block == Blocks.FERN || block == Blocks.LARGE_FERN || block == Blocks.DEAD_BUSH ||
-                block == Blocks.CACTUS || block == Blocks.CACTUS_FLOWER || block == Blocks.SUGAR_CANE || block == Blocks.BAMBOO ||
-                block == Blocks.CHORUS_PLANT || block == Blocks.CHORUS_FLOWER ||
-                block == Blocks.NETHER_SPROUTS || block == Blocks.WARPED_ROOTS || block == Blocks.CRIMSON_ROOTS ||
-                block == Blocks.WARPED_FUNGUS || block == Blocks.CRIMSON_FUNGUS ||
-                block == Blocks.WEEPING_VINES || block == Blocks.TWISTING_VINES ||
-                block == Blocks.GLOW_LICHEN || block == Blocks.HANGING_ROOTS ||
-                block == Blocks.SPORE_BLOSSOM || block == Blocks.FLOWERING_AZALEA ||
-                block == Blocks.AZALEA || block == Blocks.MOSS_CARPET ||
-                block == Blocks.SEAGRASS || block == Blocks.TALL_SEAGRASS ||
-                block == Blocks.KELP || block == Blocks.KELP_PLANT || block == Blocks.SEA_PICKLE ||
-                block == Blocks.LILY_PAD || block == Blocks.SMALL_DRIPLEAF || block == Blocks.BIG_DRIPLEAF ||
-                isLiveCoral(block) || isDeadCoral(block) ||
-                isCropBlock(block) ||
-                block instanceof TallPlantBlock ||
-                block.toString().toLowerCase().contains("leaf_litter");
-    }
-    
-    /**
-     * 检查方块是否为农作物
-     */
-    private boolean isCropBlock(Block block) {
-        return block == Blocks.WHEAT ||
-                block == Blocks.CARROTS ||
-                block == Blocks.POTATOES ||
-                block == Blocks.BEETROOTS ||
-                block == Blocks.PUMPKIN_STEM ||
-                block == Blocks.MELON_STEM;
-    }
-    
-    /**
-     * 珊瑚类型判断方法
-     */
-    private boolean isLiveCoral(Block block) {
-        String id = block.toString().toLowerCase();
-        return id.contains("coral") && !id.contains("dead");
-    }
-    
-    private boolean isDeadCoral(Block block) {
-        String id = block.toString().toLowerCase();
-        return id.contains("coral") && id.contains("dead");
-    }
-    
-    /**
-     * 检查方块是否为水生植物
-     */
-    private boolean isAquatic(Block block) {
-        return block == Blocks.SEAGRASS
-                || block == Blocks.TALL_SEAGRASS
-                || block == Blocks.KELP
-                || block == Blocks.KELP_PLANT
-                || block == Blocks.SEA_PICKLE;
-    }
-
-    /**
      * 根据生物群系和方块类型获取适合的植物
      * 扩展：增加更多植物种类，创造更丰富的植被
      * 修复：添加自定义植物支持，确保自定义植物能被正确种植
@@ -2252,7 +1836,7 @@ public class ShorelineProcessHandler {
                     BlockState plantState = selectedPlant.getDefaultState();
                     
                     // 特殊处理：失活珊瑚不应该带水
-                    if (isDeadCoral(selectedPlant)) {
+                    if (PlantBlockClassifier.isDeadCoral(selectedPlant)) {
                         // 确保失活珊瑚不带有水属性
                         if (plantState.contains(Properties.WATERLOGGED)) {
                             plantState = plantState.with(Properties.WATERLOGGED, false);
