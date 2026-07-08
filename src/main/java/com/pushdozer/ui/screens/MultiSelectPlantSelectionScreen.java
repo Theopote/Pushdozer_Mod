@@ -7,8 +7,6 @@ import com.pushdozer.ui.selection.MultiSelectStrategy;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -65,16 +63,6 @@ public class MultiSelectPlantSelectionScreen extends Screen {
     private static final int SCROLL_BAR_WIDTH = 4;
     private static final int PANEL_PADDING = 5; // 面板内边距
     private static final int ELEMENT_SPACING = 5; // 元素间距
-    private static final int PANEL_BACKGROUND_COLOR = 0x40000000;
-    private static final int BLOCK_BORDER_COLOR = 0xFF8B8B8B;
-    private static final int BLOCK_BACKGROUND_COLOR = 0xFF373737;
-    private static final int BLOCK_HOVER_COLOR = 0xFF555555;
-
-    private static final int SCROLL_BAR_BACKGROUND_COLOR = 0x33FFFFFF;
-    private static final int SCROLL_BAR_COLOR = 0xFFAAAAAA;
-    private static final int SCROLL_BAR_HIGHLIGHT_COLOR = 0xFFFFFFFF;
-    private static final int SCROLL_BAR_SHADOW_COLOR = 0xFF555555;
-    private static final int SELECTED_BLOCK_BORDER_COLOR = 0xFFFFFFFF; // 选中方块的白色边框
 
     public MultiSelectPlantSelectionScreen(Screen parent, Consumer<List<Block>> onBlocksSelected, List<Block> initialSelectedBlocks) {
         super(Text.translatable("pushdozer.screen.plant_selection.title"));

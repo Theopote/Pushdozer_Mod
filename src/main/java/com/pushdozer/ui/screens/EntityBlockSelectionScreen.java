@@ -23,7 +23,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import java.util.function.Consumer;
 

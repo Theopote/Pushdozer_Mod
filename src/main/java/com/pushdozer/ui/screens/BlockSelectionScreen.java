@@ -22,7 +22,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
 public class BlockSelectionScreen extends AbstractPagedCategorySelectionScreen {
@@ -114,7 +113,7 @@ public class BlockSelectionScreen extends AbstractPagedCategorySelectionScreen {
                 // 限制分类数量，避免过多重叠
                 if (categoryKeys.size() > 3) {
                     // 按优先级排序并只保留前3个
-                    categoryKeys.sort((a, b) -> Integer.compare(getCategoryPriority(a), getCategoryPriority(b)));
+                    categoryKeys.sort(Comparator.comparingInt(BlockSelectionScreen::getCategoryPriority));
                     categoryKeys = categoryKeys.subList(0, 3);
                 }
                 

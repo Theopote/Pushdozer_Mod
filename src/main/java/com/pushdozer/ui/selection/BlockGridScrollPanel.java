@@ -5,7 +5,6 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.function.Consumer;
  * 可滚动方块网格面板，封装滚动条、点击选择与单元格渲染。
  */
 public class BlockGridScrollPanel extends ButtonWidget {
-    private List<Block> blocks = new ArrayList<>();
+    private List<Block> blocks;
     private final int columnsPerRow;
     private final SelectionStrategy<Block> selectionStrategy;
     private final BlockCellRenderer.DisplayMode displayMode;
@@ -41,7 +40,7 @@ public class BlockGridScrollPanel extends ButtonWidget {
                                 BlockCellRenderer.DisplayMode displayMode,
                                 BlockCellRenderer.BlockCellDecorator cellDecorator,
                                 Consumer<Block> onSelectionChanged) {
-        super(x, y, width, height, Text.empty(), button -> {}, DEFAULT_NARRATION_SUPPLIER);
+        super(x, y, width, height, net.minecraft.text.Text.literal(""), button -> {}, DEFAULT_NARRATION_SUPPLIER);
         this.blocks = new ArrayList<>(blocks);
         this.columnsPerRow = columnsPerRow;
         this.selectionStrategy = selectionStrategy;
@@ -62,10 +61,6 @@ public class BlockGridScrollPanel extends ButtonWidget {
     public void updateBlocks(List<Block> newBlocks) {
         this.blocks = new ArrayList<>(newBlocks);
         this.scrollOffset = 0;
-    }
-
-    public int getScrollOffset() {
-        return scrollOffset;
     }
 
     public void setScrollOffset(int scrollOffset) {
