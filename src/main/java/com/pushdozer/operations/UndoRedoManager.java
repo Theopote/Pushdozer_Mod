@@ -120,8 +120,8 @@ public class UndoRedoManager {
         }
     }
 
-    private void executeUndoRedoAction(UndoAction action, PlayerEntity player, World world, boolean isUndo,
-                                       java.util.function.Consumer<Boolean> onFinished) {
+    protected void executeUndoRedoAction(UndoAction action, PlayerEntity player, World world, boolean isUndo,
+                                         java.util.function.Consumer<Boolean> onFinished) {
         if (!(world instanceof ServerWorld serverWorld)) {
             LOGGER.error("Action must be performed on the server side.");
             onFinished.accept(false);
@@ -182,8 +182,14 @@ public class UndoRedoManager {
         }
     }
 
-    private void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
-                                         boolean isLarge, boolean isUndo) {
+    /**
+     * 将撤销/重做的方块变更同步给触发玩家。
+     * <p>
+     * 该方法被拆分为“小操作逐块同步 / 大操作按区块同步”两条路径，便于在单测中覆盖阈值分支，
+     * 同时避免直接构造复杂的区块数据包对象导致测试脆弱。
+     */
+    protected void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
+                                          boolean isLarge, boolean isUndo) {
         if (!(player instanceof ServerPlayerEntity serverPlayer)) {
             LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
                 isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
@@ -192,32 +198,41 @@ public class UndoRedoManager {
 
         LightingProvider lightProvider = serverWorld.getLightingProvider();
         if (!isLarge) {
-            for (BlockPos pos : validPositions) {
-                if (!serverWorld.isChunkLoaded(new ChunkPos(pos).toLong())) {
-                    continue;
-                }
-                ExceptionPolicy.runPerItem("发送方块更新 " + pos, () -> {
-                    BlockState currentState = serverWorld.getBlockState(pos);
-                    serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
-                }, LOGGER);
-            }
+            syncSmallOperation(serverWorld, serverPlayer, validPositions);
         } else {
-            Set<ChunkPos> affectedChunks = new HashSet<>();
-            for (BlockPos pos : validPositions) {
-                affectedChunks.add(new ChunkPos(pos));
-            }
-            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
-            Objects.requireNonNull(serverWorld.getServer()).execute(() ->
-                sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
-            );
+            syncLargeOperation(serverWorld, serverPlayer, validPositions, lightProvider);
         }
 
         LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
             isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
     }
 
-    private void sendChunks(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, Set<ChunkPos> chunks,
-                            LightingProvider lightProvider, String reason) {
+    protected void syncSmallOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions) {
+        for (BlockPos pos : validPositions) {
+            if (!serverWorld.isChunkLoaded(new ChunkPos(pos).toLong())) {
+                continue;
+            }
+            ExceptionPolicy.runPerItem("发送方块更新 " + pos, () -> {
+                BlockState currentState = serverWorld.getBlockState(pos);
+                serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
+            }, LOGGER);
+        }
+    }
+
+    protected void syncLargeOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions,
+                                      LightingProvider lightProvider) {
+        Set<ChunkPos> affectedChunks = new HashSet<>();
+        for (BlockPos pos : validPositions) {
+            affectedChunks.add(new ChunkPos(pos));
+        }
+        sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
+        Objects.requireNonNull(serverWorld.getServer()).execute(() ->
+            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
+        );
+    }
+
+    protected void sendChunks(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, Set<ChunkPos> chunks,
+                              LightingProvider lightProvider, String reason) {
         int sent = 0;
         for (ChunkPos chunkPos : chunks) {
             if (!serverWorld.isChunkLoaded(chunkPos.toLong())) {
