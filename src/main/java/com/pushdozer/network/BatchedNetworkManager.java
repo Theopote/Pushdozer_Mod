@@ -6,6 +6,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,20 +98,22 @@ public class BatchedNetworkManager {
         MinecraftServer server = operation.world.getServer();
         Runnable sendTask = () -> sendBatch(operation);
 
-        if (server.isOnThread()) {
+        if (server != null && server.isOnThread()) {
             sendTask.run();
             return;
         }
 
         if (waitForCompletion) {
             CountDownLatch latch = new CountDownLatch(1);
-            server.execute(() -> {
-                try {
-                    sendTask.run();
-                } finally {
-                    latch.countDown();
-                }
-            });
+            if (server != null) {
+                server.execute(() -> {
+                    try {
+                        sendTask.run();
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
             try {
                 if (!latch.await(5, TimeUnit.SECONDS)) {
                     LOGGER.warn("等待批处理发包完成超时");
@@ -119,7 +122,9 @@ public class BatchedNetworkManager {
                 Thread.currentThread().interrupt();
             }
         } else {
-            server.execute(sendTask);
+            if (server != null) {
+                server.execute(sendTask);
+            }
         }
     }
 
@@ -185,6 +190,21 @@ public class BatchedNetworkManager {
         }
         pendingOperations.clear();
 
+        List<CountDownLatch> flushLatches = getCountDownLatches(operationsByServer);
+
+        for (CountDownLatch latch : flushLatches) {
+            try {
+                if (!latch.await(5, TimeUnit.SECONDS)) {
+                    LOGGER.warn("关闭时等待批处理发包完成超时");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    private @NotNull List<CountDownLatch> getCountDownLatches(Map<MinecraftServer, List<BatchedOperation>> operationsByServer) {
         List<CountDownLatch> flushLatches = new ArrayList<>();
         for (Map.Entry<MinecraftServer, List<BatchedOperation>> entry : operationsByServer.entrySet()) {
             MinecraftServer server = entry.getKey();
@@ -208,19 +228,9 @@ public class BatchedNetworkManager {
                 server.execute(flushTask);
             }
         }
-
-        for (CountDownLatch latch : flushLatches) {
-            try {
-                if (!latch.await(5, TimeUnit.SECONDS)) {
-                    LOGGER.warn("关闭时等待批处理发包完成超时");
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
+        return flushLatches;
     }
-    
+
     /**
      * 批处理操作数据类
      */
