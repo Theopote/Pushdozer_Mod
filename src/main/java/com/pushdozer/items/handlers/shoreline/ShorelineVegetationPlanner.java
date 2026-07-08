@@ -1,4 +1,4 @@
-﻿package com.pushdozer.items.handlers.shoreline;
+package com.pushdozer.items.handlers.shoreline;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
@@ -939,75 +939,6 @@ public class ShorelineVegetationPlanner {
         return Blocks.CACTUS.getDefaultState();
     }
 
-        /**
-     * 查找水体边缘位置
-     * 优化：支持水平和垂直方向的水岸边缘检测
-     * 处理水岸的水平边缘和垂直边缘（如悬崖、斜坡）
-     * 
-     * @param world 世界实例
-     * @param shape 处理形状
-     * @return 水体边缘位置集合
-     */
-    private Set<BlockPos> findShorelineEdges(World world, GeometryShape shape) {
-        Set<BlockPos> edges = new HashSet<>();
-        Set<BlockPos> waterBlocks = new HashSet<>();
-        Set<BlockPos> checkedPositions = new HashSet<>();
-
-        // 首先收集笔刷范围内的所有水体
-        for (BlockPos pos : shape.getBlockPositions()) {
-            if (world.getFluidState(pos).isIn(FluidTags.WATER)) {
-                waterBlocks.add(pos);
-            }
-        }
-
-        // 处理水平和垂直方向的水岸边缘
-        for (BlockPos waterPos : waterBlocks) {
-            // 检查水平方向（XZ平面）
-            for (Direction dir : Direction.Type.HORIZONTAL) {
-                BlockPos neighborPos = waterPos.offset(dir);
-                
-                if (!checkedPositions.contains(neighborPos)) {
-                    checkedPositions.add(neighborPos);
-                    
-                    if (!waterBlocks.contains(neighborPos) && 
-                        !world.getFluidState(neighborPos).isIn(FluidTags.WATER) &&
-                        isReplaceableLandBlock(world, neighborPos, world.getBlockState(neighborPos))) {
-                        edges.add(neighborPos);
-                    }
-                }
-            }
-            
-            // 检查垂直方向（Y轴）- 处理水岸的垂直边缘
-            for (Direction dir : Direction.Type.VERTICAL) {
-                BlockPos neighborPos = waterPos.offset(dir);
-                
-                if (!checkedPositions.contains(neighborPos)) {
-                    checkedPositions.add(neighborPos);
-                    
-                    if (!waterBlocks.contains(neighborPos) && 
-                        !world.getFluidState(neighborPos).isIn(FluidTags.WATER) &&
-                        isReplaceableLandBlock(world, neighborPos, world.getBlockState(neighborPos))) {
-                        edges.add(neighborPos);
-                    }
-                }
-            }
-        }
-
-        return edges;
-    }
-    
-    /**
-     * 检查chunk是否已加载
-     * 防止在未加载的chunk中放置方块
-     * 
-     * @param world 世界实例
-     * @param pos 要检查的位置
-     * @return 如果chunk已加载返回true，否则返回false
-     */
-    private boolean edgeFinder.isChunkLoaded(World world, BlockPos pos) {
-        return world.edgeFinder.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
-    }
-    
     /**
      * 沙滩类型植物预设
      * 专注于海边和水边的植物

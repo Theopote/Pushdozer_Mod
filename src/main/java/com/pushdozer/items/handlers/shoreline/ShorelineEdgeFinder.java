@@ -1,4 +1,4 @@
-﻿package com.pushdozer.items.handlers.shoreline;
+package com.pushdozer.items.handlers.shoreline;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.handlers.vegetation.PlantBlockClassifier;

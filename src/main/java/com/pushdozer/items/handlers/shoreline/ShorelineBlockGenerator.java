@@ -1,4 +1,4 @@
-﻿package com.pushdozer.items.handlers.shoreline;
+package com.pushdozer.items.handlers.shoreline;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
@@ -570,5 +570,6 @@ public class ShorelineBlockGenerator {
             // 使用泥土作为次要方块，创造从自定义方块到泥土的过渡
             return applyTransitionProbability(distance, primaryBlock.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
         }
+    }
 }
 
