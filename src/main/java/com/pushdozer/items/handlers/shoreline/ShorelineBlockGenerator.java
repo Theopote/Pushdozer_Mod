@@ -28,16 +28,7 @@ public class ShorelineBlockGenerator {
     private static final float BASE_KEEP_PROBABILITY = 0.1f;
     private static final float DISTANCE_PROBABILITY_INCREMENT = 0.075f;
     private static final float MAX_KEEP_PROBABILITY = 0.9f;
-    private static final int MAX_SHORELINE_WIDTH = 20;
-    private static final int DEFAULT_SHORELINE_WIDTH = 5;
-    private static final float DEFAULT_VEGETATION_DENSITY = 0.3f;
-    private static final int MAX_VISITED_BLOCKS = 10000;
-    private static final int MAX_ITERATIONS = 10000;
-    
-    // 性能优化常量
-    private static final int MAX_PLANTS = 500; // 最大植物数量限制
-    private static final int MAX_PLANT_ATTEMPTS = 1000; // 最大种植尝试次数
-    
+
     // 生物群系方块生成器映射表
     private static final Map<TagKey<Biome>, BiFunction<Integer, Random, BlockState>> BIOME_BLOCK_GENERATORS = new HashMap<>();
 

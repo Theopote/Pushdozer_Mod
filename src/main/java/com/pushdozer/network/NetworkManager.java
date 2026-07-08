@@ -1,6 +1,5 @@
 package com.pushdozer.network;
 
-import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.services.ConfigService;
 import com.pushdozer.services.UndoRedoService;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -130,22 +129,7 @@ public class NetworkManager {
             ExceptionPolicy.logBenignOrRethrow("广播地形操作", e, LOGGER);
         }
     }
-    
-    /**
-     * 向所有玩家同步配置
-     */
-    public static void syncConfigToAllPlayers(net.minecraft.server.MinecraftServer server, ConfigSyncPayload configPayload) {
-        try {
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                ServerPlayNetworking.send(player, configPayload);
-            }
-            
-            LOGGER.info("向 {} 个玩家同步配置", server.getPlayerManager().getPlayerList().size());
-        } catch (RuntimeException e) {
-            ExceptionPolicy.logBenignOrRethrow("同步配置到所有玩家", e, LOGGER);
-        }
-    }
-    
+
     /**
      * 检查玩家是否有权限修改配置
      * 每个玩家都可以修改自己的配置

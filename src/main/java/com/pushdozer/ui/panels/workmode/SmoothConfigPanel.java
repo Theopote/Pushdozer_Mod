@@ -1,6 +1,5 @@
 package com.pushdozer.ui.panels.workmode;
 
-import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.minecraft.client.gui.DrawContext;

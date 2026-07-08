@@ -15,8 +15,6 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.*;
 
 /**
@@ -24,8 +22,7 @@ import java.util.*;
  * 提供所有地形工具共享的基础功能，子类只需实现特定的高度计算算法
  */
 public abstract class AbstractTerrainToolHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
-    
+
     protected PushdozerConfig config;
 
     // REFINED: 简化忽略方块列表，使用BlockTags替代大部分硬编码

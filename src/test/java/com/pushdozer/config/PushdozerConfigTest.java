@@ -62,4 +62,42 @@ class PushdozerConfigTest extends PushdozerTestBase {
 
         assertEquals(12, config.getLargestBrushDimension());
     }
+
+    @Test
+    void nestedJson_roundTrips() {
+        PushdozerConfig original = new PushdozerConfig();
+        original.setWorkMode(PushdozerConfig.WorkMode.SMOOTH);
+        original.setRadius(10);
+        original.setSphereRadius(15);
+        original.setSmoothStrength(0.75f);
+        original.setPlantType(PushdozerConfig.PlantType.FLOWERS);
+        original.setShorelineWidth(5);
+        original.setDisplayMode(PushdozerConfig.DisplayMode.POINT_CLOUD);
+
+        PushdozerConfig loaded = PushdozerConfig.fromJson(original.toJson());
+
+        assertEquals(PushdozerConfig.WorkMode.SMOOTH, loaded.getWorkMode());
+        assertEquals(10, loaded.getRadius());
+        assertEquals(15, loaded.getSphereRadius());
+        assertEquals(0.75f, loaded.getSmoothStrength(), 0.001f);
+        assertEquals(PushdozerConfig.PlantType.FLOWERS, loaded.getPlantType());
+        assertEquals(5, loaded.getShorelineWidth());
+        assertEquals(PushdozerConfig.DisplayMode.POINT_CLOUD, loaded.getDisplayMode());
+    }
+
+    @Test
+    void legacyFlatMigration_populatesBrushRadius() {
+        PushdozerConfig config = PushdozerConfig.fromJson("""
+            {
+              "radius": 42,
+              "shape": "Sphere",
+              "geometryType": "SPHERE"
+            }
+            """);
+
+        assertEquals(42, config.getRadius());
+        assertEquals("Sphere", config.getShape());
+        assertEquals(PushdozerConfig.GeometryType.SPHERE, config.getGeometryType());
+        assertEquals(42, config.getBrush().getRadius());
+    }
 }

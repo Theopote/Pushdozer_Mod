@@ -9,9 +9,7 @@ import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
 import net.minecraft.block.*;
-import net.minecraft.block.LeavesBlock;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -226,13 +224,6 @@ public class SurfaceConvertHandler {
     private boolean isDeadCoral(Block block) {
         String id = block.toString().toLowerCase();
         return id.contains("coral") && id.contains("dead");
-    }
-
-    /**
-     * 检查是否为树叶
-     */
-    private boolean isLeafBlock(BlockState state) {
-        return state.getBlock() instanceof LeavesBlock;
     }
 
     /**
