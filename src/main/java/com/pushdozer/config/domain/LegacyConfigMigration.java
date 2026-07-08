@@ -1,147 +1,144 @@
 package com.pushdozer.config.domain;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.annotations.Expose;
+import com.google.gson.JsonSyntaxException;
+import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 
 /**
- * Handles migration from the legacy flat JSON format to nested domain sub-configs.
+ * 旧版扁平 JSON 迁移与默认值修复。
  */
 public final class LegacyConfigMigration {
-    private static final Gson GSON = new GsonBuilder()
-        .excludeFieldsWithoutExposeAnnotation()
-        .create();
+    private static final Gson GSON = new Gson();
 
-    private static final String[] LEGACY_FLAT_KEYS = {
-        "radius", "length", "width", "height", "shape", "geometryType",
-        "displayMode", "maxOperationDistance", "placeMode", "plantType",
-        "shorelineType", "workMode", "smoothStrength", "smoothVariant"
-    };
-
-    private LegacyConfigMigration() {}
+    private LegacyConfigMigration() {
+    }
 
     public static boolean isLegacyFlatFormat(JsonObject obj) {
-        if (obj.has("brush")) {
-            return false;
-        }
-        for (String key : LEGACY_FLAT_KEYS) {
-            if (obj.has(key)) {
-                return true;
-            }
-        }
-        return false;
+        return !obj.has("brush")
+            && (obj.has("radius")
+            || obj.has("geometryType")
+            || obj.has("displayMode")
+            || obj.has("plantType")
+            || obj.has("shorelineType")
+            || obj.has("smoothStrength"));
     }
 
     public static void applyFlatJson(PushdozerConfig config, JsonObject obj) {
-        FlatConfigSnapshot flat = GSON.fromJson(obj, FlatConfigSnapshot.class);
-        if (flat == null) {
-            return;
+        try {
+            LegacyFlatSnapshot snapshot = GSON.fromJson(obj, LegacyFlatSnapshot.class);
+            if (snapshot == null) {
+                return;
+            }
+            applySnapshot(config, snapshot);
+        } catch (JsonSyntaxException e) {
+            PushdozerMod.LOGGER.error("Failed to migrate legacy flat Pushdozer configuration", e);
         }
+    }
 
-        if (flat.workMode != null) {
-            config.setWorkMode(flat.workMode);
+    private static void applySnapshot(PushdozerConfig config, LegacyFlatSnapshot snapshot) {
+        if (snapshot.workMode != null) {
+            config.setWorkMode(snapshot.workMode);
         }
-
-        copyBrushFields(flat, config.getBrush());
-
-        SurfaceConfig surface = config.getSurface();
-        copySurfaceFields(flat, surface);
-
-        PlantingConfig planting = config.getPlanting();
-        copyPlantingFields(flat, planting);
-
-        ShorelineConfig shoreline = config.getShoreline();
-        copyShorelineFields(flat, shoreline);
 
         PreviewConfig preview = config.getPreview();
-        copyPreviewFields(flat, preview);
-    }
-
-    private static void copyBrushFields(FlatConfigSnapshot flat, BrushConfig brush) {
-        if (flat.breakableBlockIds != null) {
-            BrushFieldHelper.setBreakableBlockIds(brush, flat.breakableBlockIds);
+        if (snapshot.displayMode != null) {
+            preview.setDisplayMode(snapshot.displayMode);
         }
-        if (flat.ignoredBlockIds != null) {
-            brush.getIgnoredBlockIds().clear();
-            brush.getIgnoredBlockIds().addAll(flat.ignoredBlockIds);
-            brush.markIgnoredBlocksCacheDirty();
-        }
-        if (flat.shape != null) brush.setShape(flat.shape);
-        if (flat.geometryType != null) brush.setGeometryType(flat.geometryType);
-        if (flat.radius != null) brush.setRadius(flat.radius);
-        if (flat.length != null) brush.setLength(flat.length);
-        if (flat.width != null) brush.setWidth(flat.width);
-        if (flat.height != null) brush.setHeight(flat.height);
-        if (flat.sphereRadius != null) brush.setSphereRadius(flat.sphereRadius);
-        if (flat.cylinderRadius != null) brush.setCylinderRadius(flat.cylinderRadius);
-        if (flat.coneRadius != null) brush.setConeRadius(flat.coneRadius);
-        if (flat.octahedronRadius != null) brush.setOctahedronRadius(flat.octahedronRadius);
-        if (flat.tetrahedronEdgeLength != null) brush.setTetrahedronEdgeLength(flat.tetrahedronEdgeLength);
-        if (flat.triangularPrismSideLength != null) brush.setTriangularPrismSideLength(flat.triangularPrismSideLength);
-        if (flat.boxHeight != null) brush.setBoxHeight(flat.boxHeight);
-        if (flat.cylinderHeight != null) brush.setCylinderHeight(flat.cylinderHeight);
-        if (flat.coneHeight != null) brush.setConeHeight(flat.coneHeight);
-        if (flat.sphereHeight != null) brush.setSphereHeight(flat.sphereHeight);
-        if (flat.octahedronHeight != null) brush.setOctahedronHeight(flat.octahedronHeight);
-        if (flat.tetrahedronHeight != null) brush.setTetrahedronHeight(flat.tetrahedronHeight);
-        if (flat.triangularPrismHeight != null) brush.setTriangularPrismHeight(flat.triangularPrismHeight);
-        if (flat.ellipsoidHeight != null) brush.setEllipsoidHeight(flat.ellipsoidHeight);
-        if (flat.lockedHeight != null) brush.setLockedHeight(flat.lockedHeight);
-        if (flat.heightMode != null) brush.setHeightMode(flat.heightMode);
-        if (flat.isLockedOnceMode != null) brush.setLockedOnceMode(flat.isLockedOnceMode);
-    }
+        preview.setMaxOperationDistance(snapshot.maxOperationDistance);
 
-    private static void copySurfaceFields(FlatConfigSnapshot flat, SurfaceConfig surface) {
-        if (flat.placeMode != null) surface.setPlaceMode(flat.placeMode);
-        if (flat.selectedNaturalBlockId != null) surface.setSelectedNaturalBlockId(flat.selectedNaturalBlockId);
-        if (flat.smoothStrength != null) surface.setSmoothStrength(flat.smoothStrength);
-        if (flat.smoothVariant != null) surface.setSmoothVariant(flat.smoothVariant);
-        if (flat.roughnessStrength != null) surface.setRoughnessStrength(flat.roughnessStrength);
-        if (flat.smoothingIntensity != null) surface.setSmoothingIntensity(flat.smoothingIntensity);
-        if (flat.noiseSeed != null) surface.setNoiseSeed(flat.noiseSeed);
-        if (flat.noiseAutoScale != null) surface.setNoiseAutoScale(flat.noiseAutoScale);
-        if (flat.noiseFrequency != null) surface.setNoiseFrequency(flat.noiseFrequency);
-        if (flat.noisePersistence != null) surface.setNoisePersistence(flat.noisePersistence);
-        if (flat.noiseOctaves != null) surface.setNoiseOctaves(flat.noiseOctaves);
-        if (flat.surfaceConvertBlocks != null) {
+        BrushConfig brush = config.getBrush();
+        if (snapshot.breakableBlockIds != null) {
+            brush.setBreakableBlockIds(snapshot.breakableBlockIds);
+        }
+        if (snapshot.ignoredBlockIds != null) {
+            brush.setIgnoredBlockIds(snapshot.ignoredBlockIds);
+        }
+        if (snapshot.shape != null) {
+            brush.setShape(snapshot.shape);
+        }
+        if (snapshot.geometryType != null) {
+            brush.setGeometryType(snapshot.geometryType);
+        }
+        brush.setRadius(snapshot.radius);
+        brush.setLength(snapshot.length);
+        brush.setWidth(snapshot.width);
+        brush.setHeight(snapshot.height);
+        brush.setSphereRadius(snapshot.sphereRadius);
+        brush.setCylinderRadius(snapshot.cylinderRadius);
+        brush.setConeRadius(snapshot.coneRadius);
+        brush.setOctahedronRadius(snapshot.octahedronRadius);
+        brush.setTetrahedronEdgeLength(snapshot.tetrahedronEdgeLength);
+        brush.setTriangularPrismSideLength(snapshot.triangularPrismSideLength);
+        brush.setBoxHeight(snapshot.boxHeight);
+        brush.setCylinderHeight(snapshot.cylinderHeight);
+        brush.setConeHeight(snapshot.coneHeight);
+        brush.setSphereHeight(snapshot.sphereHeight);
+        brush.setOctahedronHeight(snapshot.octahedronHeight);
+        brush.setTetrahedronHeight(snapshot.tetrahedronHeight);
+        brush.setTriangularPrismHeight(snapshot.triangularPrismHeight);
+        brush.setEllipsoidHeight(snapshot.ellipsoidHeight);
+        brush.setLockedHeight(snapshot.lockedHeight);
+        if (snapshot.heightMode != null) {
+            brush.setHeightMode(snapshot.heightMode);
+        }
+        brush.setLockedOnceMode(snapshot.isLockedOnceMode);
+
+        SurfaceConfig surface = config.getSurface();
+        if (snapshot.placeMode != null) {
+            surface.setPlaceMode(snapshot.placeMode);
+        }
+        if (snapshot.selectedNaturalBlockId != null) {
+            surface.setSelectedNaturalBlockId(snapshot.selectedNaturalBlockId);
+        }
+        surface.setSmoothStrength(snapshot.smoothStrength);
+        if (snapshot.smoothVariant != null) {
+            surface.setSmoothVariant(snapshot.smoothVariant);
+        }
+        surface.setRoughnessStrength(snapshot.roughnessStrength);
+        surface.setSmoothingIntensity(snapshot.smoothingIntensity);
+        surface.setNoiseAutoScale(snapshot.noiseAutoScale);
+        surface.setNoiseFrequency(snapshot.noiseFrequency);
+        surface.setNoisePersistence(snapshot.noisePersistence);
+        surface.setNoiseOctaves(snapshot.noiseOctaves);
+        if (snapshot.surfaceConvertBlocks != null) {
             surface.getSurfaceConvertBlocks().clear();
-            surface.getSurfaceConvertBlocks().addAll(flat.surfaceConvertBlocks);
+            surface.getSurfaceConvertBlocks().addAll(snapshot.surfaceConvertBlocks);
         }
-    }
 
-    private static void copyPlantingFields(FlatConfigSnapshot flat, PlantingConfig planting) {
-        if (flat.plantType != null) planting.setPlantType(flat.plantType);
-        if (flat.customPlantBlockIds != null) {
-            PlantingFieldHelper.setCustomPlantBlockIds(planting, flat.customPlantBlockIds);
+        PlantingConfig planting = config.getPlanting();
+        if (snapshot.plantType != null) {
+            planting.setPlantType(snapshot.plantType);
         }
-        if (flat.plantDensity != null) planting.setPlantDensity(flat.plantDensity);
-        if (flat.selectedTree != null) planting.setSelectedTree(flat.selectedTree);
-        if (flat.selectedFlowerGroup != null) planting.setSelectedFlowerGroup(flat.selectedFlowerGroup);
-        if (flat.respectBiomes != null) planting.setRespectBiomes(flat.respectBiomes);
-        if (flat.clusterScale != null) planting.setClusterScale(flat.clusterScale);
-    }
+        if (snapshot.customPlantBlockIds != null) {
+            planting.setCustomPlantBlockIds(snapshot.customPlantBlockIds);
+        }
+        planting.setPlantDensity(snapshot.plantDensity);
+        if (snapshot.selectedTree != null) {
+            planting.setSelectedTree(snapshot.selectedTree);
+        }
+        if (snapshot.selectedFlowerGroup != null) {
+            planting.setSelectedFlowerGroup(snapshot.selectedFlowerGroup);
+        }
+        planting.setRespectBiomes(snapshot.respectBiomes);
+        planting.setClusterScale(snapshot.clusterScale);
 
-    private static void copyShorelineFields(FlatConfigSnapshot flat, ShorelineConfig shoreline) {
-        if (flat.shorelineType != null) shoreline.setShorelineType(flat.shorelineType);
-        if (flat.shorelineWidth != null) shoreline.setShorelineWidth(flat.shorelineWidth);
-        if (flat.plantVegetationEnabled != null) shoreline.setPlantVegetationEnabled(flat.plantVegetationEnabled);
-        if (flat.vegetationDensity != null) shoreline.setVegetationDensity(flat.vegetationDensity);
-        if (flat.customShorelineBlocks != null) shoreline.setCustomShorelineBlocks(flat.customShorelineBlocks);
-        if (flat.customShorelinePlants != null) shoreline.setCustomShorelinePlants(flat.customShorelinePlants);
-        if (flat.shorelineHeightAboveEnabled != null) shoreline.setShorelineHeightAboveEnabled(flat.shorelineHeightAboveEnabled);
-        if (flat.shorelineHeightBelowEnabled != null) shoreline.setShorelineHeightBelowEnabled(flat.shorelineHeightBelowEnabled);
-    }
-
-    private static void copyPreviewFields(FlatConfigSnapshot flat, PreviewConfig preview) {
-        if (flat.displayMode != null) preview.setDisplayMode(flat.displayMode);
-        if (flat.maxOperationDistance != null) preview.setMaxOperationDistance(flat.maxOperationDistance);
+        ShorelineConfig shoreline = config.getShoreline();
+        if (snapshot.shorelineType != null) {
+            shoreline.setShorelineType(snapshot.shorelineType);
+        }
+        shoreline.setShorelineWidth(snapshot.shorelineWidth);
+        shoreline.setPlantVegetationEnabled(snapshot.plantVegetationEnabled);
+        shoreline.setVegetationDensity(snapshot.vegetationDensity);
+        if (snapshot.customShorelineBlocks != null) {
+            shoreline.setCustomShorelineBlocks(snapshot.customShorelineBlocks);
+        }
+        if (snapshot.customShorelinePlants != null) {
+            shoreline.setCustomShorelinePlants(snapshot.customShorelinePlants);
+        }
+        shoreline.setShorelineHeightAboveEnabled(snapshot.shorelineHeightAboveEnabled);
+        shoreline.setShorelineHeightBelowEnabled(snapshot.shorelineHeightBelowEnabled);
     }
 
     public static void ensureDefaults(PushdozerConfig config) {
@@ -174,88 +171,66 @@ public final class LegacyConfigMigration {
             config.setWorkMode(PushdozerConfig.WorkMode.SMOOTH);
         }
 
-        clampBrushDimensions(config);
+        config.getBrush().clampAllDimensions();
         config.getBrush().markIgnoredBlocksCacheDirty();
         config.getBrush().rebuildIgnoredBlocksCache();
     }
 
-    public static void clampBrushDimensions(PushdozerConfig config) {
-        config.getBrush().clampBrushDimensions();
-    }
-
-    /** Gson DTO mirroring the legacy flat JSON layout. */
-    private static class FlatConfigSnapshot {
-        @Expose PushdozerConfig.WorkMode workMode;
-        @Expose Set<String> breakableBlockIds;
-        @Expose List<String> ignoredBlockIds;
-        @Expose String shape;
-        @Expose PushdozerConfig.GeometryType geometryType;
-        @Expose Integer radius;
-        @Expose Integer length;
-        @Expose Integer width;
-        @Expose Integer height;
-        @Expose Integer sphereRadius;
-        @Expose Integer cylinderRadius;
-        @Expose Integer coneRadius;
-        @Expose Integer octahedronRadius;
-        @Expose Integer tetrahedronEdgeLength;
-        @Expose Integer triangularPrismSideLength;
-        @Expose Integer boxHeight;
-        @Expose Integer cylinderHeight;
-        @Expose Integer coneHeight;
-        @Expose Integer sphereHeight;
-        @Expose Integer octahedronHeight;
-        @Expose Integer tetrahedronHeight;
-        @Expose Integer triangularPrismHeight;
-        @Expose Integer ellipsoidHeight;
-        @Expose Integer lockedHeight;
-        @Expose PushdozerConfig.HeightMode heightMode;
-        @Expose Boolean isLockedOnceMode;
-        @Expose PushdozerConfig.PlaceMode placeMode;
-        @Expose String selectedNaturalBlockId;
-        @Expose Float smoothStrength;
-        @Expose PushdozerConfig.SmoothVariant smoothVariant;
-        @Expose Float roughnessStrength;
-        @Expose Float smoothingIntensity;
-        @Expose Long noiseSeed;
-        @Expose Boolean noiseAutoScale;
-        @Expose Float noiseFrequency;
-        @Expose Float noisePersistence;
-        @Expose Integer noiseOctaves;
-        @Expose List<SurfaceConfig.SurfaceConvertBlock> surfaceConvertBlocks;
-        @Expose PushdozerConfig.PlantType plantType;
-        @Expose Set<String> customPlantBlockIds;
-        @Expose Float plantDensity;
-        @Expose PushdozerConfig.TreeSpecies selectedTree;
-        @Expose PushdozerConfig.FlowerGroup selectedFlowerGroup;
-        @Expose Boolean respectBiomes;
-        @Expose Float clusterScale;
-        @Expose PushdozerConfig.ShorelineType shorelineType;
-        @Expose Integer shorelineWidth;
-        @Expose Boolean plantVegetationEnabled;
-        @Expose Float vegetationDensity;
-        @Expose Set<String> customShorelineBlocks;
-        @Expose Set<String> customShorelinePlants;
-        @Expose Boolean shorelineHeightAboveEnabled;
-        @Expose Boolean shorelineHeightBelowEnabled;
-        @Expose PushdozerConfig.DisplayMode displayMode;
-        @Expose Integer maxOperationDistance;
-    }
-
-    /** Package-private helpers for fields without public setters. */
-    static final class BrushFieldHelper {
-        private BrushFieldHelper() {}
-
-        static void setBreakableBlockIds(BrushConfig brush, Set<String> ids) {
-            brush.applyBreakableBlockIds(ids);
-        }
-    }
-
-    static final class PlantingFieldHelper {
-        private PlantingFieldHelper() {}
-
-        static void setCustomPlantBlockIds(PlantingConfig planting, Set<String> ids) {
-            planting.applyCustomPlantBlockIds(ids);
-        }
+    /** 旧版扁平 JSON 字段快照，仅用于迁移。 */
+    private static final class LegacyFlatSnapshot {
+        PushdozerConfig.WorkMode workMode;
+        PushdozerConfig.DisplayMode displayMode;
+        int maxOperationDistance = 20;
+        java.util.Set<String> breakableBlockIds;
+        java.util.List<String> ignoredBlockIds;
+        String shape;
+        PushdozerConfig.GeometryType geometryType;
+        int radius = 5;
+        int length = 5;
+        int width = 5;
+        int height = 5;
+        int sphereRadius = 5;
+        int cylinderRadius = 5;
+        int coneRadius = 5;
+        int octahedronRadius = 5;
+        int tetrahedronEdgeLength = 5;
+        int triangularPrismSideLength = 5;
+        int boxHeight = 5;
+        int cylinderHeight = 5;
+        int coneHeight = 5;
+        int sphereHeight = 5;
+        int octahedronHeight = 5;
+        int tetrahedronHeight = 5;
+        int triangularPrismHeight = 5;
+        int ellipsoidHeight = 5;
+        int lockedHeight;
+        PushdozerConfig.HeightMode heightMode;
+        boolean isLockedOnceMode;
+        PushdozerConfig.PlaceMode placeMode;
+        String selectedNaturalBlockId;
+        float smoothStrength = 0.5f;
+        PushdozerConfig.SmoothVariant smoothVariant;
+        float roughnessStrength = 0.5f;
+        float smoothingIntensity = 0.5f;
+        boolean noiseAutoScale = true;
+        float noiseFrequency = 0.02f;
+        float noisePersistence = 0.5f;
+        int noiseOctaves = 4;
+        java.util.List<SurfaceConfig.SurfaceConvertBlock> surfaceConvertBlocks;
+        PushdozerConfig.PlantType plantType;
+        java.util.Set<String> customPlantBlockIds;
+        float plantDensity = 0.3f;
+        PushdozerConfig.TreeSpecies selectedTree;
+        PushdozerConfig.FlowerGroup selectedFlowerGroup;
+        boolean respectBiomes = true;
+        float clusterScale = 0.05f;
+        PushdozerConfig.ShorelineType shorelineType;
+        int shorelineWidth = 3;
+        boolean plantVegetationEnabled = true;
+        float vegetationDensity = 0.1f;
+        java.util.Set<String> customShorelineBlocks;
+        java.util.Set<String> customShorelinePlants;
+        boolean shorelineHeightAboveEnabled;
+        boolean shorelineHeightBelowEnabled;
     }
 }

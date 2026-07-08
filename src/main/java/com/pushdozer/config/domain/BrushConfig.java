@@ -1,5 +1,14 @@
 package com.pushdozer.config.domain;
 
+import com.google.gson.annotations.Expose;
+import com.pushdozer.PushdozerMod;
+import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.util.RegistryBlocks;
+import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,39 +16,18 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.google.gson.annotations.Expose;
-import com.pushdozer.PushdozerMod;
-import com.pushdozer.config.PushdozerConfig;
-import com.pushdozer.util.RegistryBlocks;
-
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-
 public class BrushConfig {
     public static final int MIN_BRUSH_RADIUS = 1;
     public static final int MAX_BRUSH_RADIUS = 64;
-
-    public static int clampBrushSize(int size) {
-        return Math.max(MIN_BRUSH_RADIUS, Math.min(MAX_BRUSH_RADIUS, size));
-    }
-
-    public static boolean isBrushSizeAllowed(int size) {
-        return size >= MIN_BRUSH_RADIUS && size <= MAX_BRUSH_RADIUS;
-    }
 
     @Expose
     private Set<String> breakableBlockIds = new HashSet<>();
     @Expose
     private List<String> ignoredBlockIds = new ArrayList<>();
-
     @Expose(serialize = false, deserialize = false)
     private Set<Block> ignoredBlocks = new HashSet<>();
-
     @Expose(serialize = false, deserialize = false)
     private boolean ignoredBlocksCacheDirty = true;
-
     @Expose
     private String shape = "Box";
     @Expose
@@ -52,7 +40,6 @@ public class BrushConfig {
     private int width = 5;
     @Expose
     private int height = 5;
-
     @Expose
     private int sphereRadius = 5;
     @Expose
@@ -65,7 +52,6 @@ public class BrushConfig {
     private int tetrahedronEdgeLength = 5;
     @Expose
     private int triangularPrismSideLength = 5;
-
     @Expose
     private int boxHeight = 5;
     @Expose
@@ -89,14 +75,18 @@ public class BrushConfig {
     @Expose
     private boolean isLockedOnceMode = false;
 
-    private Runnable onChange = () -> {};
+    private ConfigChangeNotifier onChange = () -> {};
 
-    public void setOnChange(Runnable onChange) {
-        this.onChange = onChange != null ? onChange : () -> {};
+    public static int clampBrushSize(int size) {
+        return Math.max(MIN_BRUSH_RADIUS, Math.min(MAX_BRUSH_RADIUS, size));
     }
 
-    private void notifyChange() {
-        onChange.run();
+    public static boolean isBrushSizeAllowed(int size) {
+        return size >= MIN_BRUSH_RADIUS && size <= MAX_BRUSH_RADIUS;
+    }
+
+    public void setOnChange(ConfigChangeNotifier onChange) {
+        this.onChange = onChange != null ? onChange : () -> {};
     }
 
     public boolean isBlockBreakable(Block block) {
@@ -111,7 +101,7 @@ public class BrushConfig {
     public void setShape(String shape) {
         this.shape = shape;
         this.geometryType = PushdozerConfig.GeometryType.fromString(shape);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public PushdozerConfig.GeometryType getGeometryType() {
@@ -121,7 +111,7 @@ public class BrushConfig {
     public void setGeometryType(PushdozerConfig.GeometryType geometryType) {
         this.geometryType = geometryType;
         this.shape = geometryType.getShapeString();
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getRadius() {
@@ -130,7 +120,7 @@ public class BrushConfig {
 
     public void setRadius(int radius) {
         this.radius = clampBrushSize(radius);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getLargestBrushDimension() {
@@ -161,7 +151,7 @@ public class BrushConfig {
 
     public void setLength(int length) {
         this.length = clampBrushSize(length);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getWidth() {
@@ -170,7 +160,7 @@ public class BrushConfig {
 
     public void setWidth(int width) {
         this.width = clampBrushSize(width);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getHeight() {
@@ -179,7 +169,7 @@ public class BrushConfig {
 
     public void setHeight(int height) {
         this.height = clampBrushSize(height);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getBoxHeight() {
@@ -188,7 +178,7 @@ public class BrushConfig {
 
     public void setBoxHeight(int boxHeight) {
         this.boxHeight = clampBrushSize(boxHeight);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getCylinderHeight() {
@@ -197,7 +187,7 @@ public class BrushConfig {
 
     public void setCylinderHeight(int cylinderHeight) {
         this.cylinderHeight = clampBrushSize(cylinderHeight);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getConeHeight() {
@@ -206,7 +196,7 @@ public class BrushConfig {
 
     public void setConeHeight(int coneHeight) {
         this.coneHeight = clampBrushSize(coneHeight);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getEllipsoidHeight() {
@@ -215,7 +205,7 @@ public class BrushConfig {
 
     public void setEllipsoidHeight(int ellipsoidHeight) {
         this.ellipsoidHeight = clampBrushSize(ellipsoidHeight);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getSphereRadius() {
@@ -224,7 +214,7 @@ public class BrushConfig {
 
     public void setSphereRadius(int sphereRadius) {
         this.sphereRadius = clampBrushSize(sphereRadius);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getCylinderRadius() {
@@ -233,7 +223,7 @@ public class BrushConfig {
 
     public void setCylinderRadius(int cylinderRadius) {
         this.cylinderRadius = clampBrushSize(cylinderRadius);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getConeRadius() {
@@ -242,7 +232,7 @@ public class BrushConfig {
 
     public void setConeRadius(int coneRadius) {
         this.coneRadius = clampBrushSize(coneRadius);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getOctahedronRadius() {
@@ -251,7 +241,7 @@ public class BrushConfig {
 
     public void setOctahedronRadius(int octahedronRadius) {
         this.octahedronRadius = clampBrushSize(octahedronRadius);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getTetrahedronEdgeLength() {
@@ -260,7 +250,7 @@ public class BrushConfig {
 
     public void setTetrahedronEdgeLength(int tetrahedronEdgeLength) {
         this.tetrahedronEdgeLength = clampBrushSize(tetrahedronEdgeLength);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getTriangularPrismSideLength() {
@@ -269,7 +259,7 @@ public class BrushConfig {
 
     public void setTriangularPrismSideLength(int triangularPrismSideLength) {
         this.triangularPrismSideLength = clampBrushSize(triangularPrismSideLength);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getTriangularPrismHeight() {
@@ -278,34 +268,7 @@ public class BrushConfig {
 
     public void setTriangularPrismHeight(int triangularPrismHeight) {
         this.triangularPrismHeight = clampBrushSize(triangularPrismHeight);
-        notifyChange();
-    }
-
-    public int getSphereHeight() {
-        return sphereHeight;
-    }
-
-    public void setSphereHeight(int sphereHeight) {
-        this.sphereHeight = clampBrushSize(sphereHeight);
-        notifyChange();
-    }
-
-    public int getOctahedronHeight() {
-        return octahedronHeight;
-    }
-
-    public void setOctahedronHeight(int octahedronHeight) {
-        this.octahedronHeight = clampBrushSize(octahedronHeight);
-        notifyChange();
-    }
-
-    public int getTetrahedronHeight() {
-        return tetrahedronHeight;
-    }
-
-    public void setTetrahedronHeight(int tetrahedronHeight) {
-        this.tetrahedronHeight = clampBrushSize(tetrahedronHeight);
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
     public int getLockedHeight() {
@@ -382,14 +345,36 @@ public class BrushConfig {
         this.breakableBlockIds = blocks.stream()
             .map(block -> Registries.BLOCK.getId(block).toString())
             .collect(Collectors.toSet());
-        notifyChange();
+        onChange.onConfigChanged();
     }
 
-    void applyBreakableBlockIds(Set<String> ids) {
-        this.breakableBlockIds = new HashSet<>(ids);
+    public void setBreakableBlockIds(Set<String> blockIds) {
+        this.breakableBlockIds = blockIds != null ? new HashSet<>(blockIds) : new HashSet<>();
+        onChange.onConfigChanged();
     }
 
-    public void clampBrushDimensions() {
+    public void setIgnoredBlockIds(List<String> blockIds) {
+        this.ignoredBlockIds = blockIds != null ? new ArrayList<>(blockIds) : new ArrayList<>();
+        markIgnoredBlocksCacheDirty();
+        onChange.onConfigChanged();
+    }
+
+    public void setSphereHeight(int sphereHeight) {
+        this.sphereHeight = clampBrushSize(sphereHeight);
+        onChange.onConfigChanged();
+    }
+
+    public void setOctahedronHeight(int octahedronHeight) {
+        this.octahedronHeight = clampBrushSize(octahedronHeight);
+        onChange.onConfigChanged();
+    }
+
+    public void setTetrahedronHeight(int tetrahedronHeight) {
+        this.tetrahedronHeight = clampBrushSize(tetrahedronHeight);
+        onChange.onConfigChanged();
+    }
+
+    void clampAllDimensions() {
         radius = clampBrushSize(radius);
         length = clampBrushSize(length);
         width = clampBrushSize(width);

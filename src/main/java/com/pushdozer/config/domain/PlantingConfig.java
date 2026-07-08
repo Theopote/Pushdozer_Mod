@@ -102,4 +102,9 @@ public class PlantingConfig {
             .collect(Collectors.toSet());
         onChange.onConfigChanged();
     }
+
+    public void setCustomPlantBlockIds(Set<String> blockIds) {
+        this.customPlantBlockIds = blockIds != null ? new HashSet<>(blockIds) : new HashSet<>();
+        onChange.onConfigChanged();
+    }
 }
