@@ -618,15 +618,6 @@ public class PushdozerConfig {
         notifyListeners();
     }
 
-    public int getTetrahedronHeight() {
-        return tetrahedronHeight;
-    }
-
-    public void setTetrahedronHeight(int tetrahedronHeight) {
-        this.tetrahedronHeight = clampBrushSize(tetrahedronHeight);
-        notifyListeners();
-    }
-
     public int getTriangularPrismHeight() {
         return triangularPrismHeight;
     }
@@ -673,10 +664,6 @@ public class PushdozerConfig {
     public void setSelectedNaturalBlockId(String blockId) {
         this.selectedNaturalBlockId = blockId;
         notifyListeners();
-    }
-    
-    public String getSelectedNaturalBlockId() {
-        return this.selectedNaturalBlockId;
     }
 
     public Block getSelectedNaturalBlock() {
@@ -804,18 +791,9 @@ public class PushdozerConfig {
         notifyListeners();
     }
 
-    // 自定义水岸类型配置的 getter 和 setter
-    public Set<String> getCustomShorelineBlocks() {
-        return customShorelineBlocks;
-    }
-
     public void setCustomShorelineBlocks(Set<String> blockIds) {
         this.customShorelineBlocks = blockIds;
         notifyListeners();
-    }
-
-    public Set<String> getCustomShorelinePlants() {
-        return customShorelinePlants;
     }
 
     public void setCustomShorelinePlants(Set<String> plantIds) {
@@ -881,12 +859,7 @@ public class PushdozerConfig {
     public void setSelectedFlowerGroup(FlowerGroup selectedFlowerGroup) {
         this.selectedFlowerGroup = selectedFlowerGroup;
     }
-    public boolean shouldRespectBiomes() {
-        return respectBiomes;
-    }
-    public void setRespectBiomes(boolean respectBiomes) {
-        this.respectBiomes = respectBiomes;
-    }
+
     public float getClusterScale() {
         return clusterScale;
     }
