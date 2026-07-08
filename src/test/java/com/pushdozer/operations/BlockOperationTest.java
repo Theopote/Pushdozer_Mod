@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -51,6 +52,7 @@ class BlockOperationTest extends PushdozerTestBase {
         BlockState stone = Blocks.STONE.getDefaultState();
         List<BlockState> states = List.of(stone, stone, stone);
         ServerWorld world = mock(ServerWorld.class);
+        when(world.isChunkLoaded(anyLong())).thenReturn(true);
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
 
         AtomicBoolean completed = new AtomicBoolean(false);
