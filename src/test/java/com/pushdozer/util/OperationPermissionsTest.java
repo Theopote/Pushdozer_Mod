@@ -5,6 +5,7 @@ import com.pushdozer.config.PushdozerConfig;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -30,6 +31,7 @@ class OperationPermissionsTest extends PushdozerTestBase {
     @Test
     void deniesOversizedBrushAndNotifiesPlayer() {
         ServerPlayerEntity player = Mockito.mock(ServerPlayerEntity.class);
+        Mockito.when(player.getName()).thenReturn(Text.literal("test"));
 
         assertFalse(OperationPermissions.checkBrushRadius(player, PushdozerConfig.MAX_BRUSH_RADIUS + 1));
         Mockito.verify(player).sendMessage(Mockito.any(), Mockito.eq(true));
