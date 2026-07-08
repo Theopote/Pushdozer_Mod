@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfigServiceTest extends PushdozerTestBase {
 
@@ -46,6 +47,19 @@ class ConfigServiceTest extends PushdozerTestBase {
             PushdozerConfig.MAX_BRUSH_RADIUS,
             configService.getConfig(TestFixtures.mockPlayer(playerId)).getRadius()
         );
+    }
+
+    @Test
+    void applySync_acceptsLargeJsonBeyondNetworkStringLimit() {
+        UUID playerId = UUID.randomUUID();
+        String largeField = "a".repeat(40_000);
+        ConfigSyncPayload payload = new ConfigSyncPayload("{\"radius\":12,\"marker\":\"" + largeField + "\"}");
+
+        assertTrue(payload.configJsonUtf8().length > 32_767);
+
+        configService.applySync(TestFixtures.mockPlayer(playerId), payload);
+
+        assertEquals(12, configService.getConfig(TestFixtures.mockPlayer(playerId)).getRadius());
     }
 
     @Test

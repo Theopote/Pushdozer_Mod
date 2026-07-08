@@ -74,8 +74,13 @@ public class ClientNetworkHandler {
         if (!ClientPlayNetworking.canSend(ConfigSyncPayload.ID)) {
             return;
         }
-        ClientPlayNetworking.send(ConfigSyncPayload.fromConfig(config));
-        LOGGER.debug("已将 Pushdozer 配置同步到服务器");
+        try {
+            ConfigSyncPayload payload = ConfigSyncPayload.fromConfig(config);
+            ClientPlayNetworking.send(payload);
+            LOGGER.debug("已将 Pushdozer 配置同步到服务器 ({} bytes)", payload.configJsonUtf8().length);
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Pushdozer 配置过大，无法同步到服务器: {}", e.getMessage());
+        }
     }
     
     /**
