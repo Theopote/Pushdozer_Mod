@@ -215,20 +215,6 @@ public class ShorelineVegetationSelector {
         
         return mossPlants[world.getRandom().nextInt(mossPlants.length)].getDefaultState();
     }
-    
-    /**
-     * 获取带花的仙人掌
-     * 新增：专门用于沙滩类型的带花仙人掌
-     * 修复：仙人掌花应该种植在仙人掌顶部，而不是直接在地面种植
-     * 
-     * @param world 世界实例
-     * @return 带花的仙人掌状态
-     */
-    private BlockState getCactusWithFlower(World world) {
-        // 修复：仙人掌花应该种植在仙人掌顶部，而不是直接在地面种植
-        // 这里返回普通仙人掌，仙人掌花会在种植逻辑中处理
-        return Blocks.CACTUS.getDefaultState();
-    }
 
     /**
      * 沙滩类型植物预设
