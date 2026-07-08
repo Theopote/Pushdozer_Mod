@@ -69,18 +69,6 @@ public class ShorelineEdgeFinder {
 
         return edges;
     }
-    
-    /**
-     * 检查chunk是否已加载
-     * 防止在未加载的chunk中放置方块
-     * 
-     * @param world 世界实例
-     * @param pos 要检查的位置
-     * @return 如果chunk已加载返回true，否则返回false
-     */
-    private boolean isChunkLoaded(World world, BlockPos pos) {
-        return world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
-    }
 
     public boolean isReplaceableLandBlock(World world, BlockPos pos, BlockState state) {
         // 检查是否为水方块或空气方块
