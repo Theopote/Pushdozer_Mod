@@ -6,7 +6,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,16 +77,6 @@ public class BatchedNetworkManager {
                     }
                 }, BATCH_DELAY_MS, TimeUnit.MILLISECONDS);
             }
-        }
-    }
-    
-    /**
-     * 立即发送世界的所有待处理操作
-     */
-    public void flushWorld(ServerWorld world) {
-        BatchedOperation operation = pendingOperations.remove(world);
-        if (operation != null) {
-            dispatchSendBatch(operation, true);
         }
     }
 
@@ -166,69 +155,6 @@ public class BatchedNetworkManager {
         } catch (Exception e) {
             LOGGER.error("发送批处理操作失败", e);
         }
-    }
-    
-    /**
-     * 关闭批处理管理器
-     */
-    public void shutdown() {
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                scheduler.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            scheduler.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-
-        Map<MinecraftServer, List<BatchedOperation>> operationsByServer = new HashMap<>();
-        for (BatchedOperation operation : pendingOperations.values()) {
-            operationsByServer
-                .computeIfAbsent(operation.world.getServer(), server -> new ArrayList<>())
-                .add(operation);
-        }
-        pendingOperations.clear();
-
-        List<CountDownLatch> flushLatches = getCountDownLatches(operationsByServer);
-
-        for (CountDownLatch latch : flushLatches) {
-            try {
-                if (!latch.await(5, TimeUnit.SECONDS)) {
-                    LOGGER.warn("关闭时等待批处理发包完成超时");
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-    }
-
-    private @NotNull List<CountDownLatch> getCountDownLatches(Map<MinecraftServer, List<BatchedOperation>> operationsByServer) {
-        List<CountDownLatch> flushLatches = new ArrayList<>();
-        for (Map.Entry<MinecraftServer, List<BatchedOperation>> entry : operationsByServer.entrySet()) {
-            MinecraftServer server = entry.getKey();
-            List<BatchedOperation> operations = entry.getValue();
-            CountDownLatch latch = new CountDownLatch(1);
-            flushLatches.add(latch);
-
-            Runnable flushTask = () -> {
-                try {
-                    for (BatchedOperation operation : operations) {
-                        sendBatch(operation);
-                    }
-                } finally {
-                    latch.countDown();
-                }
-            };
-
-            if (server.isOnThread()) {
-                flushTask.run();
-            } else {
-                server.execute(flushTask);
-            }
-        }
-        return flushLatches;
     }
 
     /**
