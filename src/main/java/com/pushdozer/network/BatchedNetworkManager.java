@@ -6,6 +6,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.pushdozer.util.ExceptionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,8 +153,8 @@ public class BatchedNetworkManager {
                     i + 1, chunks, players.size(), chunkPositions.size());
             }
             
-        } catch (Exception e) {
-            LOGGER.error("发送批处理操作失败", e);
+        } catch (RuntimeException e) {
+            ExceptionPolicy.logBenignOrRethrow("发送批处理操作", e, LOGGER);
         }
     }
 

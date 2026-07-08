@@ -7,6 +7,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import com.pushdozer.shapes.*;
+import com.pushdozer.util.ExceptionPolicy;
 
 
 /**
@@ -93,8 +94,8 @@ public class PointCloudRenderer {
                 immediate.draw();
             }
 
-        } catch (Exception e) {
-            // 记录错误但不崩溃
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("PointCloudRenderer error: " + e.getMessage());
         }
     }

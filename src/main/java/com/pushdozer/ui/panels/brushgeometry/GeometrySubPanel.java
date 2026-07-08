@@ -129,6 +129,11 @@ public abstract class GeometrySubPanel {
      */
     public abstract void saveConfig();
 
+    protected void persistPanelConfig() {
+        config.save();
+        parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
+    }
+
     /**
      * CustomSliderWidget 是自定义的滑动条组件，继承自 SliderWidget。
      * 它用于在界面上显示和调整特定的数值参数（如长度、宽度、高度、半径等）。

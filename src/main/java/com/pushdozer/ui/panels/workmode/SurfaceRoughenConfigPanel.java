@@ -250,11 +250,6 @@ public class SurfaceRoughenConfigPanel extends WorkModeConfigPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            config.save();
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.error("Failed to save surface roughen config", e);
-        }
+        persistPanelConfig();
     }
 }

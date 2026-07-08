@@ -54,51 +54,38 @@ public class PushdozerMod implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing Pushdozer mod...");
 
-        try {
-            // 注册物品
-            ModItems.registerItems();
-            
-            // 验证物品注册
-            PushdozerMod.LOGGER.info("Successfully registered item: {}", Registries.ITEM.getId(ModItems.PUSHDOZER_ITEM));
-            
-            // 首先初始化配置
-            config = PushdozerConfig.getInstance();
+        ModItems.registerItems();
+        PushdozerMod.LOGGER.info("Successfully registered item: {}", Registries.ITEM.getId(ModItems.PUSHDOZER_ITEM));
 
-            // 将 Pushdozer 添加到工具与实用物品栏
-            ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(content -> {
-                content.add(ModItems.PUSHDOZER_ITEM);
-                PushdozerMod.LOGGER.info("Added Pushdozer item to tools item group");
-            });
-            
-            // 注册 ScreenHandlerType
-            CONFIG_SCREEN_HANDLER = Registry.register(
-                    Registries.SCREEN_HANDLER,
-                    Identifier.of(MOD_ID, "config_screen"),
-                    new ScreenHandlerType<>((syncId, inventory) ->
-                            new PushdozerConfigScreenHandler(syncId, inventory, null), FeatureFlags.VANILLA_FEATURES)
-            );
+        config = PushdozerConfig.getInstance();
 
-            // 初始化所有处理器实例，避免频繁创建对象
-            placementHandler = new PlacementHandler();
-            smoothingHandler = new SmoothingHandler();
-            excavationHandler = new ExcavationHandler();
-            smoothRaiseHandler = new SmoothRaiseHandler();
-            smoothLowerHandler = new SmoothLowerHandler();
-            surfaceRoughenHandler = new SurfaceRoughenHandler();
-            surfaceConvertHandler = new SurfaceConvertHandler();
-            boneMealHandler = new BoneMealHandler();
-            batchPlantHandler = new BatchPlantHandler();
-            shorelineProcessHandler = new ShorelineProcessHandler();
-            adaptiveSmoothHandler = new AdaptiveSmoothHandler();
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(content -> {
+            content.add(ModItems.PUSHDOZER_ITEM);
+            PushdozerMod.LOGGER.info("Added Pushdozer item to tools item group");
+        });
 
-            // 注册网络系统
-            NetworkManager.registerNetworking();
+        CONFIG_SCREEN_HANDLER = Registry.register(
+                Registries.SCREEN_HANDLER,
+                Identifier.of(MOD_ID, "config_screen"),
+                new ScreenHandlerType<>((syncId, inventory) ->
+                        new PushdozerConfigScreenHandler(syncId, inventory, null), FeatureFlags.VANILLA_FEATURES)
+        );
 
-            LOGGER.info("Pushdozer mod has been initialized！");
-        } catch (Exception e) {
-            LOGGER.error("Failed to initialize Pushdozer mod", e);
-            throw new RuntimeException("Failed to initialize Pushdozer mod", e);
-        }
+        placementHandler = new PlacementHandler();
+        smoothingHandler = new SmoothingHandler();
+        excavationHandler = new ExcavationHandler();
+        smoothRaiseHandler = new SmoothRaiseHandler();
+        smoothLowerHandler = new SmoothLowerHandler();
+        surfaceRoughenHandler = new SurfaceRoughenHandler();
+        surfaceConvertHandler = new SurfaceConvertHandler();
+        boneMealHandler = new BoneMealHandler();
+        batchPlantHandler = new BatchPlantHandler();
+        shorelineProcessHandler = new ShorelineProcessHandler();
+        adaptiveSmoothHandler = new AdaptiveSmoothHandler();
+
+        NetworkManager.registerNetworking();
+
+        LOGGER.info("Pushdozer mod has been initialized！");
     }
 
 

@@ -12,6 +12,8 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.chunk.light.LightingProvider;
 
+import com.pushdozer.util.ExceptionPolicy;
+
 import java.util.*;
 import java.util.Deque;
 import java.util.ArrayDeque;
@@ -80,9 +82,9 @@ public class UndoRedoManager {
             }
             LOGGER.debug("玩家 {} 尝试撤销，但没有可撤销的操作", player.getName().getString());
             finish.run();
-        } catch (Exception e) {
-            LOGGER.error("玩家 {} 撤销操作异常", player.getName().getString(), e);
+        } catch (RuntimeException e) {
             finish.run();
+            throw e;
         }
     }
 
@@ -112,9 +114,9 @@ public class UndoRedoManager {
             }
             LOGGER.debug("玩家 {} 尝试重做，但没有可重做的操作", player.getName().getString());
             finish.run();
-        } catch (Exception e) {
-            LOGGER.error("玩家 {} 重做操作异常", player.getName().getString(), e);
+        } catch (RuntimeException e) {
             finish.run();
+            throw e;
         }
     }
 
@@ -191,12 +193,13 @@ public class UndoRedoManager {
         LightingProvider lightProvider = serverWorld.getLightingProvider();
         if (!isLarge) {
             for (BlockPos pos : validPositions) {
-                try {
+                if (!serverWorld.isChunkLoaded(new ChunkPos(pos).toLong())) {
+                    continue;
+                }
+                ExceptionPolicy.runPerItem("发送方块更新 " + pos, () -> {
                     BlockState currentState = serverWorld.getBlockState(pos);
                     serverPlayer.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, currentState));
-                } catch (Exception e) {
-                    LOGGER.warn("发送方块更新失败: {}", pos, e);
-                }
+                }, LOGGER);
             }
         } else {
             Set<ChunkPos> affectedChunks = new HashSet<>();
@@ -217,29 +220,26 @@ public class UndoRedoManager {
                             LightingProvider lightProvider, String reason) {
         int sent = 0;
         for (ChunkPos chunkPos : chunks) {
-            try {
-                WorldChunk chunk = serverWorld.getChunk(chunkPos.x, chunkPos.z);
-                if (chunk != null) {
-                    serverPlayer.networkHandler.sendPacket(new ChunkDataS2CPacket(chunk, lightProvider, null, null));
-                    sent++;
-                }
-            } catch (Exception e) {
-                LOGGER.warn("发送区块数据失败: {}", chunkPos, e);
+            if (!serverWorld.isChunkLoaded(chunkPos.toLong())) {
+                continue;
             }
+            WorldChunk chunk = serverWorld.getChunk(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                continue;
+            }
+            ExceptionPolicy.runPerItem("发送区块数据 " + chunkPos, () ->
+                serverPlayer.networkHandler.sendPacket(new ChunkDataS2CPacket(chunk, lightProvider, null, null)),
+                LOGGER);
+            sent++;
         }
         LOGGER.debug("{}：发送 {} 个区块到玩家 {}", reason, sent, serverPlayer.getName().getString());
     }
     
     private boolean isValidPosition(BlockPos pos, ServerWorld world) {
-        try {
-            if (pos.getY() < world.getBottomY() || pos.getY() > world.getHeight()) {
-                return false;
-            }
-            return world.isChunkLoaded(new ChunkPos(pos).toLong());
-        } catch (Exception e) {
-            LOGGER.warn("位置验证失败: {}", pos, e);
+        if (pos.getY() < world.getBottomY() || pos.getY() > world.getHeight()) {
             return false;
         }
+        return world.isChunkLoaded(new ChunkPos(pos).toLong());
     }
 
     private boolean isCoolingDownOrExecuting(UUID playerId) {

@@ -31,10 +31,4 @@ public class PushdozerConfigScreenHandler extends ScreenHandler {
         // 由于这是一个配置界面，我们不需要处理物品移动
         return ItemStack.EMPTY;
     }
-
-    // 可以根据需要添加更多方法
-
-    public interface Factory {
-        PushdozerConfigScreenHandler create(int syncId, PlayerInventory inventory, PacketByteBuf buf);
-    }
 }

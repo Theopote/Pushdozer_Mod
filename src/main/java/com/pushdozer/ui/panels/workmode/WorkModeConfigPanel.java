@@ -162,6 +162,14 @@ public abstract class WorkModeConfigPanel {
     public abstract void saveConfig();
 
     /**
+     * 将当前配置写入磁盘并提示保存成功（IO 失败已在 {@link PushdozerConfig#save()} 内处理）。
+     */
+    protected void persistPanelConfig() {
+        config.save();
+        parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
+    }
+
+    /**
      * 关闭子面板
      */
     protected void closeSubPanel() {

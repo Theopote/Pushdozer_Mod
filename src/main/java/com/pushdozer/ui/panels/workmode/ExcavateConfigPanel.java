@@ -55,14 +55,6 @@ public class ExcavateConfigPanel extends WorkModeConfigPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 保存配置
-            config.save();
-            
-            // 显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        persistPanelConfig();
     }
 } 

@@ -44,25 +44,13 @@ public class CylinderSubPanel extends GeometrySubPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            if (radiusSlider != null) {
-                int radius = getSliderValue(radiusSlider);
-                config.setCylinderRadius(radius);
-            }
-            if (heightSlider != null) {
-                int height = getSliderValue(heightSlider);
-                config.setCylinderHeight(height);
-            }
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (radiusSlider != null) {
+            config.setCylinderRadius(getSliderValue(radiusSlider));
         }
+        if (heightSlider != null) {
+            config.setCylinderHeight(getSliderValue(heightSlider));
+        }
+        persistPanelConfig();
     }
 
 

@@ -43,23 +43,11 @@ public class TriangularPrismSubPanel extends GeometrySubPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            if (sideLengthSlider != null && heightSlider != null) {
-                int sideLength = getSliderValue(sideLengthSlider);
-                int height = getSliderValue(heightSlider);
-                config.setTriangularPrismSideLength(sideLength);
-                config.setTriangularPrismHeight(height);
-            }
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (sideLengthSlider != null && heightSlider != null) {
+            config.setTriangularPrismSideLength(getSliderValue(sideLengthSlider));
+            config.setTriangularPrismHeight(getSliderValue(heightSlider));
         }
+        persistPanelConfig();
     }
 
     @Override

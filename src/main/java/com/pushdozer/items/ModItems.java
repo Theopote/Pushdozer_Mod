@@ -27,14 +27,8 @@ public class ModItems {
      */
     public static void registerItems() {
         PushdozerMod.LOGGER.info("Registering Pushdozer items...");
-        try {
-            // 物品已在创建时通过 register 方法注册
-            PushdozerMod.LOGGER.info("Pushdozer item registered successfully.");
-            PushdozerMod.LOGGER.info("Registered item: pushdozer:pushdozer");
-            PushdozerMod.LOGGER.info("Item ID: pushdozer:pushdozer");
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.error("Failed to register Pushdozer item", e);
-            throw e;
-        }
+        PushdozerMod.LOGGER.info("Pushdozer item registered successfully.");
+        PushdozerMod.LOGGER.info("Registered item: pushdozer:pushdozer");
+        PushdozerMod.LOGGER.info("Item ID: pushdozer:pushdozer");
     }
 } 

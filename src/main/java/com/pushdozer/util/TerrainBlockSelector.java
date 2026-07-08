@@ -90,26 +90,15 @@ public final class TerrainBlockSelector {
      * @return 生物群系的顶层方块
      */
     private static Block getBiomeTopBlock(BlockPos pos, World world) {
-        try {
-            Biome biome = world.getBiome(pos).value();
-            // 获取生物群系的ID
-            var biomeId = world.getRegistryManager()
-                    .getOrThrow(RegistryKeys.BIOME)
-                    .getId(biome);
-            
-            if (biomeId != null) {
-                String biomeName = biomeId.toString();
-                // 根据生物群系名称返回合适的表面方块
-                return getBlockForBiome(biomeName);
-            }
-            
-            // 如果无法获取生物群系ID，返回默认值
-            return Blocks.GRASS_BLOCK;
-        } catch (Exception e) {
-            // 如果获取生物群系信息失败，记录警告并返回默认值
-            LOGGER.warn("无法获取位置 {} 的生物群系信息，使用默认方块 GRASS_BLOCK", pos, e);
-            return Blocks.GRASS_BLOCK;
+        Biome biome = world.getBiome(pos).value();
+        var biomeId = world.getRegistryManager()
+                .getOrThrow(RegistryKeys.BIOME)
+                .getId(biome);
+
+        if (biomeId != null) {
+            return getBlockForBiome(biomeId.toString());
         }
+        return Blocks.GRASS_BLOCK;
     }
     
     /**

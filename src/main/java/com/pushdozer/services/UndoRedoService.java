@@ -3,11 +3,6 @@ package com.pushdozer.services;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.UndoRedoManager;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * UndoRedoService 类负责管理所有撤销/重做相关的操作
@@ -46,12 +41,8 @@ public class UndoRedoService {
      * @param world 世界实例
      */
     public void undoLastAction(PlayerEntity player, World world) {
-        try {
-            undoRedoManager.undoLastAction(player, world);
-            updatePlayerPosition(player);
-        } catch (Exception e) {
-            LOGGER.error("UndoRedoService: 撤销操作失败", e);
-        }
+        undoRedoManager.undoLastAction(player, world);
+        updatePlayerPosition(player);
     }
 
     /**
@@ -60,12 +51,8 @@ public class UndoRedoService {
      * @param world 世界实例
      */
     public void redoLastAction(PlayerEntity player, World world) {
-        try {
-            undoRedoManager.redoLastAction(player, world);
-            updatePlayerPosition(player);
-        } catch (Exception e) {
-            LOGGER.error("UndoRedoService: 重做操作失败", e);
-        }
+        undoRedoManager.redoLastAction(player, world);
+        updatePlayerPosition(player);
     }
 
     /**

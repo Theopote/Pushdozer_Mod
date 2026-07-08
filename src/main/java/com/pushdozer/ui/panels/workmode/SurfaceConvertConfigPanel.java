@@ -1,6 +1,7 @@
 package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.ui.screens.NaturalBlockSelectionScreen;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
 import net.minecraft.block.Block;
@@ -273,15 +274,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 保存配置
-            config.save();
-            
-            // 显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        persistPanelConfig();
     }
 
     @Override
@@ -428,27 +421,23 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         }
 
         public void renderBlockIcon(DrawContext context, int mouseX, int mouseY) {
-            try {
-                Block blockType = Registries.BLOCK.get(Identifier.of(block.getBlockId()));
-                ItemStack itemStack = getDisplayStack(blockType);
-                
-                // 绘制背景
-                context.fill(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, 0xFF373737);
-                SurfaceConvertConfigPanel.drawBorder(context, x, y, BLOCK_ICON_SIZE, BLOCK_ICON_SIZE, 0xFF8B8B8B);
-                
-                // 绘制方块图标
-                if (!itemStack.isEmpty()) {
-                    context.drawItem(itemStack, x + 2, y + 2);
-                }
-                
-                // 检查鼠标悬停并显示工具提示
-                if (mouseX >= x && mouseX < x + BLOCK_ICON_SIZE && mouseY >= y && mouseY < y + BLOCK_ICON_SIZE) {
-                    Text tooltipText = blockType.getName();
-                    context.drawTooltip(parent.getTextRenderer(), tooltipText, mouseX, mouseY);
-                }
-            } catch (Exception e) {
-                // 如果无法获取方块，绘制错误图标
+            Block blockType = RegistryBlocks.resolveOrAir(block.getBlockId());
+            if (blockType == Blocks.AIR) {
                 context.fill(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, 0xFFFF0000);
+                return;
+            }
+            ItemStack itemStack = getDisplayStack(blockType);
+
+            context.fill(x, y, x + BLOCK_ICON_SIZE, y + BLOCK_ICON_SIZE, 0xFF373737);
+            SurfaceConvertConfigPanel.drawBorder(context, x, y, BLOCK_ICON_SIZE, BLOCK_ICON_SIZE, 0xFF8B8B8B);
+
+            if (!itemStack.isEmpty()) {
+                context.drawItem(itemStack, x + 2, y + 2);
+            }
+
+            if (mouseX >= x && mouseX < x + BLOCK_ICON_SIZE && mouseY >= y && mouseY < y + BLOCK_ICON_SIZE) {
+                Text tooltipText = blockType.getName();
+                context.drawTooltip(parent.getTextRenderer(), tooltipText, mouseX, mouseY);
             }
         }
         
@@ -474,13 +463,10 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             String translationKey = block.getTranslationKey();
             if (translationKey.contains("wall_sign")) {
                 String baseSignKey = translationKey.replace("wall_sign", "sign");
-                try {
-                    Block baseSign = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseSignKey));
-                    if (baseSign != Blocks.AIR) {
-                        return baseSign.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base sign for wall sign: " + block.getTranslationKey() + ", using original block");
+                Block baseSign = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseSignKey))
+                    .orElse(Blocks.AIR);
+                if (baseSign != Blocks.AIR) {
+                    return baseSign.asItem().getDefaultStack();
                 }
             }
             
@@ -501,13 +487,10 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             String blockId = Registries.BLOCK.getId(block).getPath();
             if (blockId.contains("wall_head") || blockId.contains("wall_skull")) {
                 String baseHeadId = blockId.replace("wall_", "");
-                try {
-                    Block baseHead = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseHeadId));
-                    if (baseHead != Blocks.AIR) {
-                        return baseHead.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base head for wall head: " + block.getTranslationKey() + ", using original block");
+                Block baseHead = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseHeadId))
+                    .orElse(Blocks.AIR);
+                if (baseHead != Blocks.AIR) {
+                    return baseHead.asItem().getDefaultStack();
                 }
             }
             

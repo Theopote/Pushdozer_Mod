@@ -7,6 +7,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.server.world.ServerWorld;
+import com.pushdozer.util.ExceptionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,22 +80,13 @@ public class BlockOperation {
      * 验证边界位置是否有效
      */
     private static boolean isValidBoundaryPosition(BlockPos pos, World world) {
-        try {
-            // 检查位置是否在世界边界内
-            if (pos.getY() < world.getBottomY() || pos.getY() > world.getHeight()) {
-                return false;
-            }
-            
-            // 检查区块是否已加载：仅在服务端使用非弃用 long 重载
-            if (world instanceof ServerWorld serverWorld) {
-                return serverWorld.isChunkLoaded(new ChunkPos(pos).toLong());
-            }
-            // 非服务端上下文不应执行边界扩展校验，安全返回 false 以避免不必要处理
-            return false;
-        } catch (Exception e) {
-            LOGGER.warn("边界位置验证失败: {}", pos, e);
+        if (pos.getY() < world.getBottomY() || pos.getY() > world.getHeight()) {
             return false;
         }
+        if (world instanceof ServerWorld serverWorld) {
+            return serverWorld.isChunkLoaded(new ChunkPos(pos).toLong());
+        }
+        return false;
     }
     
     /**
@@ -146,12 +138,12 @@ public class BlockOperation {
                                          int flags, int startIndex, int endIndex) {
         for (int i = startIndex; i < endIndex; i++) {
             BlockPos pos = positions.get(i);
-            BlockState newState = states.get(i);
-            try {
-                world.setBlockState(pos, newState, flags);
-            } catch (Exception e) {
-                LOGGER.error("设置方块状态失败: {} -> {}", pos, newState, e);
+            if (!isChunkLoaded(world, pos)) {
+                LOGGER.debug("跳过未加载区块: {}", pos);
+                continue;
             }
+            BlockState newState = states.get(i);
+            ExceptionPolicy.runPerItem("设置方块状态 " + pos, () -> world.setBlockState(pos, newState, flags), LOGGER);
         }
     }
 
@@ -224,15 +216,16 @@ public class BlockOperation {
         if (!isLarge) {
             for (int i = 0; i < positions.size(); i++) {
                 BlockPos pos = positions.get(i);
-                try {
+                if (!isChunkLoaded(world, pos)) {
+                    continue;
+                }
+                ExceptionPolicy.runPerItem("方块后处理 " + pos, () -> {
                     lightProvider.checkBlock(pos);
                     BlockState currentState = world.getBlockState(pos);
                     world.updateNeighbors(pos, currentState.getBlock());
                     world.updateNeighbors(pos.down(), currentState.getBlock());
                     world.updateComparators(pos, currentState.getBlock());
-                } catch (Exception e) {
-                    LOGGER.warn("方块后处理失败: {}", pos, e);
-                }
+                }, LOGGER);
             }
             return;
         }
@@ -246,12 +239,22 @@ public class BlockOperation {
             int x = (int) (entry.getKey() >> 32);
             int z = (int) entry.getKey().longValue();
             int topY = entry.getValue();
-            try {
-                lightProvider.checkBlock(new BlockPos(x, topY, z));
-                lightProvider.checkBlock(new BlockPos(x, topY + 1, z));
-            } catch (Exception ignored) {
+            BlockPos topPos = new BlockPos(x, topY, z);
+            if (!isChunkLoaded(world, topPos)) {
+                continue;
             }
+            ExceptionPolicy.runPerItem("列顶光照 " + topPos, () -> {
+                lightProvider.checkBlock(topPos);
+                lightProvider.checkBlock(topPos.up());
+            }, LOGGER);
         }
+    }
+
+    private static boolean isChunkLoaded(World world, BlockPos pos) {
+        if (!(world instanceof ServerWorld serverWorld)) {
+            return true;
+        }
+        return serverWorld.isChunkLoaded(new ChunkPos(pos).toLong());
     }
 
     private static void scheduleFallingBlockTicks(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {

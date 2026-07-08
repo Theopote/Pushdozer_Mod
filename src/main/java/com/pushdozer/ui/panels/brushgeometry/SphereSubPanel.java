@@ -61,21 +61,9 @@ public class SphereSubPanel extends GeometrySubPanel {
      */
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            int radius = getSliderValue(radiusSlider);
-
-            // 更新配置
-            config.setSphereRadius(radius);
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        int radius = getSliderValue(radiusSlider);
+        config.setSphereRadius(radius);
+        persistPanelConfig();
     }
 
 

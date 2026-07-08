@@ -78,11 +78,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
             @Override
             protected void applyValue() {
                 float strength = (float) (this.value * 0.9f + 0.1f);
-                try {
-                    config.setSmoothStrength(strength);
-                } catch (Exception e) {
-                    PushdozerMod.LOGGER.error("Failed to update smooth strength", e);
-                }
+                config.setSmoothStrength(strength);
             }
         };
         strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_strength")));
@@ -130,12 +126,8 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     private void selectVariant(PushdozerConfig.SmoothVariant variant) {
-        try {
-            config.setSmoothVariant(variant);
-            updateVariantButtons();
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.error("Failed to set smooth variant", e);
-        }
+        config.setSmoothVariant(variant);
+        updateVariantButtons();
     }
 
     private void updateVariantButtons() {
@@ -162,12 +154,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            config.save();
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.error("Failed to save smooth config", e);
-        }
+        persistPanelConfig();
     }
 }
 

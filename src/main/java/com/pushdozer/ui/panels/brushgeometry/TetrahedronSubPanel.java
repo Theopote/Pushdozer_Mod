@@ -39,21 +39,10 @@ public class TetrahedronSubPanel extends GeometrySubPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            if (edgeLengthSlider != null) {
-                int edgeLength = getSliderValue(edgeLengthSlider);
-                config.setTetrahedronEdgeLength(edgeLength);
-            }
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (edgeLengthSlider != null) {
+            config.setTetrahedronEdgeLength(getSliderValue(edgeLengthSlider));
         }
+        persistPanelConfig();
     }
 
     @Override

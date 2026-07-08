@@ -48,29 +48,16 @@ public class EllipsoidSubPanel extends GeometrySubPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            if (lengthSlider != null) {
-                int length = getSliderValue(lengthSlider);
-                config.setLength(length);
-            }
-            if (widthSlider != null) {
-                int width = getSliderValue(widthSlider);
-                config.setWidth(width);
-            }
-            if (heightSlider != null) {
-                int height = getSliderValue(heightSlider);
-                config.setEllipsoidHeight(height);
-            }
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (lengthSlider != null) {
+            config.setLength(getSliderValue(lengthSlider));
         }
+        if (widthSlider != null) {
+            config.setWidth(getSliderValue(widthSlider));
+        }
+        if (heightSlider != null) {
+            config.setEllipsoidHeight(getSliderValue(heightSlider));
+        }
+        persistPanelConfig();
     }
 
 

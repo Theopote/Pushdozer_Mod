@@ -68,33 +68,10 @@ public class BoxSubPanel extends GeometrySubPanel {
      */
     @Override
     public void saveConfig() {
-        System.out.println("Saving config in BoxSubPanel");
-        try {
-            // 获取滑动条的当前值
-            int length = getSliderValue(lengthSlider);
-            int width = getSliderValue(widthSlider);
-            int height = getSliderValue(heightSlider);
-
-            System.out.println("Slider values: length=" + length + ", width=" + width + ", height=" + height);
-
-            // 更新配置
-            config.setLength(length);
-            config.setWidth(width);
-            config.setBoxHeight(height);
-            
-            System.out.println("Values set in config");
-
-            // 保存配置
-            config.save();
-            System.out.println("Config saved");
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-            System.out.println("Error message shown");
-        } catch (Exception e) {
-            System.out.println("Unexpected error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        config.setLength(getSliderValue(lengthSlider));
+        config.setWidth(getSliderValue(widthSlider));
+        config.setBoxHeight(getSliderValue(heightSlider));
+        persistPanelConfig();
     }
 
     @Override

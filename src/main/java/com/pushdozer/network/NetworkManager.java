@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import com.pushdozer.util.ExceptionPolicy;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +56,8 @@ public class NetworkManager {
                         LOGGER.info("服务器收到重做请求，玩家: {}", context.player().getName().getString());
                         UndoRedoService.getInstance().redoLastAction(context.player(), context.player().getEntityWorld());
                     }
-                } catch (Exception e) {
-                    LOGGER.error("处理撤销/重做操作失败", e);
+                } catch (RuntimeException e) {
+                    ExceptionPolicy.logBenignOrRethrow("处理撤销/重做操作", e, LOGGER);
                 }
             })
         );
@@ -71,8 +72,8 @@ public class NetworkManager {
                         ConfigService.getInstance().applySync(context.player(), payload);
                         LOGGER.debug("玩家 {} 更新了个人 Pushdozer 配置", context.player().getName().getString());
                     }
-                } catch (Exception e) {
-                    LOGGER.error("处理配置同步失败", e);
+                } catch (RuntimeException e) {
+                    ExceptionPolicy.logBenignOrRethrow("处理配置同步", e, LOGGER);
                 }
             })
         );
@@ -94,8 +95,8 @@ public class NetworkManager {
                             context.player().getName().getString(), payload.operationType());
                         // 可以发送错误消息给客户端
                     }
-                } catch (Exception e) {
-                    LOGGER.error("处理权限检查失败", e);
+                } catch (RuntimeException e) {
+                    ExceptionPolicy.logBenignOrRethrow("处理权限检查", e, LOGGER);
                 }
             })
         );
@@ -130,8 +131,8 @@ public class NetworkManager {
                 BatchedNetworkManager.getInstance().addTerrainOperation(world, operationType, positions, states);
                 LOGGER.debug("添加地形操作到批处理队列: {} 个方块", positions.size());
             }
-        } catch (Exception e) {
-            LOGGER.error("广播地形操作失败", e);
+        } catch (RuntimeException e) {
+            ExceptionPolicy.logBenignOrRethrow("广播地形操作", e, LOGGER);
         }
     }
     
@@ -145,8 +146,8 @@ public class NetworkManager {
             }
             
             LOGGER.info("向 {} 个玩家同步配置", server.getPlayerManager().getPlayerList().size());
-        } catch (Exception e) {
-            LOGGER.error("同步配置到所有玩家失败", e);
+        } catch (RuntimeException e) {
+            ExceptionPolicy.logBenignOrRethrow("同步配置到所有玩家", e, LOGGER);
         }
     }
     

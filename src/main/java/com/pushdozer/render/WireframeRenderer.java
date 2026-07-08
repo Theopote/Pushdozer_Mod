@@ -1,5 +1,6 @@
 package com.pushdozer.render;
 
+import com.pushdozer.util.ExceptionPolicy;
 import net.minecraft.client.render.*;
 import org.joml.Matrix4f;
 import com.pushdozer.shapes.GeometryShape;
@@ -63,8 +64,8 @@ public class WireframeRenderer {
             } finally {
                 matrices.pop();
             }
-        } catch (Exception e) {
-            // 记录错误但不崩溃
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("WireframeRenderer error: " + e.getMessage());
         }
     }

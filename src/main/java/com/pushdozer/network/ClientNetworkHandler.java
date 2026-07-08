@@ -1,9 +1,12 @@
 package com.pushdozer.network;
 
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.util.ExceptionPolicy;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,15 +41,16 @@ public class ClientNetworkHandler {
                 try {
                     ClientWorld world = context.client().world;
                     if (world != null) {
-                        // 应用地形操作到客户端世界
                         for (int i = 0; i < payload.positions().size() && i < payload.states().size(); i++) {
-                            world.setBlockState(payload.positions().get(i), payload.states().get(i));
+                            BlockPos pos = payload.positions().get(i);
+                            BlockState state = payload.states().get(i);
+                            ExceptionPolicy.runPerItem("客户端应用方块 " + pos,
+                                () -> world.setBlockState(pos, state), LOGGER);
                         }
-                        
                         LOGGER.debug("客户端应用地形操作: {} 个方块", payload.positions().size());
                     }
-                } catch (Exception e) {
-                    LOGGER.error("客户端处理地形操作失败", e);
+                } catch (RuntimeException e) {
+                    ExceptionPolicy.logBenignOrRethrow("客户端处理地形操作", e, LOGGER);
                 }
             })
         );
@@ -58,29 +62,20 @@ public class ClientNetworkHandler {
      * 发送撤销/重做请求到服务器
      */
     public static void sendUndoRedoRequest(boolean isUndo) {
-        try {
-            UndoRedoPayload payload = new UndoRedoPayload(isUndo);
-            ClientPlayNetworking.send(payload);
-            
-            LOGGER.debug("发送{}请求到服务器", isUndo ? "撤销" : "重做");
-        } catch (Exception e) {
-            LOGGER.error("发送撤销/重做请求失败", e);
-        }
+        UndoRedoPayload payload = new UndoRedoPayload(isUndo);
+        ClientPlayNetworking.send(payload);
+        LOGGER.debug("发送{}请求到服务器", isUndo ? "撤销" : "重做");
     }
     
     /**
      * 发送配置同步到服务器
      */
     public static void sendConfigSync(PushdozerConfig config) {
-        try {
-            if (!ClientPlayNetworking.canSend(ConfigSyncPayload.ID)) {
-                return;
-            }
-            ClientPlayNetworking.send(ConfigSyncPayload.fromConfig(config));
-            LOGGER.debug("已将 Pushdozer 配置同步到服务器");
-        } catch (Exception e) {
-            LOGGER.error("发送配置同步失败", e);
+        if (!ClientPlayNetworking.canSend(ConfigSyncPayload.ID)) {
+            return;
         }
+        ClientPlayNetworking.send(ConfigSyncPayload.fromConfig(config));
+        LOGGER.debug("已将 Pushdozer 配置同步到服务器");
     }
     
     /**
@@ -89,13 +84,8 @@ public class ClientNetworkHandler {
     public static void sendPermissionCheck(String operationType, 
                                          net.minecraft.util.math.BlockPos centerPos, 
                                          int radius) {
-        try {
-            PermissionCheckPayload payload = new PermissionCheckPayload(operationType, centerPos, radius);
-            ClientPlayNetworking.send(payload);
-            
-            LOGGER.debug("发送权限检查请求: {}", operationType);
-        } catch (Exception e) {
-            LOGGER.error("发送权限检查请求失败", e);
-        }
+        PermissionCheckPayload payload = new PermissionCheckPayload(operationType, centerPos, radius);
+        ClientPlayNetworking.send(payload);
+        LOGGER.debug("发送权限检查请求: {}", operationType);
     }
 }

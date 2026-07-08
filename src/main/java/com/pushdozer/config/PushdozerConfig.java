@@ -10,9 +10,11 @@ import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.Expose;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.network.ClientNetworkHandler;
+import com.pushdozer.util.RegistryBlocks;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
@@ -667,11 +669,7 @@ public class PushdozerConfig {
     }
 
     public Block getSelectedNaturalBlock() {
-        try {
-            return Registries.BLOCK.get(Identifier.of(selectedNaturalBlockId));
-        } catch (Exception e) {
-            return Blocks.STONE; // 默认返回石头
-        }
+        return RegistryBlocks.resolve(selectedNaturalBlockId, Blocks.STONE);
     }
 
     // 平滑强度配置的 getter 和 setter
@@ -920,7 +918,7 @@ public class PushdozerConfig {
             }
             ensureDefaults(config);
             return config;
-        } catch (Exception e) {
+        } catch (JsonSyntaxException e) {
             PushdozerMod.LOGGER.error("Failed to parse Pushdozer configuration JSON", e);
             PushdozerConfig config = new PushdozerConfig();
             ensureDefaults(config);
@@ -946,20 +944,16 @@ public class PushdozerConfig {
             config.setPlantType(PlantType.TREES);
         }
 
-        try {
-            WorkMode wm = config.getWorkMode();
-            if (wm == WorkMode.SMOOTH_RAISE) {
-                config.setSmoothVariant(SmoothVariant.RAISE);
-                config.setWorkMode(WorkMode.SMOOTH);
-            } else if (wm == WorkMode.SMOOTH_LOWER) {
-                config.setSmoothVariant(SmoothVariant.LOWER);
-                config.setWorkMode(WorkMode.SMOOTH);
-            } else if (wm == WorkMode.ADAPTIVE_SMOOTH) {
-                config.setSmoothVariant(SmoothVariant.ADAPTIVE);
-                config.setWorkMode(WorkMode.SMOOTH);
-            }
-        } catch (Exception e) {
-            PushdozerMod.LOGGER.warn("Failed to migrate old smooth work modes", e);
+        WorkMode wm = config.getWorkMode();
+        if (wm == WorkMode.SMOOTH_RAISE) {
+            config.setSmoothVariant(SmoothVariant.RAISE);
+            config.setWorkMode(WorkMode.SMOOTH);
+        } else if (wm == WorkMode.SMOOTH_LOWER) {
+            config.setSmoothVariant(SmoothVariant.LOWER);
+            config.setWorkMode(WorkMode.SMOOTH);
+        } else if (wm == WorkMode.ADAPTIVE_SMOOTH) {
+            config.setSmoothVariant(SmoothVariant.ADAPTIVE);
+            config.setWorkMode(WorkMode.SMOOTH);
         }
 
         clampBrushDimensions(config);
@@ -1057,15 +1051,13 @@ public class PushdozerConfig {
     public void rebuildIgnoredBlocksCache() {
         ignoredBlocks.clear();
         for (String blockId : ignoredBlockIds) {
-            try {
-                Identifier identifier = Identifier.tryParse(blockId);
-                if (identifier != null) {
-                    Block block = Registries.BLOCK.get(identifier);
-                    if (block != Blocks.AIR) { // 确保不是空气方块
-                        ignoredBlocks.add(block);
-                    }
+            Identifier identifier = Identifier.tryParse(blockId);
+            if (identifier != null) {
+                Block block = Registries.BLOCK.getOrEmpty(identifier).orElse(Blocks.AIR);
+                if (block != Blocks.AIR) {
+                    ignoredBlocks.add(block);
                 }
-            } catch (Exception e) {
+            } else {
                 PushdozerMod.LOGGER.warn("无法解析忽略方块ID: {}", blockId);
             }
         }

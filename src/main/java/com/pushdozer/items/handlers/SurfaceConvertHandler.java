@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.operations.BlockOperation;
@@ -177,15 +178,9 @@ public class SurfaceConvertHandler {
         for (PushdozerConfig.SurfaceConvertBlock surfaceBlock : surfaceBlocks) {
             currentSum += surfaceBlock.getPercentage();
             if (random <= currentSum) {
-                try {
-                    // 尝试根据配置的方块ID获取方块
-                    String blockId = surfaceBlock.getBlockId();
-                    Block block = Registries.BLOCK.get(net.minecraft.util.Identifier.of(blockId));
-                    if (block != Blocks.AIR) {
-                        return block;
-                    }
-                } catch (Exception e) {
-                    // 如果出现异常，继续尝试下一个方块
+                Block block = RegistryBlocks.resolveOrAir(surfaceBlock.getBlockId());
+                if (block != Blocks.AIR) {
+                    return block;
                 }
             }
         }

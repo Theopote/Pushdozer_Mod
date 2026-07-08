@@ -38,21 +38,10 @@ public class OctahedronSubPanel extends GeometrySubPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 获取滑动条的当前值
-            if (radiusSlider != null) {
-                int radius = getSliderValue(radiusSlider);
-                config.setOctahedronRadius(radius);
-            }
-
-            // 保存配置
-            config.save();
-
-            // 使用翻译键显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (radiusSlider != null) {
+            config.setOctahedronRadius(getSliderValue(radiusSlider));
         }
+        persistPanelConfig();
     }
 
 

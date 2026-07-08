@@ -177,16 +177,6 @@ public class PlaceConfigPanel extends WorkModeConfigPanel {
 
     @Override
     public void saveConfig() {
-        try {
-            // 保存配置
-            config.save();
-            
-            // 显示保存成功消息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.saved").getString());
-        } catch (Exception e) {
-            // 向用户显示错误信息
-            parent.showErrorMessage(Text.translatable("pushdozer.config.save_failed").getString());
-            e.printStackTrace();
-        }
+        persistPanelConfig();
     }
 } 
