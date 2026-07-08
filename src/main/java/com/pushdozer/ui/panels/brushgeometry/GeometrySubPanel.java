@@ -353,16 +353,10 @@ public abstract class GeometrySubPanel {
      * @param title 标题文本
      */
     protected void renderTitle(DrawContext context, Text title) {
-        if (textRenderer != null) {
-            int titleWidth = textRenderer.getWidth(title);
-            context.drawText(
-                textRenderer,
-                title,
-                panelLeft + (PANEL_WIDTH - titleWidth) / 2,
-                panelTop + WIDGET_MARGIN_VERTICAL,
-                0xFFFFFF,
-                false
-            );
+        TextRenderer renderer = parent != null ? parent.resolveTextRenderer() : textRenderer;
+        if (renderer != null) {
+            int y = panelTop + (TITLE_HEIGHT - renderer.fontHeight) / 2;
+            context.drawCenteredTextWithShadow(renderer, title, panelLeft + PANEL_WIDTH / 2, y, 0xFFFFFF);
         }
     }
 

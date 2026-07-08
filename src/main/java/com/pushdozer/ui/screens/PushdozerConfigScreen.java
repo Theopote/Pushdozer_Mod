@@ -33,6 +33,7 @@ import com.pushdozer.ui.panels.workmode.SurfaceRoughenConfigPanel;
 import com.pushdozer.ui.panels.workmode.WorkModeSelectionPanel;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Drawable;
@@ -874,6 +875,13 @@ public class PushdozerConfigScreen extends Screen {
      */
     public MinecraftClient getClient() {
         return this.client;
+    }
+
+    public TextRenderer resolveTextRenderer() {
+        if (this.client != null) {
+            return this.client.textRenderer;
+        }
+        return MinecraftClient.getInstance().textRenderer;
     }
     /**
      * 隐藏子面板

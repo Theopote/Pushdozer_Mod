@@ -2,6 +2,7 @@ package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
@@ -157,11 +158,10 @@ public abstract class WorkModeConfigPanel {
      */
     protected void initializeTitlePosition() {
         titleText = getTitleText();
-
-        if (parent.getClient() != null) {
-            int titleWidth = parent.getClient().textRenderer.getWidth(titleText);
-            titleX = panelLeft + (PANEL_WIDTH - titleWidth) / 2;
-            titleY = panelTop + (TITLE_HEIGHT - parent.getClient().textRenderer.fontHeight) / 2;
+        TextRenderer textRenderer = parent.resolveTextRenderer();
+        if (textRenderer != null) {
+            titleX = panelLeft + (PANEL_WIDTH - textRenderer.getWidth(titleText)) / 2;
+            titleY = panelTop + (TITLE_HEIGHT - textRenderer.fontHeight) / 2;
         }
     }
 
@@ -281,15 +281,13 @@ public abstract class WorkModeConfigPanel {
      * 渲染标题文本
      */
     protected void renderTitle(DrawContext context) {
-        if (parent.getClient() != null && titleText != null) {
-            context.drawText(
-                    parent.getClient().textRenderer,
-                    titleText,
-                    titleX,
-                    titleY,
-                    COLOR_WHITE,
-                    false
-            );
+        if (titleText == null) {
+            titleText = getTitleText();
+        }
+        TextRenderer textRenderer = parent.resolveTextRenderer();
+        if (textRenderer != null) {
+            int y = panelTop + (TITLE_HEIGHT - textRenderer.fontHeight) / 2;
+            context.drawCenteredTextWithShadow(textRenderer, titleText, panelLeft + PANEL_WIDTH / 2, y, COLOR_WHITE);
         }
     }
 

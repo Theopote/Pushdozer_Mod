@@ -2,6 +2,7 @@ package com.pushdozer.ui.panels.workmode;
 
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.ui.screens.PushdozerConfigScreen;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
@@ -246,16 +247,13 @@ public class WorkModeSelectionPanel {
      * @param context 绘制上下文
      */
     private void renderTitle(DrawContext context) {
-        if (parent.getClient() != null && titleText != null) {
-            // 使用预计算的位置
-            context.drawText(
-                    parent.getClient().textRenderer,
-                    titleText,
-                    titleX,
-                    titleY,
-                    COLOR_WHITE,
-                    false
-            );
+        if (titleText == null) {
+            titleText = Text.translatable("pushdozer.panel.work_mode_selection.title");
+        }
+        TextRenderer textRenderer = parent.resolveTextRenderer();
+        if (textRenderer != null) {
+            int y = panelTop + (TITLE_HEIGHT - textRenderer.fontHeight) / 2;
+            context.drawCenteredTextWithShadow(textRenderer, titleText, panelLeft + PANEL_WIDTH / 2, y, COLOR_WHITE);
         }
     }
 
