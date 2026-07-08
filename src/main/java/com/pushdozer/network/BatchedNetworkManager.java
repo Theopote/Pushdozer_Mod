@@ -1,6 +1,7 @@
 package com.pushdozer.network;
 
 import net.minecraft.block.BlockState;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -60,16 +62,18 @@ public class BatchedNetworkManager {
             
             // 如果达到批大小限制，立即发送
             if (operation.getTotalSize() >= MAX_BATCH_SIZE) {
-                sendBatch(operation);
                 pendingOperations.remove(world);
+                dispatchSendBatch(operation, false);
             } else if (!operation.isScheduled) {
-                // 安排延迟发送
+                // 安排延迟发送（调度线程仅触发，实际发包须回到服务器主线程）
                 operation.isScheduled = true;
                 scheduler.schedule(() -> {
+                    BatchedOperation toSend;
                     synchronized (operation) {
-                        if (pendingOperations.remove(world) != null) {
-                            sendBatch(operation);
-                        }
+                        toSend = pendingOperations.remove(world);
+                    }
+                    if (toSend != null) {
+                        dispatchSendBatch(toSend, false);
                     }
                 }, BATCH_DELAY_MS, TimeUnit.MILLISECONDS);
             }
@@ -82,14 +86,45 @@ public class BatchedNetworkManager {
     public void flushWorld(ServerWorld world) {
         BatchedOperation operation = pendingOperations.remove(world);
         if (operation != null) {
-            synchronized (operation) {
-                sendBatch(operation);
-            }
+            dispatchSendBatch(operation, true);
         }
     }
-    
+
     /**
-     * 发送批处理操作
+     * 将批处理发送调度到服务器主线程；必要时阻塞等待完成。
+     */
+    private void dispatchSendBatch(BatchedOperation operation, boolean waitForCompletion) {
+        MinecraftServer server = operation.world.getServer();
+        Runnable sendTask = () -> sendBatch(operation);
+
+        if (server.isOnThread()) {
+            sendTask.run();
+            return;
+        }
+
+        if (waitForCompletion) {
+            CountDownLatch latch = new CountDownLatch(1);
+            server.execute(() -> {
+                try {
+                    sendTask.run();
+                } finally {
+                    latch.countDown();
+                }
+            });
+            try {
+                if (!latch.await(5, TimeUnit.SECONDS)) {
+                    LOGGER.warn("等待批处理发包完成超时");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        } else {
+            server.execute(sendTask);
+        }
+    }
+
+    /**
+     * 发送批处理操作（必须在服务器主线程调用）
      */
     private void sendBatch(BatchedOperation operation) {
         try {
@@ -132,14 +167,6 @@ public class BatchedNetworkManager {
      * 关闭批处理管理器
      */
     public void shutdown() {
-        // 发送所有待处理的操作
-        for (BatchedOperation operation : pendingOperations.values()) {
-            synchronized (operation) {
-                sendBatch(operation);
-            }
-        }
-        pendingOperations.clear();
-        
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -148,6 +175,49 @@ public class BatchedNetworkManager {
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+
+        Map<MinecraftServer, List<BatchedOperation>> operationsByServer = new HashMap<>();
+        for (BatchedOperation operation : pendingOperations.values()) {
+            operationsByServer
+                .computeIfAbsent(operation.world.getServer(), server -> new ArrayList<>())
+                .add(operation);
+        }
+        pendingOperations.clear();
+
+        List<CountDownLatch> flushLatches = new ArrayList<>();
+        for (Map.Entry<MinecraftServer, List<BatchedOperation>> entry : operationsByServer.entrySet()) {
+            MinecraftServer server = entry.getKey();
+            List<BatchedOperation> operations = entry.getValue();
+            CountDownLatch latch = new CountDownLatch(1);
+            flushLatches.add(latch);
+
+            Runnable flushTask = () -> {
+                try {
+                    for (BatchedOperation operation : operations) {
+                        sendBatch(operation);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            };
+
+            if (server.isOnThread()) {
+                flushTask.run();
+            } else {
+                server.execute(flushTask);
+            }
+        }
+
+        for (CountDownLatch latch : flushLatches) {
+            try {
+                if (!latch.await(5, TimeUnit.SECONDS)) {
+                    LOGGER.warn("关闭时等待批处理发包完成超时");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
     
