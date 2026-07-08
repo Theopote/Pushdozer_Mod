@@ -1,7 +1,7 @@
 package com.pushdozer.ui.screens;
 
+import com.pushdozer.util.BlockDisplayIcons;
 import com.pushdozer.util.ExceptionPolicy;
-import com.pushdozer.util.RegistryBlocks;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -466,7 +466,7 @@ public class NaturalBlockSelectionScreen extends Screen {
                 context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, BLOCK_HOVER_COLOR);
             }
             
-            ItemStack displayStack = getDisplayStack(block);
+            ItemStack displayStack = BlockDisplayIcons.getDisplayStack(block);
             if (!displayStack.isEmpty()) {
                 context.drawItem(displayStack, x + (BLOCK_SIZE - 16) / 2, y + (BLOCK_SIZE - 16) / 2);
             }
@@ -483,151 +483,6 @@ public class NaturalBlockSelectionScreen extends Screen {
                 context.fill(x + 1, y + 1, x + BLOCK_SIZE - 1, y + BLOCK_SIZE - 1, 0x80FFFFFF);
                 context.drawText(textRenderer, net.minecraft.text.Text.literal("☑"), x + BLOCK_SIZE - 8, y + BLOCK_SIZE - 9, 0xFF000000, false);
             }
-        }
-
-        private ItemStack getDisplayStack(Block block) {
-            if (block == Blocks.WATER) {
-                return Items.WATER_BUCKET.getDefaultStack();
-            } else if (block == Blocks.LAVA) {
-                return Items.LAVA_BUCKET.getDefaultStack();
-            } else if (block == Blocks.FROSTED_ICE) {
-                return new ItemStack(Blocks.ICE);
-            }
-            
-            if (block == Blocks.TALL_SEAGRASS) {
-                return Items.SEAGRASS.getDefaultStack();
-            } else if (block == Blocks.KELP_PLANT) {
-                return Items.KELP.getDefaultStack();
-            } else if (block == Blocks.WEEPING_VINES_PLANT) {
-                return Items.WEEPING_VINES.getDefaultStack();
-            } else if (block == Blocks.TWISTING_VINES_PLANT) {
-                return Items.TWISTING_VINES.getDefaultStack();
-            }
-            
-            String translationKey = block.getTranslationKey();
-            if (translationKey.contains("wall_sign")) {
-                String baseSignKey = translationKey.replace("wall_sign", "sign");
-                Block baseSign = RegistryBlocks.getIfPresent(Registries.BLOCK.getId(block).withPath(baseSignKey));
-                if (baseSign != Blocks.AIR) {
-                    return baseSign.asItem().getDefaultStack();
-                }
-            }
-            
-            if (block == Blocks.WHEAT) {
-                return Items.WHEAT_SEEDS.getDefaultStack();
-            } else if (block == Blocks.CARROTS) {
-                return Items.CARROT.getDefaultStack();
-            } else if (block == Blocks.POTATOES) {
-                return Items.POTATO.getDefaultStack();
-            } else if (block == Blocks.BEETROOTS) {
-                return Items.BEETROOT.getDefaultStack();
-            }
-            
-            if (block == Blocks.FIRE) {
-                return Items.FLINT_AND_STEEL.getDefaultStack();
-            }
-            
-            String blockId = Registries.BLOCK.getId(block).getPath();
-            if (blockId.contains("wall_head") || blockId.contains("wall_skull")) {
-                String baseHeadId = blockId.replace("wall_", "");
-                Block baseHead = RegistryBlocks.getIfPresent(Registries.BLOCK.getId(block).withPath(baseHeadId));
-                if (baseHead != Blocks.AIR) {
-                    return baseHead.asItem().getDefaultStack();
-                }
-            }
-            
-            // 处理一些特殊方块
-            if (block == Blocks.BEDROCK) {
-                return Items.BEDROCK.getDefaultStack();
-            } else if (block == Blocks.COMMAND_BLOCK) {
-                return Items.COMMAND_BLOCK.getDefaultStack();
-            } else if (block == Blocks.STRUCTURE_BLOCK) {
-                return Items.STRUCTURE_BLOCK.getDefaultStack();
-            } else if (block == Blocks.JIGSAW) {
-                return Items.JIGSAW.getDefaultStack();
-            } else if (block == Blocks.BARRIER) {
-                return Items.BARRIER.getDefaultStack();
-            } else if (block == Blocks.LIGHT) {
-                return Items.LIGHT.getDefaultStack();
-            } else if (block == Blocks.SPAWNER) {
-                return Items.SPAWNER.getDefaultStack();
-            } else if (block == Blocks.TRIAL_SPAWNER) {
-                return Items.TRIAL_SPAWNER.getDefaultStack();
-            } else if (block == Blocks.DRAGON_EGG) {
-                return Items.DRAGON_EGG.getDefaultStack();
-            } else if (block == Blocks.END_PORTAL) {
-                return Items.END_PORTAL_FRAME.getDefaultStack();
-            } else if (block == Blocks.END_GATEWAY) {
-                return Items.END_PORTAL_FRAME.getDefaultStack();
-            } else if (block == Blocks.NETHER_PORTAL) {
-                return Items.OBSIDIAN.getDefaultStack();
-            } else if (block == Blocks.END_PORTAL_FRAME) {
-                return Items.END_PORTAL_FRAME.getDefaultStack();
-            } else if (block == Blocks.NETHER_WART) {
-                return Items.NETHER_WART.getDefaultStack();
-            } else if (block == Blocks.CRIMSON_FUNGUS) {
-                return Items.CRIMSON_FUNGUS.getDefaultStack();
-            } else if (block == Blocks.WARPED_FUNGUS) {
-                return Items.WARPED_FUNGUS.getDefaultStack();
-            } else if (block == Blocks.CRIMSON_ROOTS) {
-                return Items.CRIMSON_ROOTS.getDefaultStack();
-            } else if (block == Blocks.WARPED_ROOTS) {
-                return Items.WARPED_ROOTS.getDefaultStack();
-            } else if (block == Blocks.NETHER_SPROUTS) {
-                return Items.NETHER_SPROUTS.getDefaultStack();
-            } else if (block == Blocks.WEEPING_VINES) {
-                return Items.WEEPING_VINES.getDefaultStack();
-            } else if (block == Blocks.TWISTING_VINES) {
-                return Items.TWISTING_VINES.getDefaultStack();
-            } else if (block == Blocks.SHROOMLIGHT) {
-                return Items.SHROOMLIGHT.getDefaultStack();
-            } else if (block == Blocks.GLOW_LICHEN) {
-                return Items.GLOW_LICHEN.getDefaultStack();
-            } else if (block == Blocks.SCULK_VEIN) {
-                return Items.SCULK_VEIN.getDefaultStack();
-            } else if (block == Blocks.SCULK_CATALYST) {
-                return Items.SCULK_CATALYST.getDefaultStack();
-            } else if (block == Blocks.SCULK_SHRIEKER) {
-                return Items.SCULK_SHRIEKER.getDefaultStack();
-            } else if (block == Blocks.SCULK_SENSOR) {
-                return Items.SCULK_SENSOR.getDefaultStack();
-            } else if (block == Blocks.CALIBRATED_SCULK_SENSOR) {
-                return Items.CALIBRATED_SCULK_SENSOR.getDefaultStack();
-            } else if (block == Blocks.SCULK) {
-                return Items.SCULK.getDefaultStack();
-            }
-            
-            // 处理一些没有物品形式的方块
-            ItemStack itemStack = block.asItem().getDefaultStack();
-            if (itemStack.isEmpty()) {
-                // 如果方块没有对应的物品，尝试使用替代物品
-                if (block == Blocks.AIR) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.CAVE_AIR) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.VOID_AIR) {
-                    return ItemStack.EMPTY;
-                } else if (block == Blocks.STRUCTURE_VOID) {
-                    return ItemStack.EMPTY;
-                } else {
-                    // 对于其他没有物品形式的方块，根据方块类型使用合适的替代物品
-                    String blockIdPath = Registries.BLOCK.getId(block).getPath().toLowerCase();
-                    if (blockIdPath.contains("portal")) {
-                        return Items.OBSIDIAN.getDefaultStack();
-                    } else if (blockIdPath.contains("light")) {
-                        return Items.GLOWSTONE.getDefaultStack();
-                    } else if (blockIdPath.contains("air")) {
-                        return ItemStack.EMPTY;
-                    } else if (blockIdPath.contains("void")) {
-                        return ItemStack.EMPTY;
-                    } else {
-                        // 默认使用石头作为替代
-                        return Items.STONE.getDefaultStack();
-                    }
-                }
-            }
-            
-            return itemStack;
         }
 
         @Override

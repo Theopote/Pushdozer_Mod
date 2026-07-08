@@ -1,6 +1,6 @@
 package com.pushdozer.ui.screens;
 
-import com.pushdozer.util.RegistryBlocks;
+import com.pushdozer.util.BlockDisplayIcons;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -514,53 +514,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
 
 
         private @NotNull ItemStack getItemStack(int i) {
-            Block b = blocks.get(i);
-            ItemStack itemStack = new ItemStack(b);
-            String idPath = net.minecraft.registry.Registries.BLOCK.getId(b).getPath().toLowerCase();
-            
-            // 使用 Block.getPickStack() 获取更准确的物品表示（如果可用）
-            // 注意：getPickStack 方法可能不可见，所以我们回退到硬编码逻辑
-            
-            // 特殊处理一些方块的物品显示（作为 getPickStack 的补充）
-            if (b == Blocks.WHEAT) itemStack = new ItemStack(Items.WHEAT_SEEDS);
-            else if (b == Blocks.CARROTS) itemStack = new ItemStack(Items.CARROT);
-            else if (b == Blocks.POTATOES) itemStack = new ItemStack(Items.POTATO);
-            else if (b == Blocks.BEETROOTS) itemStack = new ItemStack(Items.BEETROOT_SEEDS);
-            else if (b == Blocks.MELON_STEM) itemStack = new ItemStack(Items.MELON_SEEDS);
-            else if (b == Blocks.PUMPKIN_STEM) itemStack = new ItemStack(Items.PUMPKIN_SEEDS);
-            else if (b == Blocks.SWEET_BERRY_BUSH) itemStack = new ItemStack(Items.SWEET_BERRIES);
-            else if (b == Blocks.COCOA) itemStack = new ItemStack(Items.COCOA_BEANS);
-            else if (b == Blocks.KELP_PLANT) itemStack = new ItemStack(Items.KELP);
-            else if (b == Blocks.SEAGRASS) itemStack = new ItemStack(Items.SEAGRASS);
-            else if (b == Blocks.TALL_SEAGRASS) itemStack = new ItemStack(Items.SEAGRASS);
-            else if (b == Blocks.CAVE_VINES || b == Blocks.CAVE_VINES_PLANT) itemStack = new ItemStack(Items.GLOW_BERRIES);
-            else if (b == Blocks.WEEPING_VINES || b == Blocks.WEEPING_VINES_PLANT) itemStack = new ItemStack(Items.WEEPING_VINES);
-            else if (b == Blocks.TWISTING_VINES || b == Blocks.TWISTING_VINES_PLANT) itemStack = new ItemStack(Items.TWISTING_VINES);
-            else if (b == Blocks.CHORUS_PLANT) itemStack = new ItemStack(Items.CHORUS_FRUIT);
-            else if (b == Blocks.SHORT_GRASS) itemStack = new ItemStack(Blocks.SHORT_GRASS);
-            else if (b == Blocks.TALL_GRASS) itemStack = new ItemStack(Blocks.TALL_GRASS);
-            else if (b == Blocks.NETHER_WART) itemStack = new ItemStack(Items.NETHER_WART);
-            else if (b == Blocks.TORCHFLOWER_CROP) itemStack = new ItemStack(Items.TORCHFLOWER_SEEDS);
-            else if (b == Blocks.PITCHER_CROP) itemStack = new ItemStack(Items.PITCHER_POD);
-            else if (b == Blocks.BAMBOO_SAPLING) itemStack = new ItemStack(Items.BAMBOO);
-            else if (idPath.startsWith("potted_")) {
-                // 尝试从盆栽方块名推导原植物的物品；失败则显示花盆
-                String base = idPath.substring("potted_".length());
-                var baseId = net.minecraft.util.Identifier.tryParse("minecraft:" + base);
-                if (baseId != null) {
-                    Block baseBlock = RegistryBlocks.getIfPresent(baseId);
-                    if (baseBlock != Blocks.AIR) {
-                        if (base.equals("azalea")) itemStack = new ItemStack(Blocks.AZALEA);
-                        else if (base.equals("flowering_azalea")) itemStack = new ItemStack(Blocks.FLOWERING_AZALEA);
-                        else itemStack = new ItemStack(baseBlock);
-                    } else {
-                        itemStack = new ItemStack(Items.FLOWER_POT);
-                    }
-                } else {
-                    itemStack = new ItemStack(Items.FLOWER_POT);
-                }
-            }
-            return itemStack;
+            return BlockDisplayIcons.getPlantDisplayStack(blocks.get(i));
         }
 
         private void drawScrollBar(DrawContext context) {
