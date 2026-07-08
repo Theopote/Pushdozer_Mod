@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,7 +24,7 @@ class ExceptionPolicyTest {
     void runPerItemSwallowsExpectedOperationalFailures() {
         var logger = LoggerFactory.getLogger("test");
         assertDoesNotThrow(() -> ExceptionPolicy.runPerItem("io", () -> {
-            throw new IOException("disk full");
+            throw new UncheckedIOException(new IOException("disk full"));
         }, logger));
         assertDoesNotThrow(() -> ExceptionPolicy.runPerItem("json", () -> {
             throw new JsonSyntaxException("bad json");

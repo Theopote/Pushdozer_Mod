@@ -4,6 +4,7 @@ import com.google.gson.JsonParseException;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 /**
  * 区分「预期运行失败」与「编程错误」，避免大范围 {@code catch (Exception)} 掩盖真实 bug。
@@ -31,6 +32,9 @@ public final class ExceptionPolicy {
     public static boolean isExpectedOperationalFailure(Throwable throwable) {
         if (throwable instanceof IOException || throwable instanceof JsonParseException) {
             return true;
+        }
+        if (throwable instanceof UncheckedIOException unchecked) {
+            return isExpectedOperationalFailure(unchecked.getCause());
         }
         if (throwable instanceof IllegalArgumentException) {
             String message = throwable.getMessage();

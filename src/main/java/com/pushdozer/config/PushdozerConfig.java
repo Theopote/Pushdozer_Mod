@@ -1053,7 +1053,7 @@ public class PushdozerConfig {
         for (String blockId : ignoredBlockIds) {
             Identifier identifier = Identifier.tryParse(blockId);
             if (identifier != null) {
-                Block block = Registries.BLOCK.getOrEmpty(identifier).orElse(Blocks.AIR);
+                Block block = RegistryBlocks.getIfPresent(identifier);
                 if (block != Blocks.AIR) {
                     ignoredBlocks.add(block);
                 }

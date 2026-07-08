@@ -74,7 +74,7 @@ public final class BlockDisplayIcons {
 
     private static ItemStack resolveRelatedBlockItem(Block block, String relatedPath) {
         Identifier relatedId = Registries.BLOCK.getId(block).withPath(relatedPath);
-        Block related = Registries.BLOCK.getOrEmpty(relatedId).orElse(Blocks.AIR);
+        Block related = RegistryBlocks.getIfPresent(relatedId);
         if (related != Blocks.AIR) {
             return related.asItem().getDefaultStack();
         }

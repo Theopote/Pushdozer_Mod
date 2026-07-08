@@ -14,10 +14,17 @@ public final class RegistryBlocks {
 
     public static Block resolve(String blockId, Block fallback) {
         Identifier identifier = Identifier.tryParse(blockId);
-        if (identifier == null) {
+        if (identifier == null || !Registries.BLOCK.containsId(identifier)) {
             return fallback;
         }
-        return Registries.BLOCK.getOrEmpty(identifier).orElse(fallback);
+        return Registries.BLOCK.get(identifier);
+    }
+
+    public static Block getIfPresent(Identifier identifier) {
+        if (identifier == null || !Registries.BLOCK.containsId(identifier)) {
+            return Blocks.AIR;
+        }
+        return Registries.BLOCK.get(identifier);
     }
 
     public static Block resolveOrAir(String blockId) {

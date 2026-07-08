@@ -3,12 +3,14 @@ package com.pushdozer.services;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.UndoRedoManager;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.world.World;
 
 /**
  * UndoRedoService 类负责管理所有撤销/重做相关的操作
  */
 public class UndoRedoService {
-    private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private static UndoRedoService instance;
     private final UndoRedoManager undoRedoManager;
 

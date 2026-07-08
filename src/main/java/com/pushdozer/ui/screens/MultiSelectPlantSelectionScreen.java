@@ -1,5 +1,7 @@
 package com.pushdozer.ui.screens;
 
+import com.pushdozer.util.RegistryBlocks;
+
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.ArrayList;
@@ -546,7 +548,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
                 String base = idPath.substring("potted_".length());
                 var baseId = net.minecraft.util.Identifier.tryParse("minecraft:" + base);
                 if (baseId != null) {
-                    Block baseBlock = Registries.BLOCK.getOrEmpty(baseId).orElse(Blocks.AIR);
+                    Block baseBlock = RegistryBlocks.getIfPresent(baseId);
                     if (baseBlock != Blocks.AIR) {
                         if (base.equals("azalea")) itemStack = new ItemStack(Blocks.AZALEA);
                         else if (base.equals("flowering_azalea")) itemStack = new ItemStack(Blocks.FLOWERING_AZALEA);

@@ -1,6 +1,7 @@
 package com.pushdozer.ui.screens;
 
 import com.pushdozer.util.ExceptionPolicy;
+import com.pushdozer.util.RegistryBlocks;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -506,8 +507,7 @@ public class NaturalBlockSelectionScreen extends Screen {
             String translationKey = block.getTranslationKey();
             if (translationKey.contains("wall_sign")) {
                 String baseSignKey = translationKey.replace("wall_sign", "sign");
-                Block baseSign = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseSignKey))
-                    .orElse(Blocks.AIR);
+                Block baseSign = RegistryBlocks.getIfPresent(Registries.BLOCK.getId(block).withPath(baseSignKey));
                 if (baseSign != Blocks.AIR) {
                     return baseSign.asItem().getDefaultStack();
                 }
@@ -530,8 +530,7 @@ public class NaturalBlockSelectionScreen extends Screen {
             String blockId = Registries.BLOCK.getId(block).getPath();
             if (blockId.contains("wall_head") || blockId.contains("wall_skull")) {
                 String baseHeadId = blockId.replace("wall_", "");
-                Block baseHead = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseHeadId))
-                    .orElse(Blocks.AIR);
+                Block baseHead = RegistryBlocks.getIfPresent(Registries.BLOCK.getId(block).withPath(baseHeadId));
                 if (baseHead != Blocks.AIR) {
                     return baseHead.asItem().getDefaultStack();
                 }
