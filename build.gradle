@@ -28,6 +28,7 @@ loom {
 	mods {
 		"pushdozer" {
 			sourceSet sourceSets.main
+			sourceSet sourceSets.test
 		}
 	}
 }
@@ -46,6 +47,12 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
 	modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+	testImplementation "org.mockito:mockito-core:5.14.2"
+	testImplementation "org.mockito:mockito-junit-jupiter:5.14.2"
 }
 
 processResources {
@@ -69,6 +76,10 @@ java {
 
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21
+}
+
+test {
+	useJUnitPlatform()
 }
 
 jar {
