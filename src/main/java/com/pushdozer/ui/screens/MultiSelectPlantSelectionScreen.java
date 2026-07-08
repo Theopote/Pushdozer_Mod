@@ -544,9 +544,9 @@ public class MultiSelectPlantSelectionScreen extends Screen {
             else if (idPath.startsWith("potted_")) {
                 // 尝试从盆栽方块名推导原植物的物品；失败则显示花盆
                 String base = idPath.substring("potted_".length());
-                try {
-                    var baseId = net.minecraft.util.Identifier.of("minecraft", base);
-                    Block baseBlock = net.minecraft.registry.Registries.BLOCK.get(baseId);
+                var baseId = net.minecraft.util.Identifier.tryParse("minecraft:" + base);
+                if (baseId != null) {
+                    Block baseBlock = Registries.BLOCK.getOrEmpty(baseId).orElse(Blocks.AIR);
                     if (baseBlock != Blocks.AIR) {
                         if (base.equals("azalea")) itemStack = new ItemStack(Blocks.AZALEA);
                         else if (base.equals("flowering_azalea")) itemStack = new ItemStack(Blocks.FLOWERING_AZALEA);
@@ -554,7 +554,7 @@ public class MultiSelectPlantSelectionScreen extends Screen {
                     } else {
                         itemStack = new ItemStack(Items.FLOWER_POT);
                     }
-                } catch (Exception ignored) {
+                } else {
                     itemStack = new ItemStack(Items.FLOWER_POT);
                 }
             }

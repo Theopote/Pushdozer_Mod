@@ -5,6 +5,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.util.BlockDisplayIcons;
+import com.pushdozer.util.ExceptionPolicy;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -503,65 +505,7 @@ public class EntityBlockSelectionScreen extends Screen {
         }
 
         private ItemStack getDisplayStack(Block block) {
-            if (block == Blocks.WATER) {
-                return Items.WATER_BUCKET.getDefaultStack();
-            } else if (block == Blocks.LAVA) {
-                return Items.LAVA_BUCKET.getDefaultStack();
-            } else if (block == Blocks.FROSTED_ICE) {
-                return new ItemStack(Blocks.ICE);
-            }
-            
-            if (block == Blocks.TALL_SEAGRASS) {
-                return Items.SEAGRASS.getDefaultStack();
-            } else if (block == Blocks.KELP_PLANT) {
-                return Items.KELP.getDefaultStack();
-            } else if (block == Blocks.WEEPING_VINES_PLANT) {
-                return Items.WEEPING_VINES.getDefaultStack();
-            } else if (block == Blocks.TWISTING_VINES_PLANT) {
-                return Items.TWISTING_VINES.getDefaultStack();
-            }
-            
-            String translationKey = block.getTranslationKey();
-            if (translationKey.contains("wall_sign")) {
-                String baseSignKey = translationKey.replace("wall_sign", "sign");
-                try {
-                    Block baseSign = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseSignKey));
-                    if (baseSign != Blocks.AIR) {
-                        return baseSign.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base sign for wall sign: " + block.getTranslationKey() + ", using original block");
-                }
-            }
-            
-            if (block == Blocks.WHEAT) {
-                return Items.WHEAT_SEEDS.getDefaultStack();
-            } else if (block == Blocks.CARROTS) {
-                return Items.CARROT.getDefaultStack();
-            } else if (block == Blocks.POTATOES) {
-                return Items.POTATO.getDefaultStack();
-            } else if (block == Blocks.BEETROOTS) {
-                return Items.BEETROOT.getDefaultStack();
-            }
-            
-            if (block == Blocks.FIRE) {
-                return Items.FLINT_AND_STEEL.getDefaultStack();
-            }
-            
-            String blockId = Registries.BLOCK.getId(block).getPath();
-            if (blockId.contains("wall_head") || blockId.contains("wall_skull")) {
-                String baseHeadId = blockId.replace("wall_", "");
-                try {
-                    Block baseHead = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseHeadId));
-                    if (baseHead != Blocks.AIR) {
-                        return baseHead.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base head for wall head: " + block.getTranslationKey() + ", using original block");
-                }
-            }
-            
-            return block.asItem().getDefaultStack();
+            return BlockDisplayIcons.getDisplayStack(block);
         }
 
         @Override
@@ -890,7 +834,8 @@ public class EntityBlockSelectionScreen extends Screen {
                 !blockId.equals("soul_torch") && !blockId.equals("redstone_torch") && !blockId.equals("respawn_anchor")) {
                 return categories;
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("Failed to check tags for block: " + blockId + ", skipping: " + e.getMessage());
             return categories;
         }
@@ -1058,7 +1003,8 @@ public class EntityBlockSelectionScreen extends Screen {
                 return categories;
             }
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("Failed to check tags for block: " + blockId + ", using miscellaneous: " + e.getMessage());
         }
         

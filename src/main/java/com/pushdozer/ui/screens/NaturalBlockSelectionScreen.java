@@ -1,5 +1,7 @@
 package com.pushdozer.ui.screens;
 
+import com.pushdozer.util.ExceptionPolicy;
+
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -504,13 +506,10 @@ public class NaturalBlockSelectionScreen extends Screen {
             String translationKey = block.getTranslationKey();
             if (translationKey.contains("wall_sign")) {
                 String baseSignKey = translationKey.replace("wall_sign", "sign");
-                try {
-                    Block baseSign = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseSignKey));
-                    if (baseSign != Blocks.AIR) {
-                        return baseSign.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base sign for wall sign: " + block.getTranslationKey() + ", using original block");
+                Block baseSign = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseSignKey))
+                    .orElse(Blocks.AIR);
+                if (baseSign != Blocks.AIR) {
+                    return baseSign.asItem().getDefaultStack();
                 }
             }
             
@@ -531,13 +530,10 @@ public class NaturalBlockSelectionScreen extends Screen {
             String blockId = Registries.BLOCK.getId(block).getPath();
             if (blockId.contains("wall_head") || blockId.contains("wall_skull")) {
                 String baseHeadId = blockId.replace("wall_", "");
-                try {
-                    Block baseHead = Registries.BLOCK.get(Registries.BLOCK.getId(block).withPath(baseHeadId));
-                    if (baseHead != Blocks.AIR) {
-                        return baseHead.asItem().getDefaultStack();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Failed to find base head for wall head: " + block.getTranslationKey() + ", using original block");
+                Block baseHead = Registries.BLOCK.getOrEmpty(Registries.BLOCK.getId(block).withPath(baseHeadId))
+                    .orElse(Blocks.AIR);
+                if (baseHead != Blocks.AIR) {
+                    return baseHead.asItem().getDefaultStack();
                 }
             }
             
@@ -887,7 +883,8 @@ public class NaturalBlockSelectionScreen extends Screen {
                 !blockId.equals("soul_torch") && !blockId.equals("redstone_torch") && !blockId.equals("respawn_anchor")) {
                 return categories;
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("Failed to check tags for block: " + blockId + ", skipping: " + e.getMessage());
             return categories;
         }
@@ -1048,7 +1045,8 @@ public class NaturalBlockSelectionScreen extends Screen {
                 return categories;
             }
             
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("Failed to check tags for block: " + blockId + ", using miscellaneous: " + e.getMessage());
         }
         
