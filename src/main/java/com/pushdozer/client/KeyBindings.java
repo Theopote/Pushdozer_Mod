@@ -216,7 +216,7 @@ public class KeyBindings {
         int nextIndex = (config.getDisplayMode().ordinal() + 1) % modes.length;
         PushdozerConfig.DisplayMode newConfigMode = modes[nextIndex];
         config.setDisplayMode(newConfigMode);
-        config.save();
+        config.save(); // 保存到本地 pushdozer_config.json，并通过 C2S 同步到服务端本玩家副本
         
         // 同时更新物品级别的显示模式，确保同步
         ItemStack mainHand = client.player.getMainHandStack();
@@ -277,8 +277,7 @@ public class KeyBindings {
         PushdozerConfig.WorkMode newMode = visibleModes.get(nextIndex);
         config.setWorkMode(newMode);
         PushdozerConfig.getInstance().save();
-        
-        // 每个玩家的配置是独立的，不需要同步到服务器
+        // save() 会将配置同步到服务端（按玩家 UUID 隔离，不广播给其他玩家）
 
         Text modeText = Text.translatable("pushdozer.mode." + newMode.name().toLowerCase());
         client.player.sendMessage(

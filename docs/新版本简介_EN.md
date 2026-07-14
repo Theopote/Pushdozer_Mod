@@ -34,9 +34,10 @@ Pushdozer is a powerful terrain editing mod designed specifically for Minecraft 
 - **Locked Once** - Precise height control, perfect for leveling terrain
 - **Custom** - Manually set specific heights
 
-### 🖥️ Three Display Modes
+### 🖥️ Four Display Modes
 - **Wireframe** - Display brush outlines with best performance
 - **Point Cloud** - Show point cloud preview for intuitive visualization
+- **Surface** - Semi-transparent face preview for coverage visualization
 - **Hidden** - No preview display, focus on operations
 
 ### 🔄 Undo/Redo System

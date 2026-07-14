@@ -25,7 +25,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Added
 - Minecraft 1.21.11 support
 - Nested config structure (`brush`, `surface`, `planting`, `shoreline`, `preview`)
-- Legacy config migration from flat `pushdozer.json`
+- Legacy config migration from flat JSON structure (same `pushdozer_config.json` file)
 - GameTest coverage for undo sync behavior
 - Batch block operations with cross-tick scheduling for large edits
 

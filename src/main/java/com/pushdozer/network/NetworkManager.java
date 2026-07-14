@@ -62,8 +62,8 @@ public class NetworkManager {
             })
         );
         
-        // 配置同步处理器（客户端发送到服务器）
-        // 注意：每个玩家的配置是独立的，不需要同步到其他玩家
+        // 配置同步处理器（C2S：客户端 -> 服务端，仅更新当前玩家的服务端副本，不广播给其他玩家）
+        // 注意：每个玩家的配置是独立的
         ServerPlayNetworking.registerGlobalReceiver(
             ConfigSyncPayload.ID,
             (payload, context) -> context.server().execute(() -> {
