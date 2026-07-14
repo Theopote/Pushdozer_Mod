@@ -23,9 +23,9 @@ public final class SurfaceRenderer {
     private static final BlockOutlineMeshCache MESH_CACHE = new BlockOutlineMeshCache();
 
     private static final float FILL_RED = 1.0f;
-    private static final float FILL_GREEN = 0.8f;
-    private static final float FILL_BLUE = 0.0f;
-    private static final float FILL_ALPHA = 0.275f;
+    private static final float FILL_GREEN = 1.0f;
+    private static final float FILL_BLUE = 1.0f;
+    private static final float FILL_ALPHA = 0.20f;
 
     private SurfaceRenderer() {
     }
