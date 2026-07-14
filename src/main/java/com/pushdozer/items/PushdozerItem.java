@@ -16,6 +16,8 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.ActionResult;
 import net.minecraft.world.World;
 
+import java.util.Objects;
+
 /**
  * Pushdozer Item Class
  * Provides core functionality for terrain editing tools
@@ -67,9 +69,9 @@ public class PushdozerItem extends Item {
                     case SMOOTH -> {
                         PushdozerConfig.SmoothVariant variant = config.getSmoothVariant();
                         switch (variant) {
-                            case RAISE -> PushdozerMod.getHandler(WorkMode.SMOOTH_RAISE).handleSmoothRaise(player, world, config);
-                            case LOWER -> PushdozerMod.getHandler(WorkMode.SMOOTH_LOWER).handleSmoothLower(player, world, config);
-                            default -> PushdozerMod.getHandler(WorkMode.ADAPTIVE_SMOOTH).handleOperation(player, world, UndoAction.ActionType.SMOOTH, config);
+                            case RAISE -> Objects.requireNonNull(PushdozerMod.getHandler(WorkMode.SMOOTH_RAISE)).handleSmoothRaise(player, world, config);
+                            case LOWER -> Objects.requireNonNull(PushdozerMod.getHandler(WorkMode.SMOOTH_LOWER)).handleSmoothLower(player, world, config);
+                            default -> Objects.requireNonNull(PushdozerMod.getHandler(WorkMode.ADAPTIVE_SMOOTH)).handleOperation(player, world, UndoAction.ActionType.SMOOTH, config);
                         }
                     }
                     case SMOOTH_RAISE -> handler.handleSmoothRaise(player, world, config);
