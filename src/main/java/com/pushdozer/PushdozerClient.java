@@ -24,19 +24,19 @@ public class PushdozerClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // 初始化配置
+        // Initialize configuration
         this.config = PushdozerMod.getConfig();
 
-        // 注册按键绑定
+        // Register key bindings
         KeyBindings.register();
 
-        // 注册世界渲染事件（END_MAIN 替代已移除的 AFTER_TRANSLUCENT）
+        // Register world render event (END_MAIN replaces the removed AFTER_TRANSLUCENT)
         WorldRenderEvents.END_MAIN.register(this::onWorldRenderEndMain);
 
-        // 注册客户端网络处理器
+        // Register client network handler
         ClientNetworkHandler.registerClientNetworking();
 
-        // 加入多人服务器时立即同步本地配置
+        // Immediately sync local config when joining multiplayer server
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
             ClientNetworkHandler.sendConfigSync(PushdozerConfig.getInstance())
         );
@@ -49,7 +49,7 @@ public class PushdozerClient implements ClientModInitializer {
             BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
             GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
 
-            // 确保显示模式不为null
+            // Ensure display mode is not null
             if (shape != null && config.getDisplayMode() != null && config.getDisplayMode() != PushdozerConfig.DisplayMode.NONE) {
                 renderGeometryShape(context, shape, config, config.getDisplayMode());
             }
@@ -68,7 +68,7 @@ public class PushdozerClient implements ClientModInitializer {
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         }
 
-        // 使用目标位置而不是几何体的中心位置
+        // Use target position instead of geometry center position
         BlockPos targetPos = null;
         if (MinecraftClient.getInstance().player != null) {
             targetPos = ShapeUtil.getTargetBlockPos(MinecraftClient.getInstance().player, config);

@@ -6,26 +6,26 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 /**
- * SphereSubPanel 类
- * 这个类继承自 GeometrySubPanel，用于处理球形的配置界面。
- * 它包含一个半径滑动条，用于调整球体的大小。
+ * SphereSubPanel class
+ * This class extends GeometrySubPanel and handles the configuration interface for spheres.
+ * It contains a radius slider to adjust the size of the sphere.
  */
 public class SphereSubPanel extends GeometrySubPanel {
-    // 半径滑动条
+    // Radius slider
     private CustomSliderWidget radiusSlider;
 
     /**
-     * 构造函数
-     * @param parent 父级配置屏幕
-     * @param config Pushdozer配置对象
+     * Constructor
+     * @param parent Parent configuration screen
+     * @param config Pushdozer config object
      */
     public SphereSubPanel(PushdozerConfigScreen parent, PushdozerConfig config) {
         super(parent, config);
     }
 
     /**
-     * 初始化面板
-     * 创建并添加半径滑动条和确认按钮
+     * Initialize panel
+     * Create and add radius slider and confirm button
      */
     @Override
     public void initPanel() {
@@ -34,17 +34,17 @@ public class SphereSubPanel extends GeometrySubPanel {
     }
 
     /**
-     * 渲染面板
-     * @param context 绘图��下文
-     * @param mouseX 鼠标X坐标
-     * @param mouseY 鼠标Y坐标
-     * @param delta 时间增量
+     * Render panel
+     * @param context Draw context
+     * @param mouseX Mouse X coordinate
+     * @param mouseY Mouse Y coordinate
+     * @param delta Time delta
      */
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!isVisible()) return;
 
-        // 1-3. 绘制面板背景、标题背景和边框（优化的渲染顺序）
+        // 1-3. Render panel background, title background and border (optimized rendering order)
         renderPanelBackground(context);
 
         radiusSlider.render(context, mouseX, mouseY, delta);
@@ -53,8 +53,8 @@ public class SphereSubPanel extends GeometrySubPanel {
     }
 
     /**
-     * 保存配置
-     * 获取滑动条的值并更新配置
+     * Save configuration
+     * Get slider values and update configuration
      */
     @Override
     public void saveConfig() {
@@ -67,13 +67,13 @@ public class SphereSubPanel extends GeometrySubPanel {
 
     @Override
     protected void updatePreview() {
-        // 获取当前滑动条的值
+        // Get current slider value
         int radius = getSliderValue(radiusSlider);
 
-        // 更新配置但不保存
+        // Update configuration without saving
         config.setSphereRadius(radius);
 
-        // 通知父屏幕更新预览
+        // Notify parent screen to update preview
         parent.updatePreview();
     }
 }

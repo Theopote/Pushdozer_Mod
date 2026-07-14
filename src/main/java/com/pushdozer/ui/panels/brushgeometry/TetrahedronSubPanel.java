@@ -6,8 +6,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 /**
- * 正四面体配置子面板
- * 包含边长滑动条，用于调整正四面体的大小
+ * Tetrahedron configuration sub-panel
+ * Contains edge length slider to adjust the size of the tetrahedron
  */
 public class TetrahedronSubPanel extends GeometrySubPanel {
     private CustomSliderWidget edgeLengthSlider;
@@ -18,7 +18,7 @@ public class TetrahedronSubPanel extends GeometrySubPanel {
 
     @Override
     public void initPanel() {
-        // 边长滑动条
+        // Edge length slider
         edgeLengthSlider = addSlider(0, Text.translatable("pushdozer.config.edge_length"), config.getTetrahedronEdgeLength());
     }
 
@@ -26,7 +26,7 @@ public class TetrahedronSubPanel extends GeometrySubPanel {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!isVisible()) return;
 
-        // 绘制面板背景、标题背景和边框（优化的渲染顺序）
+        // Render panel background, title background and border (optimized rendering order)
         renderPanelBackground(context);
 
         edgeLengthSlider.render(context, mouseX, mouseY, delta);
@@ -44,13 +44,13 @@ public class TetrahedronSubPanel extends GeometrySubPanel {
 
     @Override
     protected void updatePreview() {
-        // 获取当前滑动条的值
+        // Get current slider value
         int edgeLength = getSliderValue(edgeLengthSlider);
 
-        // 更新配置但不保存
+        // Update configuration without saving
         config.setTetrahedronEdgeLength(edgeLength);
 
-        // 通知父屏幕更新预览
+        // Notify parent screen to update preview
         parent.updatePreview();
     }
 }

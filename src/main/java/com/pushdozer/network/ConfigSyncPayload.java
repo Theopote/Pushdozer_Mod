@@ -9,12 +9,12 @@ import net.minecraft.util.Identifier;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 配置同步网络包：客户端将完整配置 JSON 同步到服务端，按玩家 UUID 独立存储。
- * 使用 UTF-8 字节数组而非 writeString，避免 32767 字符的网络字符串上限。
+ * Config sync network payload: client syncs complete config JSON to server, stored independently per player UUID.
+ * Uses UTF-8 byte array instead of writeString, avoiding the 32767 character network string limit.
  */
 public record ConfigSyncPayload(byte[] configJsonUtf8) implements CustomPayload {
 
-    /** 与 Minecraft PacketByteBuf 字节数组上限对齐的安全阈值 */
+    /** Safe threshold aligned with Minecraft PacketByteBuf byte array limit */
     public static final int MAX_JSON_BYTES = 1_048_576;
 
     public static final CustomPayload.Id<ConfigSyncPayload> ID =

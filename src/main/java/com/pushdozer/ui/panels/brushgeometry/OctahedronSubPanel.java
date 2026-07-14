@@ -6,7 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 /**
- * 正八面体配置子面板
+ * Octahedron configuration sub-panel
  */
 public class OctahedronSubPanel extends GeometrySubPanel {
     private CustomSliderWidget radiusSlider;
@@ -17,7 +17,7 @@ public class OctahedronSubPanel extends GeometrySubPanel {
 
     @Override
     public void initPanel() {
-        // 半径滑动条
+        // Radius slider
         radiusSlider = addSlider(0, Text.translatable("pushdozer.config.radius"), config.getOctahedronRadius());
     }
 
@@ -25,7 +25,7 @@ public class OctahedronSubPanel extends GeometrySubPanel {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!isVisible()) return;
 
-        // 绘制面板背景、标题背景和边框（优化的渲染顺序）
+        // Render panel background, title background and border (optimized rendering order)
         renderPanelBackground(context);
 
         radiusSlider.render(context, mouseX, mouseY, delta);
@@ -45,13 +45,13 @@ public class OctahedronSubPanel extends GeometrySubPanel {
 
     @Override
     protected void updatePreview() {
-        // 获取当前滑动条的值
+        // Get current slider value
         int radius = getSliderValue(radiusSlider);
 
-        // 更新配置但不保存
+        // Update configuration without saving
         config.setOctahedronRadius(radius);
 
-        // 通知父屏幕更新预览
+        // Notify parent screen to update preview
         parent.updatePreview();
     }
 } 

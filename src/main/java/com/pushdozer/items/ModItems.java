@@ -11,19 +11,19 @@ import java.util.function.Function;
 public class ModItems {
     
     /**
-     * 注册物品的辅助方法
-     * 使用 Items.register 方法，确保 RegistryKey 正确设置
+     * Helper method to register items
+     * Uses Items.register method to ensure RegistryKey is set correctly
      */
     private static Item register(Function<Item.Settings, Item> factory, Item.Settings settings) {
         final RegistryKey<Item> registryKey = RegistryKey.of(RegistryKeys.ITEM, Identifier.of(PushdozerMod.MOD_ID, "pushdozer"));
         return Items.register(registryKey, factory, settings);
     }
-    
-    // 创建物品实例 - 使用新的注册方法
+
+    // Create item instance - uses new registration method
     public static final Item PUSHDOZER_ITEM = register(PushdozerItem::new, new Item.Settings().maxCount(1));
-    
+
     /**
-     * 注册所有物品
+     * Register all items
      */
     public static void registerItems() {
         PushdozerMod.LOGGER.info("Registering Pushdozer items...");

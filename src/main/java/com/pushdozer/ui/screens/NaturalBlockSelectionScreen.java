@@ -25,8 +25,8 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
 /**
- * 地形方块选择屏幕
- * 专门用于表层转换配置，包含自然方块、地形方块和流体
+ * Terrain block selection screen
+ * Specifically for surface conversion configuration, includes natural blocks, terrain blocks and fluids
  */
 public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionScreen {
     private final SingleSelectStrategy<Block> singleSelect;
@@ -84,9 +84,9 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
         Block selected = singleSelect.getSelected();
         if (selected != null) {
             String selectedBlockName = Text.translatable(selected.getTranslationKey()).getString();
-            return String.format("选中: %s / 总计: %d 个方块", selectedBlockName, totalCount);
+            return String.format("Selected: %s / Total: %d blocks", selectedBlockName, totalCount);
         }
-        return String.format("请选择一个方块 / 总计: %d 个方块", totalCount);
+        return String.format("Please select one block / Total: %d blocks", totalCount);
     }
 
     @Override
@@ -99,7 +99,7 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
     }
 
     private static List<SelectionCategory<Block>> buildCategories() {
-        System.out.println("正在重建地形方块分类缓存...");
+        System.out.println("Rebuilding terrain block category cache...");
         Map<String, SelectionCategory<Block>> categoryMap = new LinkedHashMap<>();
         Set<String> processedBlockIds = new HashSet<>();
 
@@ -128,12 +128,12 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
             category.getItems().sort(Comparator.comparing(b -> Registries.BLOCK.getId(b).getPath()));
         }
 
-        System.out.println("地形方块分类完成，共 " + result.size() + " 个分类：");
+        System.out.println("Terrain block categorization complete, total " + result.size() + " categories:");
         for (SelectionCategory<Block> category : result) {
-            System.out.println("  " + category.getTranslatedName().getString() + ": " + category.getItems().size() + " 个方块");
+            System.out.println("  " + category.getTranslatedName().getString() + ": " + category.getItems().size() + " blocks");
 
             if (category.getTranslationKey().equals("pushdozer.category.leaves")) {
-                System.out.println("    树叶分类中的方块：");
+                System.out.println("    Blocks in leaves category:");
                 for (Block block : category.getItems()) {
                     String blockId = Registries.BLOCK.getId(block).getPath();
                     System.out.println("      - " + blockId);
@@ -141,9 +141,9 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
 
                 boolean hasCherryLeaves = category.getItems().stream().anyMatch(b -> Registries.BLOCK.getId(b).getPath().equals("cherry_leaves"));
                 boolean hasFloweringAzaleaLeaves = category.getItems().stream().anyMatch(b -> Registries.BLOCK.getId(b).getPath().equals("flowering_azalea_leaves"));
-                System.out.println("    检查结果：");
-                System.out.println("      cherry_leaves: " + (hasCherryLeaves ? "✅ 已包含" : "❌ 未包含"));
-                System.out.println("      flowering_azalea_leaves: " + (hasFloweringAzaleaLeaves ? "✅ 已包含" : "❌ 未包含"));
+                System.out.println("    Check results:");
+                System.out.println("      cherry_leaves: " + (hasCherryLeaves ? "✅ Included" : "❌ Not included"));
+                System.out.println("      flowering_azalea_leaves: " + (hasFloweringAzaleaLeaves ? "✅ Included" : "❌ Not included"));
             }
         }
         return result;
@@ -174,43 +174,43 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
         List<String> categories = new ArrayList<>();
         String blockId = Registries.BLOCK.getId(block).getPath().toLowerCase();
 
-        // 优先处理流体，确保它们被归类到流体分类
+        // Prioritize handling fluids to ensure they are categorized into fluid category
         if (blockId.equals("water") || blockId.equals("lava")) {
             categories.add("pushdozer.category.fluid");
             return categories;
         }
 
-        // 过滤非地形方块
-        // 使用硬度和常见模式来判断是否为地形方块
+        // Filter non-terrain blocks
+        // Use hardness and common patterns to determine if it's a terrain block
         BlockState defaultState = block.getDefaultState();
-        
-        // 1. 排除空气方块
+
+        // 1. Exclude air blocks
         if (defaultState.isAir()) {
             return categories;
         }
-        
-        // 2. 排除硬度为负数的方块（通常是不可破坏的特殊方块或空气），但保留流体
+
+        // 2. Exclude blocks with negative hardness (usually indestructible special blocks or air), but keep fluids
         if (block.getHardness() < 0 && !blockId.equals("obsidian") && !blockId.equals("bedrock")) {
             return categories;
         }
-        
-        // 3. 排除已知的非地形方块类型（但保留流体）
+
+        // 3. Exclude known non-terrain block types (but keep fluids)
         if (blockId.contains("sign") || blockId.contains("button") || blockId.contains("pressure_plate") || blockId.contains("lever")) {
             return categories;
         }
         
         try {
-            // 使用标签排除植物/花草/农作物/可替换植物等（但保留树叶和生物方块）
-            // 排除门、活板门
-            // 排除栅栏和栅栏门
-            // 手动排除其他装饰物和不需要的方块
-            // 排除玻璃板
-            // 排除酿造台
-            // 排除红石组件
-            // 排除其他不需要的方块
-            // 排除盆栽方块
-            // 排除结果的西瓜茎和结果的南瓜茎
-            // 排除珊瑚、失活的珊瑚、下界疣、红色蘑菇、棕色蘑菇、苍白垂须
+            // Use tags to exclude plants/flowers/crops/replaceable plants (but keep leaves and biological blocks)
+            // Exclude doors and trapdoors
+            // Exclude fences and fence gates
+            // Manually exclude other decorations and unwanted blocks
+            // Exclude glass panes
+            // Exclude brewing stands
+            // Exclude redstone components
+            // Exclude other unwanted blocks
+            // Exclude potted blocks
+            // Exclude attached melon/pumpkin stems
+            // Exclude corals, dead corals, nether warts, red/brown mushrooms, pale hanging moss
             if ((block.getDefaultState().isIn(BlockTags.FLOWERS) || block.getDefaultState().isIn(BlockTags.CROPS) || block.getDefaultState().isIn(BlockTags.SAPLINGS) || block.getDefaultState().isIn(BlockTags.REPLACEABLE) || block.getDefaultState().isIn(BlockTags.BEDS) || block.getDefaultState().isIn(BlockTags.BANNERS) || block.getDefaultState().isIn(BlockTags.WOOL) || block.getDefaultState().isIn(BlockTags.CANDLES) || block.getDefaultState().isIn(BlockTags.CAMPFIRES) || block.getDefaultState().isIn(BlockTags.CLIMBABLE) || block.getDefaultState().isIn(BlockTags.CORAL_PLANTS) || block.getDefaultState().isIn(BlockTags.DOORS) || block.getDefaultState().isIn(BlockTags.TRAPDOORS) || block.getDefaultState().isIn(BlockTags.FENCES) || block.getDefaultState().isIn(BlockTags.FENCE_GATES) || blockId.contains("torch") || blockId.contains("lantern") || blockId.contains("chain") || blockId.contains("end_rod") || blockId.contains("lily_pad") || blockId.contains("sugar_cane") || blockId.contains("bamboo") || blockId.contains("fungus") || blockId.contains("sea_pickle") || blockId.contains("vine") || blockId.contains("grass") || blockId.contains("fern") || blockId.contains("bush") || blockId.equals("painting") || blockId.contains("pale_hanging_moss") || blockId.contains("item_frame") || blockId.contains("carpet") || blockId.contains("pane") || blockId.equals("brewing_stand") || blockId.contains("repeater") || blockId.contains("comparator") || blockId.contains("tripwire_hook") || blockId.contains("redstone_wire") || blockId.contains("rail") || blockId.contains("powered_rail") || blockId.contains("detector_rail") || blockId.contains("activator_rail") || blockId.equals("bell") || blockId.contains("dripleaf") || blockId.contains("cake") || blockId.equals("cobweb") || blockId.equals("cocoa") || blockId.equals("conduit") || blockId.equals("dragon_egg") || blockId.contains("dragon_head") || blockId.equals("flower_pot") || blockId.equals("frogspawn") || blockId.equals("iron_bars") || blockId.contains("kelp") || blockId.equals("lightning_rod") || blockId.equals("sculk_vein") || blockId.contains("skull") || blockId.contains("head") || blockId.equals("pointed_dripstone") || blockId.equals("tripwire") || blockId.equals("turtle_egg") || blockId.equals("sculk_catalyst") || blockId.equals("sculk_shrieker") || blockId.equals("sculk_sensor") || blockId.contains("potted_") || blockId.equals("attached_melon_stem") || blockId.equals("attached_pumpkin_stem") || (blockId.contains("coral") && !blockId.contains("coral_block")) || blockId.equals("nether_wart") || blockId.equals("red_mushroom") || blockId.equals("brown_mushroom")) && 
                 !blockId.equals("cherry_leaves") && !blockId.equals("flowering_azalea_leaves") && !blockId.equals("frosted_ice") &&
                 !blockId.equals("grass_block") &&
@@ -229,7 +229,7 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
         }
 
         try {
-            // 1. 地形方块 - 只包含基础自然地形材料，排除加工建筑构件
+            // 1. Terrain blocks - Only include basic natural terrain materials, exclude processed building components
             if ((block.getDefaultState().isIn(BlockTags.DIRT) || block.getDefaultState().isIn(BlockTags.BASE_STONE_OVERWORLD) ||
                 block.getDefaultState().isIn(BlockTags.SAND) || blockId.equals("obsidian") || blockId.equals("bedrock") ||
                 blockId.equals("mud") || blockId.equals("muddy_mangrove_roots") || blockId.equals("packed_mud") || blockId.equals("dirt_path") ||
@@ -242,35 +242,35 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 blockId.equals("magma_block") || blockId.equals("infested_stone") || blockId.equals("infested_deepslate") ||
                 blockId.equals("infested_cobblestone") || blockId.equals("suspicious_gravel") ||
                 (blockId.contains("soil") && !blockId.contains("soul"))) &&
-                // 排除建筑构件：墙、台阶、楼梯等
+                // Exclude building components: walls, slabs, stairs, etc.
                 !block.getDefaultState().isIn(BlockTags.WALLS) &&
                 !block.getDefaultState().isIn(BlockTags.STAIRS) &&
                 !block.getDefaultState().isIn(BlockTags.SLABS) &&
                 !blockId.contains("wall") && !blockId.contains("slab") && !blockId.contains("stairs")) {
-                // 添加调试信息
+                // Add debug information
                 if (blockId.equals("grass_block")) {
-                    System.out.println("DEBUG: 找到草方块: " + blockId + ", 是否在BlockTags.DIRT中: " + block.getDefaultState().isIn(BlockTags.DIRT));
-                    System.out.println("DEBUG: " + blockId + " 被分类到地形分类");
+                    System.out.println("DEBUG: Found grass block: " + blockId + ", is in BlockTags.DIRT: " + block.getDefaultState().isIn(BlockTags.DIRT));
+                    System.out.println("DEBUG: " + blockId + " categorized into terrain category");
                 }
                 categories.add("pushdozer.category.terrain");
                 return categories;
             }
-            
-            // 2. 冰与雪
+
+            // 2. Ice and snow
             if (block.getDefaultState().isIn(BlockTags.ICE) || block.getDefaultState().isIn(BlockTags.SNOW) ||
-                blockId.equals("snow") || blockId.equals("snow_block") || blockId.equals("powder_snow") || 
+                blockId.equals("snow") || blockId.equals("snow_block") || blockId.equals("powder_snow") ||
                 blockId.equals("packed_ice") || blockId.equals("blue_ice") || blockId.equals("frosted_ice")) {
-                // 添加调试信息
+                // Add debug information
                 if (blockId.equals("frosted_ice")) {
-                    System.out.println("DEBUG: 找到霜冰方块: " + blockId + ", 是否在BlockTags.ICE中: " + block.getDefaultState().isIn(BlockTags.ICE));
-                    System.out.println("DEBUG: " + blockId + " 是否在BlockTags.REPLACEABLE中: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
-                    System.out.println("DEBUG: " + blockId + " 被分类到冰与雪分类");
+                    System.out.println("DEBUG: Found frosted ice block: " + blockId + ", is in BlockTags.ICE: " + block.getDefaultState().isIn(BlockTags.ICE));
+                    System.out.println("DEBUG: " + blockId + " is in BlockTags.REPLACEABLE: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
+                    System.out.println("DEBUG: " + blockId + " categorized into ice and snow category");
                 }
                 categories.add("pushdozer.category.ice_snow");
                 return categories;
             }
-            
-            // 3. 矿物方块（排除铜）
+
+            // 3. Ore blocks (exclude copper)
             if ((blockId.contains("ore") && !blockId.contains("spore") && !blockId.contains("copper")) || 
                 blockId.equals("ancient_debris") ||
                 blockId.endsWith("_block") && (blockId.contains("coal") || blockId.contains("iron") ||
@@ -280,33 +280,33 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 return categories;
             }
             
-            // 4. 铜方块
+            // 4. Copper blocks
             if (blockId.contains("copper")) {
                 categories.add("pushdozer.category.copper");
                 return categories;
             }
-            
-            // 5. 木材方块
+
+            // 5. Wood blocks
             if (block.getDefaultState().isIn(BlockTags.LOGS) || block.getDefaultState().isIn(BlockTags.PLANKS) ||
                 blockId.contains("bamboo_block") || blockId.contains("stripped_bamboo") ||
                 blockId.contains("hyphae") || blockId.equals("bamboo_mosaic")) {
                 categories.add("pushdozer.category.wood");
                 return categories;
             }
-            
-            // 6. 树叶方块
-            if (block.getDefaultState().isIn(BlockTags.LEAVES) || 
+
+            // 6. Leaf blocks
+            if (block.getDefaultState().isIn(BlockTags.LEAVES) ||
                 blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
-                // 添加调试信息
+                // Add debug information
                 if (blockId.equals("cherry_leaves") || blockId.equals("flowering_azalea_leaves")) {
-                    System.out.println("DEBUG: 找到特殊树叶方块: " + blockId + ", 是否在BlockTags.LEAVES中: " + block.getDefaultState().isIn(BlockTags.LEAVES));
-                    System.out.println("DEBUG: " + blockId + " 是否在BlockTags.REPLACEABLE中: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
+                    System.out.println("DEBUG: Found special leaf block: " + blockId + ", is in BlockTags.LEAVES: " + block.getDefaultState().isIn(BlockTags.LEAVES));
+                    System.out.println("DEBUG: " + blockId + " is in BlockTags.REPLACEABLE: " + block.getDefaultState().isIn(BlockTags.REPLACEABLE));
                 }
                 categories.add("pushdozer.category.leaves");
                 return categories;
             }
-            
-            // 7. 生物方块
+
+            // 7. Biological blocks
             if (blockId.contains("coral_block") || blockId.contains("dead_coral_block") ||
                 blockId.equals("dried_kelp_block") || blockId.equals("sponge") || blockId.equals("wet_sponge") ||
                 blockId.equals("melon") || blockId.equals("pumpkin") || blockId.equals("carved_pumpkin") ||
@@ -316,9 +316,9 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 blockId.equals("red_mushroom_block") || blockId.equals("mushroom_stem") || blockId.equals("nether_wart_block") ||
                 blockId.equals("warped_wart_block") || blockId.equals("bone_block") || blockId.equals("sniffer_egg") ||
                 blockId.equals("moss_block") || blockId.equals("pale_moss_block") ||
-                // 红树根方块
+                // Mangrove roots block
                 blockId.equals("mangrove_roots") ||
-                // 各种珊瑚块和失活的珊瑚块
+                // Various coral blocks and dead coral blocks
                 blockId.equals("tube_coral_block") || blockId.equals("brain_coral_block") || blockId.equals("bubble_coral_block") ||
                 blockId.equals("fire_coral_block") || blockId.equals("horn_coral_block") ||
                 blockId.equals("dead_tube_coral_block") || blockId.equals("dead_brain_coral_block") || blockId.equals("dead_bubble_coral_block") ||
@@ -326,22 +326,22 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 categories.add("pushdozer.category.biological");
                 return categories;
             }
-            
-            // 8. 楼梯与台阶
+
+            // 8. Stairs and slabs
             if (block.getDefaultState().isIn(BlockTags.STAIRS) || block.getDefaultState().isIn(BlockTags.SLABS)) {
                 categories.add("pushdozer.category.stairs_slabs");
                 return categories;
             }
             
-            // 9. 染色方块
+            // 9. Dyed blocks
             if (blockId.contains("stained_") || blockId.contains("terracotta") || blockId.contains("concrete") ||
-                (blockId.contains("glass") && !blockId.equals("glass")) || // 排除普通玻璃
+                (blockId.contains("glass") && !blockId.equals("glass")) || // Exclude plain glass
                 blockId.contains("glazed_terracotta")) {
                 categories.add("pushdozer.category.dyed");
                 return categories;
             }
-            
-            // 10. 功能方块
+
+            // 10. Functional blocks
             if (block.getDefaultState().isIn(BlockTags.ANVIL) || block.getDefaultState().isIn(BlockTags.CAULDRONS) ||
                 block.getDefaultState().isIn(BlockTags.SHULKER_BOXES) || blockId.contains("chest") ||
                 blockId.contains("barrel") || blockId.contains("furnace") || blockId.contains("smoker") ||
@@ -355,18 +355,18 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 return categories;
             }
             
-            // 11. 发光方块
-            if (blockId.equals("glowstone") || blockId.equals("sea_lantern") || blockId.contains("shroomlight") || 
-                blockId.contains("froglight") || blockId.equals("redstone_lamp") || blockId.contains("glow_lichen") || 
+            // 11. Glowing blocks
+            if (blockId.equals("glowstone") || blockId.equals("sea_lantern") || blockId.contains("shroomlight") ||
+                blockId.contains("froglight") || blockId.equals("redstone_lamp") || blockId.contains("glow_lichen") ||
                 blockId.equals("beacon") || blockId.equals("lantern") || blockId.equals("soul_lantern") ||
-                blockId.equals("campfire") || blockId.equals("soul_campfire") || 
-                blockId.equals("end_rod") || blockId.equals("torch") || 
+                blockId.equals("campfire") || blockId.equals("soul_campfire") ||
+                blockId.equals("end_rod") || blockId.equals("torch") ||
                 blockId.equals("soul_torch") || blockId.equals("redstone_torch") || blockId.equals("respawn_anchor")) {
                 categories.add("pushdozer.category.glowing");
                 return categories;
             }
-            
-            // 12. 装饰方块
+
+            // 12. Decorative blocks
             if (blockId.contains("brick") || blockId.contains("sandstone") || blockId.contains("prismarine") ||
                 blockId.contains("quartz") || blockId.equals("smooth_stone") || blockId.contains("glass") ||
                 blockId.contains("polished_") || blockId.contains("chiseled_") || blockId.equals("purpur_block") ||
@@ -375,21 +375,21 @@ public class NaturalBlockSelectionScreen extends AbstractPagedCategorySelectionS
                 return categories;
             }
             
-            // 13. 红石与机械
+            // 13. Redstone and mechanical
             if (blockId.contains("piston") || blockId.contains("dispenser") || blockId.contains("observer") ||
-                blockId.contains("hopper") || blockId.equals("tnt") || blockId.contains("target") || 
+                blockId.contains("hopper") || blockId.equals("tnt") || blockId.contains("target") ||
                 blockId.contains("button") || blockId.contains("pressure_plate") || blockId.contains("lever") ||
                 blockId.contains("redstone") || blockId.equals("dropper")) {
                 categories.add("pushdozer.category.redstone");
                 return categories;
             }
-            
+
         } catch (RuntimeException e) {
             ExceptionPolicy.rethrowIfProgrammingError(e);
             System.err.println("Failed to check tags for block: " + blockId + ", using miscellaneous: " + e.getMessage());
         }
-        
-        // 13. 杂项（兜底）
+
+        // 13. Miscellaneous (catch-all)
 
         categories.add("pushdozer.category.miscellaneous");
         return categories;

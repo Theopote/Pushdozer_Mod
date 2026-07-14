@@ -6,7 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 /**
- * 椭球体配置子面板
+ * Ellipsoid configuration sub-panel
  */
 public class EllipsoidSubPanel extends GeometrySubPanel {
     private CustomSliderWidget lengthSlider;
@@ -19,13 +19,13 @@ public class EllipsoidSubPanel extends GeometrySubPanel {
 
     @Override
     public void initPanel() {
-        // 长度滑动条（X轴半径）
+        // Length slider (X-axis radius)
         lengthSlider = addSlider(0, Text.translatable("pushdozer.dimension.length"), config.getLength());
-        
-        // 宽度滑动条（Z轴半径）
+
+        // Width slider (Z-axis radius)
         widthSlider = addSlider(1, Text.translatable("pushdozer.dimension.width"), config.getWidth());
-        
-        // 高度滑动条（Y轴半径）
+
+        // Height slider (Y-axis radius)
         heightSlider = addSlider(2, Text.translatable("pushdozer.dimension.height"), config.getEllipsoidHeight());
     }
 
@@ -33,7 +33,7 @@ public class EllipsoidSubPanel extends GeometrySubPanel {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!isVisible()) return;
 
-        // 绘制面板背景、标题背景和边框（优化的渲染顺序）
+        // Render panel background, title background and border (optimized rendering order)
         renderPanelBackground(context);
 
         lengthSlider.render(context, mouseX, mouseY, delta);
@@ -61,17 +61,17 @@ public class EllipsoidSubPanel extends GeometrySubPanel {
 
     @Override
     protected void updatePreview() {
-        // 获取当前滑动条的值
+        // Get current slider values
         int length = getSliderValue(lengthSlider);
         int width = getSliderValue(widthSlider);
         int height = getSliderValue(heightSlider);
 
-        // 更新配置但不保存
+        // Update configuration without saving
         config.setLength(length);
         config.setWidth(width);
         config.setEllipsoidHeight(height);
 
-        // 通知父屏幕更新预览
+        // Notify parent screen to update preview
         parent.updatePreview();
     }
 } 

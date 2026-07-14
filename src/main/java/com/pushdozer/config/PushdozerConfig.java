@@ -674,7 +674,7 @@ public class PushdozerConfig {
     }
 
     public void notifyListeners() {
-        // 实现配置变更通知逻辑
+        // Implement config change notification logic
     }
 
     public void save() {

@@ -323,7 +323,7 @@ public class BrushConfig {
                     ignoredBlocks.add(block);
                 }
             } else {
-                PushdozerMod.LOGGER.warn("无法解析忽略方块ID: {}", blockId);
+                PushdozerMod.LOGGER.warn("Unable to parse ignored block ID: {}", blockId);
             }
         }
         ignoredBlocksCacheDirty = false;

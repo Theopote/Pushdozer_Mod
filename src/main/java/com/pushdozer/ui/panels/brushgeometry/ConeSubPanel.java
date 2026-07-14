@@ -7,7 +7,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 /**
- * 圆锥体配置子面板
+ * Cone configuration sub-panel
  */
 public class ConeSubPanel extends GeometrySubPanel {
     private CustomSliderWidget radiusSlider;
@@ -19,10 +19,10 @@ public class ConeSubPanel extends GeometrySubPanel {
 
     @Override
     public void initPanel() {
-        // 底部半径滑动条
+        // Base radius slider
         radiusSlider = addSlider(0, Text.translatable("pushdozer.config.radius"), config.getConeRadius());
-        
-        // 高度滑动条
+
+        // Height slider
         heightSlider = addSlider(1, Text.translatable("pushdozer.dimension.height"), config.getConeHeight());
     }
 
@@ -30,7 +30,7 @@ public class ConeSubPanel extends GeometrySubPanel {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!isVisible()) return;
 
-        // 绘制面板背景、标题背景和边框（优化的渲染顺序）
+        // Render panel background, title background and border (optimized rendering order)
         renderPanelBackground(context);
 
         radiusSlider.render(context, mouseX, mouseY, delta);
@@ -54,15 +54,15 @@ public class ConeSubPanel extends GeometrySubPanel {
 
     @Override
     protected void updatePreview() {
-        // 获取当前滑动条的值
+        // Get current slider values
         int radius = getSliderValue(radiusSlider);
         int height = getSliderValue(heightSlider);
 
-        // 更新配置但不保存
+        // Update configuration without saving
         config.setConeRadius(radius);
         config.setConeHeight(height);
 
-        // 通知父屏幕更新预览
+        // Notify parent screen to update preview
         parent.updatePreview();
     }
 } 

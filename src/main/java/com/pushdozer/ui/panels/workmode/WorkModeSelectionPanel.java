@@ -17,48 +17,48 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * 工作模式选择面板，用于显示和选择不同的工作模式。
+ * Work mode selection panel for displaying and selecting different work modes.
  * <p>
- * 该面板提供了一个可视化的界面，允许用户从可用的工作模式中进行选择。
- * 面板会在屏幕中央显示，并支持鼠标交互。
+ * This panel provides a visual interface allowing users to select from available work modes.
+ * The panel displays in the center of the screen and supports mouse interaction.
  */
 public class WorkModeSelectionPanel {
-    // 颜色常量
-    private static final int COLOR_PANEL_BG = 0xC0101010;     // 面板背景
-    private static final int COLOR_PANEL_BORDER = 0xFFFFFFFF; // 面板边框
-    private static final int COLOR_TITLE_BG = 0xE0303030;     // 标题栏背景
-    private static final int COLOR_WHITE = 0xFFFFFF;          // 白色文本
-    // 移除未使用的选中颜色常量，实际高亮由渲染逻辑内联颜色实现
+    // Color constants
+    private static final int COLOR_PANEL_BG = 0xC0101010;     // Panel background
+    private static final int COLOR_PANEL_BORDER = 0xFFFFFFFF; // Panel border
+    private static final int COLOR_TITLE_BG = 0xE0303030;     // Title bar background
+    private static final int COLOR_WHITE = 0xFFFFFF;          // White text
+    // Removed unused selected color constant, actual highlight implemented by inline color in rendering logic
 
-    // 尺寸常量
-    private static final int PANEL_WIDTH = 210; // 统一加宽40
+    // Size constants
+    private static final int PANEL_WIDTH = 210; // Uniformly widened by 40
     private static final int PANEL_HEIGHT = 125;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_MARGIN = 5;
     private static final int TITLE_HEIGHT = 20;
 
-    // 核心字段
+    // Core fields
     private final PushdozerConfigScreen parent;
     private final PushdozerConfig config;
     private final Consumer<PushdozerConfig.WorkMode> onSelectionChanged;
     private final List<Element> widgets = new ArrayList<>();
-    // 仅展示的工作模式列表（隐藏旧的三个平滑模式项）
+    // Display-only work mode list (hides the old three smooth mode items)
     private List<PushdozerConfig.WorkMode> displayModes;
 
-    // 状态字段
+    // State fields
     private boolean visible = false;
     private int panelLeft, panelTop;
 
-    // 预计算的标题位置（性能优化）
+    // Pre-calculated title position (performance optimization)
     private int titleX, titleY;
     private Text titleText;
 
     /**
-     * 构造函数，初始化工作模式选择面板。
-     * 
-     * @param parent 父级配置屏幕
-     * @param config 配置对象
-     * @param onSelectionChanged 选择变化时的回调函数
+     * Constructor, initializes work mode selection panel.
+     *
+     * @param parent Parent configuration screen
+     * @param config Configuration object
+     * @param onSelectionChanged Callback function when selection changes
      */
     public WorkModeSelectionPanel(PushdozerConfigScreen parent, PushdozerConfig config,
                                   Consumer<PushdozerConfig.WorkMode> onSelectionChanged) {
@@ -66,11 +66,11 @@ public class WorkModeSelectionPanel {
         this.config = config;
         this.onSelectionChanged = onSelectionChanged;
 
-        // 计算面板位置（屏幕中央）
+        // Calculate panel position (screen center)
         this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
         this.panelTop = (parent.getScreenHeight() - PANEL_HEIGHT) / 2;
 
-        // 构建展示列表
+        // Build display list
         this.displayModes = getDisplayWorkModes();
 
         initializeWidgets();
@@ -78,31 +78,31 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 初始化所有按钮控件。
-     * 调整为每行放置两个按钮。
+     * Initialize all button controls.
+     * Adjusted to place two buttons per row.
      */
     private void initializeWidgets() {
         widgets.clear();
 
-        int startY = panelTop + TITLE_HEIGHT + BUTTON_MARGIN; // 留出标题空间和间距
+        int startY = panelTop + TITLE_HEIGHT + BUTTON_MARGIN; // Leave space for title and margin
         List<PushdozerConfig.WorkMode> modes = displayModes;
 
-        // 计算每个按钮的宽度，考虑左右边距和按钮之间的间距
+        // Calculate button width, considering left/right margins and spacing between buttons
         // (PANEL_WIDTH - 2 * BUTTON_MARGIN - BUTTON_MARGIN) / 2
-        // = (面板总宽度 - 左边距 - 右边距 - 中间按钮间距) / 2
+        // = (total panel width - left margin - right margin - center button spacing) / 2
         int buttonWidth = (PANEL_WIDTH - (BUTTON_MARGIN * 3)) / 2;
 
         for (int i = 0; i < modes.size(); i++) {
             PushdozerConfig.WorkMode mode = modes.get(i);
 
-            // 计算当前按钮的行和列
-            int row = i / 2; // 整除得到行号
-            int col = i % 2; // 取模得到列号 (0 或 1)
+            // Calculate current button's row and column
+            int row = i / 2; // Integer division to get row number
+            int col = i % 2; // Modulo to get column number (0 or 1)
 
-            // 计算按钮的 X 坐标
+            // Calculate button X coordinate
             int buttonX = panelLeft + BUTTON_MARGIN + (col * (buttonWidth + BUTTON_MARGIN));
 
-            // 计算按钮的 Y 坐标
+            // Calculate button Y coordinate
             int buttonY = startY + (row * (BUTTON_HEIGHT + BUTTON_MARGIN));
 
             ButtonWidget button = ButtonWidget.builder(
@@ -120,7 +120,7 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 获取按钮文本（带选中标记）
+     * Get button text (with selected marker)
      */
     private Text getButtonText(PushdozerConfig.WorkMode mode) {
         String prefix = (config.getWorkMode() == mode) ? "☑ " : "";
@@ -128,7 +128,7 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 更新按钮状态
+     * Update button states
      */
     private void updateButtonStates() {
         for (int i = 0; i < widgets.size(); i++) {
@@ -141,7 +141,7 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 预计算标题位置以优化渲染性能。
+     * Pre-calculate title position to optimize rendering performance.
      */
     private void initializeTitlePosition() {
         titleText = Text.translatable("pushdozer.panel.work_mode_selection.title");
@@ -154,9 +154,9 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 选择指定的工作模式。
-     * 
-     * @param mode 要选择的工作模式
+     * Select specified work mode.
+     *
+     * @param mode Work mode to select
      */
     private void selectWorkMode(PushdozerConfig.WorkMode mode) {
         config.setWorkMode(mode);
@@ -168,41 +168,41 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 显示面板。
+     * Show the panel.
      */
     public void show() {
         visible = true;
-        // 重新计算位置以防窗口大小改变
+        // Recalculate position in case window size changed
         this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
         this.panelTop = (parent.getScreenHeight() - PANEL_HEIGHT) / 2;
-        initializeWidgets(); // 重新初始化按钮，确保位置正确
+        initializeWidgets(); // Reinitialize buttons to ensure correct position
         initializeTitlePosition();
-        updateButtonStates(); // 更新按钮状态
+        updateButtonStates(); // Update button states
     }
 
     /**
-     * 隐藏面板。
+     * Hide the panel.
      */
     public void hide() {
         visible = false;
     }
 
     /**
-     * 检查面板是否可见。
-     * 
-     * @return 如果面板可见则返回 true
+     * Check if the panel is visible.
+     *
+     * @return true if the panel is visible
      */
     public boolean isVisible() {
         return visible;
     }
 
     /**
-     * 渲染面板的所有组件。
-     * 
-     * @param context 绘制上下文
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param delta 帧间隔时间
+     * Render all panel components.
+     *
+     * @param context Draw context
+     * @param mouseX Mouse X coordinate
+     * @param mouseY Mouse Y coordinate
+     * @param delta Frame delta time
      */
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
@@ -213,21 +213,21 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 渲染背景遮罩和面板背景。
-     * 
-     * @param context 绘制上下文
+     * Render background overlay and panel background.
+     *
+     * @param context Draw context
      */
     private void renderBackground(DrawContext context) {
-        // 1. 绘制半透明背景遮罩 (原代码中被注释掉了，这里保留原样)
+        // 1. Draw semi-transparent background overlay (commented out in original code, keeping as is)
         // context.fill(0, 0, parent.getScreenWidth(), parent.getScreenHeight(), COLOR_OVERLAY);
 
-        // 2. 绘制面板背景（半透明）
+        // 2. Draw panel background (semi-transparent)
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + PANEL_HEIGHT, COLOR_PANEL_BG);
 
-        // 3. 绘制标题栏背景
+        // 3. Draw title bar background
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
-        // 4. 绘制面板边框（在标题背景之后，确保边框不被遮挡）
+        // 4. Draw panel border (after title background to ensure border is not obscured)
         drawBorder(context, panelLeft, panelTop);
     }
 
@@ -243,9 +243,9 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 渲染标题文本。
-     * 
-     * @param context 绘制上下文
+     * Render title text.
+     *
+     * @param context Draw context
      */
     private void renderTitle(DrawContext context) {
         if (titleText == null) {
@@ -264,36 +264,36 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 渲染所有按钮。
-     * 
-     * @param context 绘制上下文
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param delta 帧间隔时间
+     * Render all buttons.
+     *
+     * @param context Draw context
+     * @param mouseX Mouse X coordinate
+     * @param mouseY Mouse Y coordinate
+     * @param delta Frame delta time
      */
     private void renderButtons(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 先重置所有按钮的焦点状态
+        // First reset all button focus states
         for (Element widget : widgets) {
             if (widget instanceof ButtonWidget button) {
                 button.setFocused(false);
             }
         }
-        
-        // 然后设置当前选中按钮的焦点状态
+
+        // Then set the currently selected button's focus state
         PushdozerConfig.WorkMode currentMode = config.getWorkMode();
-        
+
         for (int i = 0; i < widgets.size(); i++) {
             Element widget = widgets.get(i);
             if (widget instanceof ButtonWidget button) {
                 boolean isSelected = displayModes.get(i) == currentMode;
                 if (isSelected) {
-                    // 使用ButtonWidget的内置按下状态
+                    // Use ButtonWidget's built-in pressed state
                     button.setFocused(true);
                 }
             }
         }
-        
-        // 最后渲染所有按钮（让按钮自己处理文字渲染）
+
+        // Finally render all buttons (let buttons handle their own text rendering)
         for (Element widget : widgets) {
             if (widget instanceof net.minecraft.client.gui.Drawable) {
                 ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
@@ -302,20 +302,20 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 返回需要显示在工作模式选择面板中的模式列表
-     * 隐藏旧的三个平滑模式（SMOOTH_RAISE、SMOOTH_LOWER、ADAPTIVE_SMOOTH），仅保留统一的SMOOTH
+     * Returns the list of modes that need to be displayed in the work mode selection panel
+     * Hides the old three smooth modes (SMOOTH_RAISE, SMOOTH_LOWER, ADAPTIVE_SMOOTH), keeping only the unified SMOOTH
      */
     private List<PushdozerConfig.WorkMode> getDisplayWorkModes() {
         List<PushdozerConfig.WorkMode> list = new ArrayList<>();
         for (PushdozerConfig.WorkMode m : PushdozerConfig.WorkMode.values()) {
             switch (m) {
                 case SMOOTH_RAISE, SMOOTH_LOWER, ADAPTIVE_SMOOTH -> {
-                    // 跳过旧平滑
+                    // Skip old smooth modes
                 }
                 default -> list.add(m);
             }
         }
-        // 确保统一平滑模式存在
+        // Ensure unified smooth mode exists
         if (!list.contains(PushdozerConfig.WorkMode.SMOOTH)) {
             list.add(PushdozerConfig.WorkMode.SMOOTH);
         }
@@ -323,7 +323,7 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 处理鼠标点击事件。
+     * Handle mouse click events.
      */
     public boolean mouseClicked(Click click) {
         if (!visible) return false;
@@ -331,20 +331,20 @@ public class WorkModeSelectionPanel {
         double mouseX = click.x();
         double mouseY = click.y();
 
-        // 检查点击是否在面板内
+        // Check if click is within panel
         if (mouseX >= panelLeft && mouseX <= panelLeft + PANEL_WIDTH &&
             mouseY >= panelTop && mouseY <= panelTop + PANEL_HEIGHT) {
 
             return handleMouseEvent(widget -> widget.mouseClicked(click, false));
         }
 
-        // 点击在面板外部，关闭面板
+        // Click outside panel, close panel
         hide();
         return true;
     }
 
     /**
-     * 处理鼠标拖拽事件。
+     * Handle mouse drag events.
      */
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         if (!visible) return false;
@@ -352,7 +352,7 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 处理鼠标释放事件。
+     * Handle mouse release events.
      */
     public boolean mouseReleased(Click click) {
         if (!visible) return false;
@@ -360,10 +360,10 @@ public class WorkModeSelectionPanel {
     }
 
     /**
-     * 通用的鼠标事件处理方法。
-     * 
-     * @param eventHandler 事件处理函数
-     * @return 如果事件被处理则返回 true
+     * Generic mouse event handling method.
+     *
+     * @param eventHandler Event handling function
+     * @return true if event was handled
      */
     private boolean handleMouseEvent(Function<ClickableWidget, Boolean> eventHandler) {
         for (Element widget : widgets) {

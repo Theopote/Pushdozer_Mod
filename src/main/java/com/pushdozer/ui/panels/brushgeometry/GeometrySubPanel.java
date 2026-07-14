@@ -18,33 +18,33 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * GeometrySubPanel 是所有几何形状子面板的基类，负责管理公共的配置和组件。
- * 具体的几何形状（如 Box, Sphere 等）将继承自此类并实现特定的逻辑。
+ * GeometrySubPanel is the base class for all geometry shape sub-panels, managing common configuration and components.
+ * Specific geometric shapes (such as Box, Sphere, etc.) will inherit from this class and implement specific logic.
  */
 public abstract class GeometrySubPanel {
-    protected PushdozerConfigScreen parent;        // 父屏幕，用于交互和布局
-    protected PushdozerConfig config;              // 配置对象，存储各种设置
-    protected List<Element> widgets = new ArrayList<>(); // 存储面板中的所有组件
-    protected ButtonWidget confirmButton;          // 确认按钮
-    protected TextRenderer textRenderer;           // 文本渲染器字段
+    protected PushdozerConfigScreen parent;        // Parent screen, used for interaction and layout
+    protected PushdozerConfig config;              // Configuration object, stores various settings
+    protected List<Element> widgets = new ArrayList<>(); // Stores all components in the panel
+    protected ButtonWidget confirmButton;          // Confirm button
+    protected TextRenderer textRenderer;           // Text renderer field
 
-    // 布局常量
-    protected static final int PANEL_WIDTH = 210;           // 面板的宽度（统一加宽40）
-    protected static final int TITLE_HEIGHT = 20;           // 标题高度常量
-    // 滑动条和按钮宽度按面板宽度与边距动态计算
-    protected static final int SLIDER_HEIGHT = 20;          // 滑动条高度
-    protected static final int WIDGET_MARGIN_VERTICAL = 5;  // 组件之间的垂直间距
-    protected static final int WIDGET_MARGIN_HORIZONTAL = 5; // 组件水平边距
-    protected static final int CONFIRM_BUTTON_HEIGHT = 20;  // 确认按钮高度
-    protected static final int CONFIRM_BUTTON_MARGIN = 5;   // 确认按钮边距
-    protected int panelLeft, panelTop;              // 面板的左上角坐标
-    private boolean visible = false;                // 面板是否可见
+    // Layout constants
+    protected static final int PANEL_WIDTH = 210;           // Panel width (uniformly widened by 40)
+    protected static final int TITLE_HEIGHT = 20;           // Title height constant
+    // Slider and button widths calculated dynamically based on panel width and margins
+    protected static final int SLIDER_HEIGHT = 20;          // Slider height
+    protected static final int WIDGET_MARGIN_VERTICAL = 5;  // Vertical spacing between widgets
+    protected static final int WIDGET_MARGIN_HORIZONTAL = 5; // Widget horizontal margin
+    protected static final int CONFIRM_BUTTON_HEIGHT = 20;  // Confirm button height
+    protected static final int CONFIRM_BUTTON_MARGIN = 5;   // Confirm button margin
+    protected int panelLeft, panelTop;              // Panel top-left corner coordinates
+    private boolean visible = false;                // Whether the panel is visible
 
     /**
-     * 构造函数，初始化父屏幕和配置对象。
+     * Constructor, initializes parent screen and configuration object.
      *
-     * @param parent  父屏幕对象
-     * @param config  配置对象
+     * @param parent  Parent screen object
+     * @param config  Configuration object
      */
     public GeometrySubPanel(PushdozerConfigScreen parent, PushdozerConfig config) {
         this.parent = parent;
@@ -53,8 +53,8 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 初始化面板，包括计算位置和创建组件。
-     * 此方法会在屏幕首次打开和每次窗口尺寸改变时被调用。
+     * Initialize the panel, including calculating position and creating components.
+     * This method is called when the screen is first opened and each time the window size changes.
      */
     public void init() {
         this.widgets.clear();
@@ -74,33 +74,33 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 获取面板高度，根据控件数量动态计算
+     * Get panel height, dynamically calculated based on widget count
      */
     protected int getPanelHeight() {
-        // 计算动态高度：标题高度 + 控件总高度 + 确认按钮高度 + 确认按钮下边距
+        // Calculate dynamic height: title height + content total height + confirm button height + confirm button bottom margin
         int contentHeight = calculateContentHeight();
         return TITLE_HEIGHT + contentHeight + CONFIRM_BUTTON_HEIGHT + CONFIRM_BUTTON_MARGIN;
     }
 
     /**
-     * 计算内容区域高度
+     * Calculate content area height
      */
     protected int calculateContentHeight() {
-        int widgetCount = widgets.size() - 1; // 减去确认按钮
+        int widgetCount = widgets.size() - 1; // Subtract confirm button
         if (widgetCount <= 0) {
-            return WIDGET_MARGIN_VERTICAL * 2; // 至少保留上下边距
+            return WIDGET_MARGIN_VERTICAL * 2; // Keep at least top and bottom margins
         }
-        
-        // 计算控件总高度：
-        // - 控件本身的高度：widgetCount * SLIDER_HEIGHT
-        // - 控件之间的间距：(widgetCount - 1) * WIDGET_MARGIN_VERTICAL
-        // - 第一个控件与标题的间距：WIDGET_MARGIN_VERTICAL
-        // - 最后一个控件与确认按钮的间距：WIDGET_MARGIN_VERTICAL
+
+        // Calculate total widget height:
+        // - Widget height itself: widgetCount * SLIDER_HEIGHT
+        // - Spacing between widgets: (widgetCount - 1) * WIDGET_MARGIN_VERTICAL
+        // - Spacing between first widget and title: WIDGET_MARGIN_VERTICAL
+        // - Spacing between last widget and confirm button: WIDGET_MARGIN_VERTICAL
         return widgetCount * SLIDER_HEIGHT + (widgetCount - 1) * WIDGET_MARGIN_VERTICAL + WIDGET_MARGIN_VERTICAL + WIDGET_MARGIN_VERTICAL;
     }
 
     /**
-     * 更新控件位置
+     * Update widget positions
      */
     protected void updateWidgetPositions() {
         int contentX = panelLeft + WIDGET_MARGIN_HORIZONTAL;
@@ -126,22 +126,22 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 初始化面板的方法，由子类实现具体的组件添加逻辑。
+     * Initialize panel method, implemented by subclasses for specific component addition logic.
      */
     public abstract void initPanel();
 
     /**
-     * 渲染面板的方法，由子类实现具体的渲染逻辑。
+     * Render panel method, implemented by subclasses for specific rendering logic.
      *
-     * @param context  渲染上下文
-     * @param mouseX   鼠标X坐标
-     * @param mouseY   鼠标Y坐标
-     * @param delta    渲染间隔时间
+     * @param context  Render context
+     * @param mouseX   Mouse X coordinate
+     * @param mouseY   Mouse Y coordinate
+     * @param delta    Render delta time
      */
     public abstract void render(DrawContext context, int mouseX, int mouseY, float delta);
 
     /**
-     * 保存配置的方法，由子类实现具体的保存逻辑。
+     * Save configuration method, implemented by subclasses for specific save logic.
      */
     public abstract void saveConfig();
 
@@ -151,40 +151,40 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * CustomSliderWidget 是自定义的滑动条组件，继承自 SliderWidget。
-     * 它用于在界面上显示和调整特定的数值参数（如长度、宽度、高度、半径等）。
+     * CustomSliderWidget is a custom slider component that extends SliderWidget.
+     * It is used to display and adjust specific numeric parameters (such as length, width, height, radius, etc.) in the interface.
      */
     protected static class CustomSliderWidget extends SliderWidget {
-        private final String label;                    // 滑动条的标签，例如 "长度"
-        private final int min;                         // 滑动条的最小值
-        private final int max;                         // 滑动条的最大值
-        private final Consumer<Integer> onValueChange; // 值改变时的回调
+        private final String label;                    // Slider label, e.g., "Length"
+        private final int min;                         // Slider minimum value
+        private final int max;                         // Slider maximum value
+        private final Consumer<Integer> onValueChange; // Callback when value changes
 
         /**
-         * 构造函数，初始化滑动条的属性。
+         * Constructor, initializes slider properties.
          *
-         * @param x              滑动条的X坐标
-         * @param y              滑动条的Y坐标
-         * @param width          滑动条的宽度
-         * @param height         滑动条的高度
-         * @param label          滑动条的标签
-         * @param min            滑动条的最小值
-         * @param max            滑动条的最大值
-         * @param initialValue   滑动条的初始值
-         * @param onValueChange  值改变时的回调
+         * @param x              Slider X coordinate
+         * @param y              Slider Y coordinate
+         * @param width          Slider width
+         * @param height         Slider height
+         * @param label          Slider label
+         * @param min            Slider minimum value
+         * @param max            Slider maximum value
+         * @param initialValue   Slider initial value
+         * @param onValueChange  Callback when value changes
          */
-        public CustomSliderWidget(int x, int y, int width, int height, String label, int min, int max, 
+        public CustomSliderWidget(int x, int y, int width, int height, String label, int min, int max,
                                 int initialValue, Consumer<Integer> onValueChange) {
             super(x, y, width, height, Text.empty(), (double) (initialValue - min) / (max - min));
             this.label = label;
             this.min = min;
             this.max = max;
             this.onValueChange = onValueChange;
-            updateMessage(); // 首次调用以设置初始文本
+            updateMessage(); // First call to set initial text
         }
 
         /**
-         * 更新滑动条上显示的消息，显示当前的数值。
+         * Update message displayed on slider, showing current value.
          */
         @Override
         protected void updateMessage() {
@@ -192,19 +192,19 @@ public abstract class GeometrySubPanel {
         }
 
         /**
-         * 当滑动条的值改变时调用，用于更新显示和执行相关逻辑。
+         * Called when slider value changes, used to update display and execute related logic.
          */
         @Override
         protected void applyValue() {
             if (this.onValueChange != null) {
-                this.onValueChange.accept(getIntValue()); // 执行回调，并传入当前值
+                this.onValueChange.accept(getIntValue()); // Execute callback and pass current value
             }
         }
 
         /**
-         * 获取滑动条当前的整数值，根据滑动条的进度计算。
+         * Get current integer value of slider, calculated based on slider progress.
          *
-         * @return 当前的整数值
+         * @return Current integer value
          */
         public int getIntValue() {
             return (int) Math.round(MathHelper.lerp(this.value, this.min, this.max));
@@ -212,14 +212,14 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 添加滑动条
-     * @param index 滑动条索引
-     * @param label 滑动条标签
-     * @param value 初始值
-     * @return 创建的滑动条
+     * Add slider
+     * @param index Slider index
+     * @param label Slider label
+     * @param value Initial value
+     * @return Created slider
      */
     protected CustomSliderWidget addSlider(int index, Text label, int value) {
-        // 计算滑动条位置：标题下方 + 索引 * (滑动条高度 + 间距) + 间距
+        // Calculate slider position: below title + index * (slider height + spacing) + spacing
         int y = panelTop + TITLE_HEIGHT + WIDGET_MARGIN_VERTICAL + (index * (SLIDER_HEIGHT + WIDGET_MARGIN_VERTICAL));
         CustomSliderWidget slider = new CustomSliderWidget(
             panelLeft + WIDGET_MARGIN_HORIZONTAL,
@@ -230,24 +230,24 @@ public abstract class GeometrySubPanel {
             PushdozerConfig.MIN_BRUSH_RADIUS,
             PushdozerConfig.MAX_BRUSH_RADIUS,
             value,
-            (newValue) -> this.updatePreview() // 传递一个 Lambda 作为回调
+            (newValue) -> this.updatePreview() // Pass a lambda as callback
         );
         widgets.add(slider);
         return slider;
     }
 
     /**
-     * 获取滑动条的当前值。
+     * Get current value of slider.
      *
-     * @param slider 要获取值的滑动条
-     * @return 滑动条的当前整数值
+     * @param slider Slider to get value from
+     * @return Slider's current integer value
      */
     protected int getSliderValue(CustomSliderWidget slider) {
         return slider.getIntValue();
     }
 
     /**
-     * 显示面板。
+     * Show the panel.
      */
     public void show() {
         visible = true;
@@ -255,30 +255,30 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 隐藏面板。
+     * Hide the panel.
      */
     public void hide() {
         visible = false;
     }
 
     /**
-     * 检查面板是否可见。
+     * Check if the panel is visible.
      *
-     * @return 如果面板可见，则返回 true；否则返回 false
+     * @return true if the panel is visible; false otherwise
      */
     public boolean isVisible() {
         return visible;
     }
 
     /**
-     * 初始化确认按钮，将其添加到面板中。
+     * Initialize confirm button and add it to the panel.
      */
     protected void initConfirmButton() {
-        // 计算确认按钮位置
+        // Calculate confirm button position
         int confirmButtonY = panelTop + getPanelHeight() - CONFIRM_BUTTON_HEIGHT - CONFIRM_BUTTON_MARGIN;
-        
+
         confirmButton = ButtonWidget.builder(
-            Text.translatable("pushdozer.button.done"), 
+            Text.translatable("pushdozer.button.done"),
             button -> {
                 saveConfig();
                 closeSubPanel();
@@ -293,25 +293,25 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 关闭子面板，隐藏当前面板并通知父屏幕隐藏子面板。
+     * Close sub-panel, hide current panel and notify parent screen to hide sub-panel.
      */
     protected void closeSubPanel() {
-        hide();                   // 隐藏当前面板
-        parent.hideSubPanel();    // 通知父屏幕隐藏子面板
-        parent.showMainPanel();   // 显示主界面
+        hide();                   // Hide current panel
+        parent.hideSubPanel();    // Notify parent screen to hide sub-panel
+        parent.showMainPanel();   // Show main interface
     }
 
     /**
-     * 获取面板中的所有组件。
+     * Get all components in the panel.
      *
-     * @return 组件列表
+     * @return Component list
      */
     public List<Element> getWidgets() {
         return widgets;
     }
 
     /**
-     * 处理鼠标点击事件。
+     * Handle mouse click events.
      */
     public boolean mouseClicked(Click click) {
         for (Element widget : widgets) {
@@ -323,7 +323,7 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 处理鼠标拖动事件。
+     * Handle mouse drag events.
      */
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         for (Element widget : widgets) {
@@ -335,17 +335,17 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 渲染面板背景和边框（优化的渲染顺序）
-     * @param context 绘图上下文
+     * Render panel background and border (optimized rendering order)
+     * @param context Draw context
      */
     protected void renderPanelBackground(DrawContext context) {
-        // 1. 绘制面板背景（半透明）
+        // 1. Draw panel background (semi-transparent)
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + getPanelHeight(), 0xC0101010);
-        
-        // 2. 绘制标题栏背景
+
+        // 2. Draw title bar background
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, 0xE0303030);
-        
-        // 3. 绘制面板边框（在标题背景之后，确保边框不被遮挡）
+
+        // 3. Draw panel border (after title background to ensure border is not obscured)
         drawBorder(context, panelLeft, panelTop, getPanelHeight());
     }
 
@@ -361,9 +361,9 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 渲染标题文本
-     * @param context 绘图上下文
-     * @param title 标题文本
+     * Render title text
+     * @param context Draw context
+     * @param title Title text
      */
     protected void renderTitle(DrawContext context, Text title) {
         TextRenderer renderer = parent != null ? parent.resolveTextRenderer() : textRenderer;
@@ -379,7 +379,7 @@ public abstract class GeometrySubPanel {
     }
 
     /**
-     * 更新预览的抽象方法，由子类实现具体的预览逻辑
+     * Abstract method for updating preview, implemented by subclasses for specific preview logic
      */
     protected abstract void updatePreview();
 }

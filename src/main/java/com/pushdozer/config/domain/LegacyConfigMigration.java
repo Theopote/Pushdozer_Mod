@@ -8,7 +8,7 @@ import com.pushdozer.config.PushdozerConfig;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * 旧版扁平 JSON 迁移与默认值修复。
+ * Legacy flat JSON migration and default value fixes.
  */
 public final class LegacyConfigMigration {
     private static final Gson GSON = new Gson();
@@ -183,7 +183,7 @@ public final class LegacyConfigMigration {
         config.getSurface().ensureSurfaceConvertDefaults();
     }
 
-    /** 旧版扁平 JSON 字段快照，仅用于迁移。 */
+    /** Legacy flat JSON field snapshot, used only for migration. */
     private static final class LegacyFlatSnapshot {
         PushdozerConfig.WorkMode workMode;
         PushdozerConfig.DisplayMode displayMode;

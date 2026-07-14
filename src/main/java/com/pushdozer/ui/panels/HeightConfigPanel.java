@@ -18,40 +18,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 标高配置面板，用于配置标高限制模式。
+ * Height configuration panel for configuring height limit mode.
  * <p>
- * 该面板提供了一个可视化的界面，允许用户选择标高限制模式。
- * 面板会在屏幕中央显示，并支持鼠标交互。
+ * This panel provides a visual interface allowing users to select height limit mode.
+ * The panel displays in the center of the screen and supports mouse interaction.
  */
 public class HeightConfigPanel {
-    // 颜色常量
-    private static final int COLOR_PANEL_BG = 0xC0101010;     // 面板背景
-    private static final int COLOR_PANEL_BORDER = 0xFFFFFFFF; // 面板边框
-    private static final int COLOR_TITLE_BG = 0xE0303030;     // 标题栏背景
-    private static final int COLOR_WHITE = 0xFFFFFF;          // 白色文本
-    // 移除未使用的选中颜色常量，实际高亮由渲染逻辑内联颜色实现
+    // Color constants
+    private static final int COLOR_PANEL_BG = 0xC0101010;     // Panel background
+    private static final int COLOR_PANEL_BORDER = 0xFFFFFFFF; // Panel border
+    private static final int COLOR_TITLE_BG = 0xE0303030;     // Title bar background
+    private static final int COLOR_WHITE = 0xFFFFFF;          // White text
+    // Removed unused selected color constant, actual highlight implemented by inline color in rendering logic
 
-    // 尺寸常量
-    private static final int PANEL_WIDTH = 250; // 统一加宽40
+    // Size constants
+    private static final int PANEL_WIDTH = 250; // Uniformly widened by 40
     private static final int PANEL_HEIGHT = 125;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_MARGIN = 5;
     private static final int TITLE_HEIGHT = 20;
 
-    // 核心字段
+    // Core fields
     private final PushdozerConfigScreen parent;
     private final PushdozerConfig config;
     private final List<Element> widgets = new ArrayList<>();
 
-    // 状态字段
+    // State fields
     private boolean visible = false;
     private int panelLeft, panelTop;
 
-    // 预计算的标题位置（性能优化）
+    // Pre-calculated title position (performance optimization)
     private int titleX, titleY;
     private Text titleText;
 
-    // 控件
+    // Controls
     private ButtonWidget followPlayerButton;
     private ButtonWidget lockOnceButton;
     private ButtonWidget noLimitButton;
@@ -59,16 +59,16 @@ public class HeightConfigPanel {
     private SliderWidget heightSlider;
 
     /**
-     * 构造函数，初始化标高配置面板。
-     * 
-     * @param parent 父级配置屏幕
-     * @param config 配置对象
+     * Constructor, initializes height configuration panel.
+     *
+     * @param parent Parent configuration screen
+     * @param config Configuration object
      */
     public HeightConfigPanel(PushdozerConfigScreen parent, PushdozerConfig config) {
         this.parent = parent;
         this.config = config;
 
-        // 计算面板位置（屏幕中央）
+        // Calculate panel position (screen center)
         this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
         this.panelTop = (parent.getScreenHeight() - PANEL_HEIGHT) / 2;
 
@@ -77,16 +77,16 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 初始化所有按钮控件。
+     * Initialize all button controls.
      */
     private void initializeWidgets() {
         widgets.clear();
 
-        int startY = panelTop + TITLE_HEIGHT + BUTTON_MARGIN; // 留出标题空间和间距
-        int buttonWidth = (PANEL_WIDTH - (BUTTON_MARGIN * 3)) / 2; // 两列
+        int startY = panelTop + TITLE_HEIGHT + BUTTON_MARGIN; // Leave space for title and margin
+        int buttonWidth = (PANEL_WIDTH - (BUTTON_MARGIN * 3)) / 2; // Two columns
         int buttonFullWidth = PANEL_WIDTH - (BUTTON_MARGIN * 2);
 
-        // 第一行：跟随玩家标高、锁定到玩家标高
+        // First row: Follow player height, Lock to player height
         followPlayerButton = ButtonWidget.builder(
                 getButtonText(PushdozerConfig.HeightMode.FOLLOW_PLAYER),
                 button -> selectHeightMode(PushdozerConfig.HeightMode.FOLLOW_PLAYER))
@@ -100,7 +100,7 @@ public class HeightConfigPanel {
                 .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.height_locked_once")))
                 .build();
 
-        // 第二行：标高不限、自定义标高
+        // Second row: No height limit, Custom height
         noLimitButton = ButtonWidget.builder(
                 getButtonText(PushdozerConfig.HeightMode.NO_LIMIT),
                 button -> selectHeightMode(PushdozerConfig.HeightMode.NO_LIMIT))
@@ -114,7 +114,7 @@ public class HeightConfigPanel {
                 .tooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.height_custom")))
                 .build();
 
-        // 滑动条
+        // Slider
         int currentHeight = config.getLockedHeight();
         heightSlider = new HeightConfigSlider(
                 panelLeft + BUTTON_MARGIN,
@@ -125,7 +125,7 @@ public class HeightConfigPanel {
                 (currentHeight + 64) / 384.0
         );
 
-        // 确定按钮
+        // Done button
         ButtonWidget doneButton = ButtonWidget.builder(
                         Text.translatable("pushdozer.button.done"),
                         button -> {
@@ -144,12 +144,12 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 获取按钮文本（带选中标记）
+     * Get button text (with selected marker)
      */
     private Text getButtonText(PushdozerConfig.HeightMode mode) {
         PushdozerConfig.HeightMode currentMode = config.getHeightMode();
         boolean isLockedOnce = config.isLockedOnceMode();
-        
+
         String prefix;
         if (mode == PushdozerConfig.HeightMode.LOCKED_ONCE) {
             prefix = isLockedOnce ? "☑ " : "";
@@ -158,7 +158,7 @@ public class HeightConfigPanel {
         } else {
             prefix = (currentMode == mode) ? "☑ " : "";
         }
-        
+
         Text baseText = switch (mode) {
             case FOLLOW_PLAYER -> Text.translatable("pushdozer.config.height_follow_player");
             case LOCKED_ONCE -> Text.translatable("pushdozer.config.height_locked_once");
@@ -169,7 +169,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 预计算标题位置以优化渲染性能。
+     * Pre-calculate title position to optimize rendering performance.
      */
     private void initializeTitlePosition() {
         titleText = Text.translatable("pushdozer.panel.height_config.title");
@@ -182,15 +182,15 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 选择指定的标高模式。
-     * 
-     * @param mode 要选择的标高模式
+     * Select specified height mode.
+     *
+     * @param mode Height mode to select
      */
     private void selectHeightMode(PushdozerConfig.HeightMode mode) {
         if (mode == PushdozerConfig.HeightMode.LOCKED_ONCE) {
-            // 锁定到玩家标高：将当前玩家脚下方块高度写入 config 并切换到 LOCKED_ONCE
+            // Lock to player height: Write current player's foot block height to config and switch to LOCKED_ONCE
             if (parent.getClient() != null && parent.getClient().player != null) {
-                int y = parent.getClient().player.getBlockY() - 1; // 玩家脚下方块标高
+                int y = parent.getClient().player.getBlockY() - 1; // Player's foot block height
                 config.setLockedHeight(y);
                 config.setHeightMode(PushdozerConfig.HeightMode.CUSTOM);
                 config.setLockedOnceMode(true);
@@ -221,7 +221,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 更新按钮状态。
+     * Update button states.
      */
     private void updateButtonStates() {
         followPlayerButton.setMessage(getButtonText(PushdozerConfig.HeightMode.FOLLOW_PLAYER));
@@ -231,41 +231,41 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 显示面板。
+     * Show the panel.
      */
     public void show() {
         visible = true;
-        // 重新计算位置以防窗口大小改变
+        // Recalculate position in case window size changed
         this.panelLeft = (parent.getScreenWidth() - PANEL_WIDTH) / 2;
         this.panelTop = (parent.getScreenHeight() - PANEL_HEIGHT) / 2;
-        initializeWidgets(); // 重新初始化按钮，确保位置正确
+        initializeWidgets(); // Reinitialize buttons to ensure correct position
         initializeTitlePosition();
         updateButtonStates();
     }
 
     /**
-     * 隐藏面板。
+     * Hide the panel.
      */
     public void hide() {
         visible = false;
     }
 
     /**
-     * 检查面板是否可见。
-     * 
-     * @return 如果面板可见则返回 true
+     * Check if the panel is visible.
+     *
+     * @return true if the panel is visible
      */
     public boolean isVisible() {
         return visible;
     }
 
     /**
-     * 渲染面板的所有组件。
-     * 
-     * @param context 绘制上下文
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param delta 帧间隔时间
+     * Render all panel components.
+     *
+     * @param context Draw context
+     * @param mouseX Mouse X coordinate
+     * @param mouseY Mouse Y coordinate
+     * @param delta Frame delta time
      */
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!visible) return;
@@ -276,18 +276,18 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 渲染背景遮罩和面板背景。
-     * 
-     * @param context 绘制上下文
+     * Render background overlay and panel background.
+     *
+     * @param context Draw context
      */
     private void renderBackground(DrawContext context) {
-        // 绘制面板背景（半透明）
+        // Draw panel background (semi-transparent)
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + PANEL_HEIGHT, COLOR_PANEL_BG);
 
-        // 绘制标题栏背景
+        // Draw title bar background
         context.fill(panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + TITLE_HEIGHT, COLOR_TITLE_BG);
 
-        // 绘制面板边框（在标题背景之后，确保边框不被遮挡）
+        // Draw panel border (after title background to ensure border is not obscured)
         drawBorder(context, panelLeft, panelTop);
     }
 
@@ -303,9 +303,9 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 渲染标题文本。
-     * 
-     * @param context 绘制上下文
+     * Render title text.
+     *
+     * @param context Draw context
      */
     private void renderTitle(DrawContext context) {
         if (titleText == null) {
@@ -323,15 +323,15 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 渲染所有按钮。
-     * 
-     * @param context 绘制上下文
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param delta 帧间隔时间
+     * Render all buttons.
+     *
+     * @param context Draw context
+     * @param mouseX Mouse X coordinate
+     * @param mouseY Mouse Y coordinate
+     * @param delta Frame delta time
      */
     private void renderButtons(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 先重置所有按钮的焦点状态
+        // First reset all button focus states
         if (followPlayerButton != null) {
             followPlayerButton.setFocused(false);
         }
@@ -344,11 +344,11 @@ public class HeightConfigPanel {
         if (customHeightButton != null) {
             customHeightButton.setFocused(false);
         }
-        
-        // 然后设置当前选中按钮的焦点状态
+
+        // Then set the currently selected button's focus state
         PushdozerConfig.HeightMode currentMode = config.getHeightMode();
         boolean isLockedOnce = config.isLockedOnceMode();
-        
+
         if (currentMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER && followPlayerButton != null) {
             followPlayerButton.setFocused(true);
         }
@@ -361,8 +361,8 @@ public class HeightConfigPanel {
         if (currentMode == PushdozerConfig.HeightMode.CUSTOM && !isLockedOnce && customHeightButton != null) {
             customHeightButton.setFocused(true);
         }
-        
-        // 最后渲染所有按钮（让按钮自己处理文字渲染）
+
+        // Finally render all buttons (let buttons handle their own text rendering)
         for (Element widget : widgets) {
             if (widget instanceof Drawable) {
                 ((Drawable) widget).render(context, mouseX, mouseY, delta);
@@ -371,7 +371,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 处理鼠标点击事件。
+     * Handle mouse click events.
      */
     public boolean mouseClicked(Click click) {
         double mouseX = click.x();
@@ -387,7 +387,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 处理鼠标拖拽事件。
+     * Handle mouse drag events.
      */
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         double mouseX = click.x();
@@ -403,7 +403,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 处理鼠标释放事件。
+     * Handle mouse release events.
      */
     public boolean mouseReleased(Click click) {
         double mouseX = click.x();
@@ -419,7 +419,7 @@ public class HeightConfigPanel {
     }
 
     /**
-     * 标高配置滑动条
+     * Height configuration slider
      */
     private class HeightConfigSlider extends SliderWidget {
         public HeightConfigSlider(int x, int y, int width, int height, Text text, double value) {

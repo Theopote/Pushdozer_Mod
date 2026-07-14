@@ -20,8 +20,8 @@ import net.minecraft.world.World;
 import java.util.*;
 
 /**
- * 抽象地形工具处理器基类
- * 提供所有地形工具共享的基础功能，子类只需实现特定的高度计算算法
+ * Abstract terrain tool handler base class
+ * Provides shared base functionality for all terrain tools, subclasses only need to implement specific height calculation algorithms
  */
 public abstract class AbstractTerrainToolHandler {
 
@@ -36,14 +36,14 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 处理地形操作的主入口方法
-     * 增加了多人游戏支持和权限验证
+     * Main entry point for handling terrain operations
+     * Enhanced with multiplayer support and permission verification
      */
     public void handleOperation(PlayerEntity player, World world, UndoAction.ActionType actionType, PushdozerConfig config) {
         this.config = config;
         if (world.isClient()) return;
 
-        // 多人游戏权限检查
+        // Multiplayer permission check
         if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
             return;
         }
@@ -59,7 +59,7 @@ public abstract class AbstractTerrainToolHandler {
         List<BlockState> originalStates = new ArrayList<>();
         List<BlockState> newStates = new ArrayList<>();
 
-        // 执行地形操作（先规划变更，再跨 tick 应用）
+        // Execute terrain operation (plan changes first, then apply across ticks)
         processTerrain(world, shape, basePos, affectedPositions, originalStates, newStates);
 
         if (affectedPositions.isEmpty() || !(world instanceof ServerWorld serverWorld)) {
@@ -104,47 +104,47 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 处理地形的主要方法
+     * Main method for processing terrain
      */
     protected void processTerrain(World world, GeometryShape shape, BlockPos brushCenter,
                                   List<BlockPos> affectedPositions,
                                   List<BlockState> originalStates,
                                   List<BlockState> newStates) {
-        // 1. 采集地形信息
+        // 1. Collect terrain information
         Map<BlockPos, TerrainColumn> columns = collectTerrainColumns(world, shape, brushCenter);
-        
+
         if (columns.isEmpty()) {
             return;
         }
 
-        // 2. 计算目标高度
+        // 2. Calculate target heights
         Map<BlockPos, Integer> targetHeights = new HashMap<>();
         for (Map.Entry<BlockPos, TerrainColumn> entry : columns.entrySet()) {
             BlockPos columnXZ = entry.getKey();
             TerrainColumn column = entry.getValue();
-            
+
             int targetHeight = calculateTargetHeight(columns, column, columnXZ, brushCenter);
             targetHeights.put(columnXZ, targetHeight);
         }
 
-        // 3. 应用高度变化
+        // 3. Apply height changes
         for (Map.Entry<BlockPos, Integer> entry : targetHeights.entrySet()) {
             BlockPos columnXZ = entry.getKey();
             int targetHeight = entry.getValue();
             TerrainColumn column = columns.get(columnXZ);
-            
+
             applyHeightChange(world, columnXZ, column, targetHeight,
                            affectedPositions, originalStates, newStates);
         }
     }
 
     /**
-     * 采集地形信息
+     * Collect terrain information
      */
     protected Map<BlockPos, TerrainColumn> collectTerrainColumns(World world, GeometryShape shape, BlockPos brushCenter) {
         Map<BlockPos, TerrainColumn> columns = new HashMap<>();
-        
-        // 获取所有唯一的(X,Z)坐标
+
+        // Get all unique (X,Z) coordinates
         Set<BlockPos> uniqueXZPositions = shape.getBlockPositions().stream()
             .map(pos -> new BlockPos(pos.getX(), 0, pos.getZ()))
             .collect(java.util.stream.Collectors.toSet());
@@ -153,8 +153,8 @@ public abstract class AbstractTerrainToolHandler {
             BlockPos groundPos = findGroundBlock(world, columnXZ.withY(brushCenter.getY() + config.getRadius()));
             if (groundPos != null) {
                 BlockState groundState = world.getBlockState(groundPos);
-                
-                // 确保找到的不是被忽略的方块
+
+                // Ensure the found block is not an ignored block
                 if (isIgnoredBlock(groundState) || groundState.isAir()) {
                     groundPos = findGroundBlock(world, groundPos.down());
                     if (groundPos == null) continue;
@@ -164,36 +164,36 @@ public abstract class AbstractTerrainToolHandler {
                 if (isIgnoredBlock(groundState) || groundState.isAir()) {
                     continue;
                 }
-                
+
                 TerrainColumn column = new TerrainColumn(groundState, groundPos.getY());
                 columns.put(columnXZ, column);
             }
         }
-        
+
         return columns;
     }
 
     /**
-     * 查找地面方块
+     * Find ground block
      */
     protected BlockPos findGroundBlock(World world, BlockPos initialPos) {
         BlockPos.Mutable currentPos = new BlockPos.Mutable(initialPos.getX(), initialPos.getY(), initialPos.getZ());
-        
+
         if (world.isAir(currentPos) || isWater(world, currentPos) || isIgnoredBlock(world.getBlockState(currentPos))) {
-            // 从空中开始向下搜索
+            // Starting from air, search downward
         } else {
-            // 如果起始点是固体，先向上找到天空
-            // REFINED: 使用 world.getHeight() 以兼容动态世界高度
-            while (currentPos.getY() < world.getHeight() && 
-                   !world.isAir(currentPos) && !isWater(world, currentPos) && 
+            // If starting point is solid, first search upward to find the sky
+            // REFINED: Use world.getHeight() for compatibility with dynamic world height
+            while (currentPos.getY() < world.getHeight() &&
+                   !world.isAir(currentPos) && !isWater(world, currentPos) &&
                    !isIgnoredBlock(world.getBlockState(currentPos))) {
                 currentPos.move(0, 1, 0);
             }
         }
-        
-        // 向下找到第一个非空气/水/忽略的方块
-        while (currentPos.getY() >= world.getBottomY() && 
-               (world.isAir(currentPos) || isWater(world, currentPos) || 
+
+        // Search downward to find the first non-air/water/ignored block
+        while (currentPos.getY() >= world.getBottomY() &&
+               (world.isAir(currentPos) || isWater(world, currentPos) ||
                 isIgnoredBlock(world.getBlockState(currentPos)))) {
             currentPos.move(0, -1, 0);
         }
@@ -205,7 +205,7 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 应用高度变化
+     * Apply height changes
      */
     protected void applyHeightChange(World world, BlockPos columnXZ, TerrainColumn column,
                                    int targetHeight, List<BlockPos> affectedPositions,
@@ -213,12 +213,12 @@ public abstract class AbstractTerrainToolHandler {
         int currentHeight = column.getOriginalHeight();
         BlockState fillState = column.getMainBlockState();
 
-        // 将目标高度限制在世界有效范围内
+        // Clamp target height to valid world range
         int clampedTargetHeight = Math.max(world.getBottomY(), Math.min(world.getHeight() - 1, targetHeight));
 
         if (clampedTargetHeight > currentHeight) {
-            // 提升高度
-            // 选择顶层方块与填充方块，使生成的地形更自然
+            // Raise height
+            // Select top layer block and fill block to make generated terrain more natural
             BlockState topState = fillState;
             BlockState fillerState = fillState;
                 if (fillState.isOf(Blocks.GRASS_BLOCK)) {
@@ -226,11 +226,11 @@ public abstract class AbstractTerrainToolHandler {
                 topState = Blocks.GRASS_BLOCK.getDefaultState();
 
                 Random posRandom = PositionRandom.at(columnXZ);
-                if (posRandom.nextFloat() < 0.1f) {
+                if (posRandom.nextFloat() < COARSE_DIRT_PROBABILITY) {
                     fillerState = Blocks.COARSE_DIRT.getDefaultState();
                 }
             } else if (fillState.isOf(Blocks.PODZOL) || fillState.isOf(Blocks.MYCELIUM)) {
-                // 灰化土/菌丝：内部使用泥土，表面保持原样
+                // Podzol/Mycelium: use dirt inside, keep original surface
                 fillerState = Blocks.DIRT.getDefaultState();
                 topState = fillState;
             }
@@ -238,7 +238,7 @@ public abstract class AbstractTerrainToolHandler {
             for (int y = currentHeight + 1; y <= clampedTargetHeight; y++) {
                 BlockPos pos = new BlockPos(columnXZ.getX(), y, columnXZ.getZ());
                 BlockState originalState = world.getBlockState(pos);
-                
+
                 if (originalState.isReplaceable() || isWater(world, pos)) {
                     boolean isTopLayer = (y == clampedTargetHeight);
                     BlockState placeState = isTopLayer ? topState : fillerState;
@@ -246,16 +246,16 @@ public abstract class AbstractTerrainToolHandler {
                     originalStates.add(originalState);
                     newStates.add(placeState);
                 } else {
-                    // 如果遇到无法替换的方块，停止这一列的提升
+                    // If encountering a non-replaceable block, stop raising this column
                     break;
                 }
             }
         } else if (clampedTargetHeight < currentHeight) {
-            // 降低高度
+            // Lower height
             for (int y = currentHeight; y > clampedTargetHeight; y--) {
                 BlockPos pos = new BlockPos(columnXZ.getX(), y, columnXZ.getZ());
                 BlockState originalState = world.getBlockState(pos);
-                
+
                 if (!world.isAir(pos)) {
                     affectedPositions.add(pos);
                     originalStates.add(originalState);
@@ -266,29 +266,29 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 收集悬空植物（在高度变更应用后执行）
+     * Collect floating vegetation (executed after height changes are applied)
      */
     protected void collectFloatingVegetation(World world, GeometryShape shape,
                                           List<BlockPos> affectedPositions,
                                           List<BlockState> originalStates,
                                           List<BlockState> newStates) {
-        // 获取所有唯一的(X,Z)坐标，避免重复检查
+        // Get all unique (X,Z) coordinates to avoid duplicate checks
         Set<BlockPos> uniqueXZPositions = shape.getBlockPositions().stream()
             .map(pos -> new BlockPos(pos.getX(), 0, pos.getZ()))
             .collect(java.util.stream.Collectors.toSet());
 
         for (BlockPos columnXZ : uniqueXZPositions) {
-            // 找到该列的地表高度
+            // Find the ground height for this column
             BlockPos groundPos = findGroundBlock(world, columnXZ.withY(world.getHeight()));
             if (groundPos == null) continue;
-            
+
             int groundHeight = groundPos.getY();
-            
-            // 【优化】检查地表上方更多方块内的悬空植物，处理更高的树/结构
-            for (int y = groundHeight + 1; y <= groundHeight + 10; y++) {
+
+            // Check for floating vegetation above ground (up to MAX_FLOATING_VEGETATION_CHECK_HEIGHT blocks)
+            for (int y = groundHeight + 1; y <= groundHeight + MAX_FLOATING_VEGETATION_CHECK_HEIGHT; y++) {
                 BlockPos pos = new BlockPos(columnXZ.getX(), y, columnXZ.getZ());
                 BlockState state = world.getBlockState(pos);
-                
+
                 if (isIgnoredBlock(state)) {
                     BlockPos below = pos.down();
                     if (world.isAir(below) || isWater(world, below)) {
@@ -302,7 +302,7 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 检查是否为水
+     * Check if water
      */
     protected boolean isWater(World world, BlockPos pos) {
         FluidState fluidState = world.getFluidState(pos);
@@ -310,12 +310,12 @@ public abstract class AbstractTerrainToolHandler {
     }
 
     /**
-     * 检查是否为忽略的方块
-     * REFINED: 使用BlockTags，更具兼容性和可扩展性
+     * Check if ignored block
+     * REFINED: Uses BlockTags for better compatibility and extensibility
      */
     protected boolean isIgnoredBlock(BlockState state) {
-        // 使用标签，自动兼容原版更新和其他模组添加的同类方块
-        if (state.isIn(BlockTags.LOGS) || 
+        // Use tags to automatically be compatible with vanilla updates and blocks added by other mods
+        if (state.isIn(BlockTags.LOGS) ||
             state.isIn(BlockTags.LEAVES) ||
             state.isIn(BlockTags.FLOWERS) ||
             state.isIn(BlockTags.SAPLINGS) ||
@@ -323,96 +323,100 @@ public abstract class AbstractTerrainToolHandler {
             state.isIn(BlockTags.SMALL_FLOWERS)) {
             return true;
         }
-        
-        // 检查竹子（没有合适的标签）
+
+        // Check bamboo (no suitable tag)
         if (state.getBlock() instanceof BambooBlock) {
             return true;
         }
-        
-        // 对于没有合适标签的，使用简化的Set
+
+        // For blocks without suitable tags, use simplified Set
         return IGNORED_BLOCKS.contains(state.getBlock());
     }
 
     /**
-     * 抽象方法：计算目标高度
-     * 子类必须实现此方法来定义特定的地形操作算法
+     * Abstract method: Calculate target height
+     * Subclasses must implement this method to define specific terrain operation algorithms
      */
     protected abstract int calculateTargetHeight(Map<BlockPos, TerrainColumn> columns, 
                                                TerrainColumn currentColumn,
                                                BlockPos columnXZ, 
                                                BlockPos brushCenter);
 
-    // 高斯参数配置
-    private static final float GAUSSIAN_KERNEL_RADIUS_FACTOR = 2.5f; // 高斯核半径因子
+    // Terrain operation constants
+    private static final float COARSE_DIRT_PROBABILITY = 0.1f;
+    private static final int MAX_FLOATING_VEGETATION_CHECK_HEIGHT = 10;
+
+    // Gaussian smoothing parameters
+    private static final float GAUSSIAN_KERNEL_RADIUS_FACTOR = 2.5f;
     private static final float MIN_SIGMA = 1.0f;
 
     /**
-     * 计算区域平滑高度（性能优化版本）
-     * 供子类复用的通用方法
+     * Calculate smoothed height for region (performance optimized version)
+     * Reusable common method for subclasses
      */
-    protected float calculateSmoothedHeight(Map<BlockPos, TerrainColumn> columns, 
-                                          BlockPos columnXZ, 
-                                          BlockPos brushCenter, 
+    protected float calculateSmoothedHeight(Map<BlockPos, TerrainColumn> columns,
+                                          BlockPos columnXZ,
+                                          BlockPos brushCenter,
                                           int brushRadius) {
         float totalWeight = 0;
         float weightedHeightSum = 0;
 
-        // 使用可配置的高斯参数
+        // Use configurable Gaussian parameters
         float sigmaFactor = getSigmaFactor(brushRadius);
         float sigma = brushRadius * sigmaFactor;
         if (sigma < MIN_SIGMA) sigma = MIN_SIGMA;
-        
+
         double twoSigmaSquared = 2.0 * sigma * sigma;
-        
-        // 性能优化：限制高斯核范围
+
+        // Performance optimization: limit Gaussian kernel range
         float kernelRadius = sigma * GAUSSIAN_KERNEL_RADIUS_FACTOR;
         float maxDistanceSq = kernelRadius * kernelRadius;
-        
-        // 以当前列为权重中心，确保平滑基准随位置变化更自然
+
+        // Use current column as weight center to ensure smooth baseline varies more naturally with position
         BlockPos currentCenterXZ = new BlockPos(columnXZ.getX(), 0, columnXZ.getZ());
-        
-        // 遍历所有邻近的柱子计算加权平均高度
+
+        // Iterate through all nearby columns to calculate weighted average height
         for (Map.Entry<BlockPos, TerrainColumn> entry : columns.entrySet()) {
             BlockPos neighborColumnXZ = entry.getKey();
             TerrainColumn neighborColumn = entry.getValue();
 
-            // 使用当前列到邻居列的2D平面距离计算
+            // Use 2D plane distance from current column to neighbor column for calculation
             double distanceSq = neighborColumnXZ.getSquaredDistance(currentCenterXZ);
 
-            // 性能优化：跳过超出高斯核范围的方块
+            // Performance optimization: skip blocks beyond Gaussian kernel range
             if (distanceSq > maxDistanceSq) continue;
 
-            // 高斯衰减权重
+            // Gaussian decay weight
             float weight = (float) Math.exp(-distanceSq / twoSigmaSquared);
-            
+
             weightedHeightSum += neighborColumn.getOriginalHeight() * weight;
             totalWeight += weight;
         }
 
         if (totalWeight <= 0) {
-            return 0; // 返回默认值，实际使用时会被原始高度替代
+            return 0; // Return default value, will be replaced with original height in actual use
         }
 
         return weightedHeightSum / totalWeight;
     }
 
     /**
-     * 获取高斯参数因子
-     * 根据笔刷半径动态调整，确保在不同半径下效果一致
+     * Get Gaussian parameter factor
+     * Dynamically adjust based on brush radius to ensure consistent effect at different radii
      */
     protected float getSigmaFactor(int brushRadius) {
-        // 小半径使用较大的因子以获得更好的局部效果
+        // Small radius uses larger factor for better local effects
         if (brushRadius <= 5) {
             return 0.5f;
         } else if (brushRadius <= 10) {
             return 0.4f;
         } else {
-            return 0.35f; // 大半径使用较小的因子以避免过度平滑
+            return 0.35f; // Large radius uses smaller factor to avoid over-smoothing
         }
     }
 
     /**
-     * 地形列数据类
+     * Terrain column data class
      */
     protected static class TerrainColumn {
         private final int originalHeight;

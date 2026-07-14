@@ -16,6 +16,7 @@ import net.minecraft.world.chunk.light.LightingProvider;
 import com.pushdozer.util.ExceptionPolicy;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Deque;
 import java.util.ArrayDeque;
 import org.slf4j.Logger;
@@ -24,13 +25,13 @@ import org.slf4j.LoggerFactory;
 public class UndoRedoManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private static final int MAX_UNDO_REDO_STEPS = 30;
-    private static final int LARGE_OPERATION_THRESHOLD = 4096; // 大操作阈值
-    private final Map<UUID, PlayerUndoRedoStacks> playerStacks = new HashMap<>();
+    private static final int LARGE_OPERATION_THRESHOLD = 4096; // Large operation threshold
+    private final Map<UUID, PlayerUndoRedoStacks> playerStacks = new ConcurrentHashMap<>();
 
-    // 冷却与并发保护
-    private final Map<UUID, Long> lastActionTime = new HashMap<>();
-    private static final long ACTION_COOLDOWN_MS = 300; // 撤销/重做统一冷却
-    private final Set<UUID> executingPlayers = new HashSet<>();
+    // Cooldown and concurrency protection
+    private final Map<UUID, Long> lastActionTime = new ConcurrentHashMap<>();
+    private static final long ACTION_COOLDOWN_MS = 300; // Unified cooldown for undo/redo
+    private final Set<UUID> executingPlayers = ConcurrentHashMap.newKeySet();
 
     private static class PlayerUndoRedoStacks {
         final Deque<UndoAction> undoStack = new ArrayDeque<>();
@@ -41,51 +42,57 @@ public class UndoRedoManager {
         UUID playerId = player.getUuid();
         PlayerUndoRedoStacks stacks = playerStacks.computeIfAbsent(playerId, k -> new PlayerUndoRedoStacks());
         if (stacks.undoStack.size() >= MAX_UNDO_REDO_STEPS) {
-            stacks.undoStack.removeFirst(); // 移除最旧的操作
+            stacks.undoStack.removeFirst(); // Remove the oldest operation
         }
         stacks.undoStack.push(action);
         stacks.redoStack.clear();
-        LOGGER.debug("玩家 {} 添加了新的撤销操作，类型：{}，涉及 {} 个方块，当前撤销栈大小: {}", 
+        LOGGER.debug("Player {} added new undo action, type: {}, affected blocks: {}, current undo stack size: {}",
             player.getName().getString(), action.getType(), action.getPositions().size(), stacks.undoStack.size());
     }
 
     public void undoLastAction(PlayerEntity player, World world) {
         UUID playerId = player.getUuid();
-        LOGGER.debug("玩家 {} 尝试执行撤销操作", player.getName().getString());
+        LOGGER.debug("Player {} attempting to execute undo operation", player.getName().getString());
 
         if (isCoolingDownOrExecuting(playerId)) return;
         markExecuting(playerId);
-        Runnable finish = () -> {
-            updateCooldown(playerId);
-            unmarkExecuting(playerId);
-        };
+
         try {
             PlayerUndoRedoStacks stacks = playerStacks.get(playerId);
-            LOGGER.debug("玩家 {} 的撤销栈状态: undoStack={}, redoStack={}", 
-                player.getName().getString(), 
-                stacks != null ? stacks.undoStack.size() : "null", 
+            LOGGER.debug("Player {} undo stack state: undoStack={}, redoStack={}",
+                player.getName().getString(),
+                stacks != null ? stacks.undoStack.size() : "null",
                 stacks != null ? stacks.redoStack.size() : "null");
-            
+
             if (stacks != null && !stacks.undoStack.isEmpty()) {
                 UndoAction action = stacks.undoStack.pop();
-                LOGGER.debug("开始执行撤销操作，类型: {}, 方块数: {}", action.getType(), action.getPositions().size());
+                LOGGER.debug("Starting undo operation, type: {}, block count: {}", action.getType(), action.getPositions().size());
                 executeUndoRedoAction(action, player, world, true, success -> {
-                    if (success) {
-                        stacks.redoStack.push(action);
-                        LOGGER.debug("玩家 {} 撤销成功，类型：{}，涉及 {} 个方块",
-                            player.getName().getString(), action.getType(), action.getPositions().size());
-                    } else {
-                        LOGGER.warn("玩家 {} 撤销失败，操作被忽略", player.getName().getString());
+                    try {
+                        if (success) {
+                            stacks.redoStack.push(action);
+                            LOGGER.debug("Player {} undo successful, type: {}, affected blocks: {}",
+                                player.getName().getString(), action.getType(), action.getPositions().size());
+                        } else {
+                            LOGGER.warn("Player {} undo failed, operation ignored", player.getName().getString());
+                        }
+                    } finally {
+                        updateCooldown(playerId);
+                        unmarkExecuting(playerId);
                     }
-                    finish.run();
                 });
                 return;
             }
-            LOGGER.debug("玩家 {} 尝试撤销，但没有可撤销的操作", player.getName().getString());
-            finish.run();
+            LOGGER.debug("Player {} attempted undo, but no operations available to undo", player.getName().getString());
         } catch (RuntimeException e) {
-            finish.run();
+            LOGGER.error("Player {} encountered exception during undo operation", player.getName().getString(), e);
             throw e;
+        } finally {
+            // Ensure state cleanup even on exception
+            if (executingPlayers.contains(playerId)) {
+                updateCooldown(playerId);
+                unmarkExecuting(playerId);
+            }
         }
     }
 
@@ -93,31 +100,37 @@ public class UndoRedoManager {
         UUID playerId = player.getUuid();
         if (isCoolingDownOrExecuting(playerId)) return;
         markExecuting(playerId);
-        Runnable finish = () -> {
-            updateCooldown(playerId);
-            unmarkExecuting(playerId);
-        };
+
         try {
             PlayerUndoRedoStacks stacks = playerStacks.get(playerId);
             if (stacks != null && !stacks.redoStack.isEmpty()) {
                 UndoAction action = stacks.redoStack.pop();
                 executeUndoRedoAction(action, player, world, false, success -> {
-                    if (success) {
-                        stacks.undoStack.push(action);
-                        LOGGER.debug("玩家 {} 重做成功，类型：{}，涉及 {} 个方块",
-                            player.getName().getString(), action.getType(), action.getPositions().size());
-                    } else {
-                        LOGGER.warn("玩家 {} 重做失败，操作被忽略", player.getName().getString());
+                    try {
+                        if (success) {
+                            stacks.undoStack.push(action);
+                            LOGGER.debug("Player {} redo successful, type: {}, affected blocks: {}",
+                                player.getName().getString(), action.getType(), action.getPositions().size());
+                        } else {
+                            LOGGER.warn("Player {} redo failed, operation ignored", player.getName().getString());
+                        }
+                    } finally {
+                        updateCooldown(playerId);
+                        unmarkExecuting(playerId);
                     }
-                    finish.run();
                 });
                 return;
             }
-            LOGGER.debug("玩家 {} 尝试重做，但没有可重做的操作", player.getName().getString());
-            finish.run();
+            LOGGER.debug("Player {} attempted redo, but no operations available to redo", player.getName().getString());
         } catch (RuntimeException e) {
-            finish.run();
+            LOGGER.error("Player {} encountered exception during redo operation", player.getName().getString(), e);
             throw e;
+        } finally {
+            // Ensure state cleanup even on exception
+            if (executingPlayers.contains(playerId)) {
+                updateCooldown(playerId);
+                unmarkExecuting(playerId);
+            }
         }
     }
 
@@ -144,8 +157,8 @@ public class UndoRedoManager {
         List<BlockState> originalStates = action.getOriginalStates();
         List<BlockState> newStates = action.getNewStates();
 
-        LOGGER.debug("开始执行{}操作，玩家: {}，涉及 {} 个方块", 
-            isUndo ? "撤销" : "重做", player.getName().getString(), positions.size());
+        LOGGER.debug("Starting {} operation, player: {}, affected blocks: {}",
+            isUndo ? "undo" : "redo", player.getName().getString(), positions.size());
 
         List<BlockPos> validPositions = new ArrayList<>(positions.size());
         List<BlockState> validNewStates = new ArrayList<>(positions.size());
@@ -160,7 +173,7 @@ public class UndoRedoManager {
             }
         }
         if (skipped > 0) {
-            LOGGER.debug("位置验证跳过 {} 个不可用位置", skipped);
+            LOGGER.debug("Position validation skipped {} unavailable positions", skipped);
         }
 
         boolean isLarge = validPositions.size() >= LARGE_OPERATION_THRESHOLD;
@@ -172,7 +185,7 @@ public class UndoRedoManager {
         };
 
         if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
-            LOGGER.debug("跨 tick 分批应用 {} 个方块（每 tick 最多 {} 个）",
+            LOGGER.debug(“Applying {} blocks in batches across ticks (max {} per tick)”,
                 validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
             BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
                 BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
@@ -184,16 +197,16 @@ public class UndoRedoManager {
     }
 
     /**
-     * 将撤销/重做的方块变更同步给触发玩家。
+     * Synchronizes undo/redo block changes to the triggering player.
      * <p>
-     * 该方法被拆分为“小操作逐块同步 / 大操作按区块同步”两条路径，便于在单测中覆盖阈值分支，
-     * 同时避免直接构造复杂的区块数据包对象导致测试脆弱。
+     * This method is split into two paths: “small operation block-by-block sync / large operation chunk-by-chunk sync”
+     * to facilitate threshold branch coverage in unit tests while avoiding fragile tests caused by directly constructing complex chunk data packet objects.
      */
     protected void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
                                           boolean isLarge, boolean isUndo) {
         if (!(player instanceof ServerPlayerEntity serverPlayer)) {
-            LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
-                isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
+            LOGGER.debug("Completed {} operation, updated valid positions: {} (large operation: {})",
+                isUndo ? "undo" : "redo", validPositions.size(), isLarge);
             return;
         }
 
@@ -204,8 +217,8 @@ public class UndoRedoManager {
             syncLargeOperation(serverWorld, serverPlayer, validPositions, lightProvider);
         }
 
-        LOGGER.debug("完成{}操作，已更新有效位置: {} (大操作: {})",
-            isUndo ? "撤销" : "重做", validPositions.size(), isLarge);
+        LOGGER.debug("Completed {} operation, updated valid positions: {} (large operation: {})",
+            isUndo ? "undo" : "redo", validPositions.size(), isLarge);
     }
 
     protected void syncSmallOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions) {
@@ -213,7 +226,7 @@ public class UndoRedoManager {
             if (!serverWorld.isChunkLoaded(new ChunkPos(pos).toLong())) {
                 continue;
             }
-            ExceptionPolicy.runPerItem("发送方块更新 " + pos, () -> {
+            ExceptionPolicy.runPerItem("Send block update " + pos, () -> {
                 BlockState currentState = serverWorld.getBlockState(pos);
                 sendPacket(serverPlayer, new BlockUpdateS2CPacket(pos, currentState));
             }, LOGGER);
@@ -226,9 +239,9 @@ public class UndoRedoManager {
         for (BlockPos pos : validPositions) {
             affectedChunks.add(new ChunkPos(pos));
         }
-        sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "大操作快速同步");
+        sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "Large operation fast sync");
         Objects.requireNonNull(serverWorld.getServer()).execute(() ->
-            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "延迟光照同步")
+            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "Delayed lighting sync")
         );
     }
 
@@ -243,16 +256,16 @@ public class UndoRedoManager {
             if (chunk == null) {
                 continue;
             }
-            ExceptionPolicy.runPerItem("发送区块数据 " + chunkPos, () ->
+            ExceptionPolicy.runPerItem("Send chunk data " + chunkPos, () ->
                 sendPacket(serverPlayer, new ChunkDataS2CPacket(chunk, lightProvider, null, null)),
                 LOGGER);
             sent++;
         }
-        LOGGER.debug("{}：发送 {} 个区块到玩家 {}", reason, sent, serverPlayer.getName().getString());
+        LOGGER.debug("{}: Sent {} chunks to player {}", reason, sent, serverPlayer.getName().getString());
     }
 
     /**
-     * 发送数据包到客户端。抽为可覆盖点，便于在 GameTest 中捕获实际发送的包类型。
+     * Sends packet to client. Abstracted as an overridable point to facilitate capturing actual sent packet types in GameTest.
      */
     protected void sendPacket(ServerPlayerEntity player, Packet<?> packet) {
         player.networkHandler.sendPacket(packet);
@@ -280,27 +293,27 @@ public class UndoRedoManager {
     private void unmarkExecuting(UUID playerId) { executingPlayers.remove(playerId); }
 
     /**
-     * 调试方法：检查玩家的撤销栈状态
+     * Debug method: Check player's undo stack state
      */
     public void debugPlayerStacks(PlayerEntity player) {
         UUID playerId = player.getUuid();
         PlayerUndoRedoStacks stacks = playerStacks.get(playerId);
-        
+
         if (stacks == null) {
-            LOGGER.debug("玩家 {} 没有撤销栈", player.getName().getString());
+            LOGGER.debug("Player {} has no undo stack", player.getName().getString());
         } else {
-            LOGGER.debug("玩家 {} 的撤销栈状态: undoStack={}, redoStack={}", 
+            LOGGER.debug("Player {} undo stack state: undoStack={}, redoStack={}",
                 player.getName().getString(), stacks.undoStack.size(), stacks.redoStack.size());
-            
+
             if (!stacks.undoStack.isEmpty()) {
                 UndoAction topAction = stacks.undoStack.peek();
-                LOGGER.debug("栈顶操作: 类型={}, 方块数={}", topAction.getType(), topAction.getPositions().size());
+                LOGGER.debug("Top of stack operation: type={}, block count={}", topAction.getType(), topAction.getPositions().size());
             }
         }
     }
 
     /**
-     * 获取玩家的撤销栈大小
+     * Gets the size of player's undo stack
      */
     public int getUndoStackSize(PlayerEntity player) {
         UUID playerId = player.getUuid();
