@@ -62,7 +62,7 @@ class UndoRedoManagerConcurrencyTest {
         );
 
         UndoAction action = new UndoAction(
-            UndoAction.ActionType.EXCAVATE,
+            UndoAction.ActionType.BREAK,
             positions,
             originalStates,
             newStates
@@ -213,7 +213,7 @@ class UndoRedoManagerConcurrencyTest {
         List<BlockState> newStates = Collections.singletonList(Blocks.AIR.getDefaultState());
 
         return new UndoAction(
-            UndoAction.ActionType.EXCAVATE,
+            UndoAction.ActionType.BREAK,
             positions,
             originalStates,
             newStates

@@ -8,6 +8,8 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import com.pushdozer.shapes.*;
 import com.pushdozer.util.ExceptionPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -29,6 +31,7 @@ import com.pushdozer.util.ExceptionPolicy;
  */
 public class PointCloudRenderer {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private static final float LINE_WIDTH = 2.0f;
 
     /** 球体纬度分段数 */
@@ -96,7 +99,7 @@ public class PointCloudRenderer {
 
         } catch (RuntimeException e) {
             ExceptionPolicy.rethrowIfProgrammingError(e);
-            System.err.println("PointCloudRenderer error: " + e.getMessage());
+            LOGGER.debug("PointCloudRenderer error: {}", e.getMessage());
         }
     }
 

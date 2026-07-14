@@ -1,95 +1,15 @@
-# Pushdozer 文档中心
+# Pushdozer Documentation
 
-欢迎来到 Pushdozer 文档中心！这里包含了使用 Pushdozer 模组所需的所有信息。
+User-facing documentation has moved to the dedicated docs site:
 
-## 📚 文档目录
+**https://theopote.github.io/Pushdozer-Introduction/**
 
-### 🚀 快速开始
-- **[快速入门指南](./快速入门指南.md)** - 5分钟快速上手 Pushdozer
-- **[完整使用教程](./Pushdozer使用教程.md)** - 详细的功能说明和使用指南
+Repository: [Theopote/Pushdozer-Introduction](https://github.com/Theopote/Pushdozer-Introduction)
 
-### ⚙️ 配置与设置
-- **[配置参考](./配置参考.md)** - 详细的配置选项和参数说明
-- **[多人游戏功能](./MULTIPLAYER_FEATURES.md)** - 多人游戏特性和说明
-- **[多人游戏支持](./MULTIPLAYER_SUPPORT.md)** - 多人游戏技术细节
+## For Developers
 
-### 📋 其他文档
-- **[Modrinth 描述](./modrinth_description.md)** - 模组发布页面描述
+- [README](../README.md) — build, install, project overview
+- [CONTRIBUTING](../CONTRIBUTING.md) — how to contribute
+- [CHANGELOG](../CHANGELOG.md) — version history
 
-## 🎯 推荐阅读顺序
-
-### 新用户
-1. **[快速入门指南](./快速入门指南.md)** - 快速了解基本操作
-2. **[完整使用教程](./Pushdozer使用教程.md)** - 深入学习所有功能
-3. **[配置参考](./配置参考.md)** - 根据需要调整配置
-
-### 有经验的用户
-1. **[配置参考](./配置参考.md)** - 查看高级配置选项
-2. **[多人游戏功能](./MULTIPLAYER_FEATURES.md)** - 了解多人游戏特性
-3. **[多人游戏支持](./MULTIPLAYER_SUPPORT.md)** - 技术实现细节
-
-## 🔍 快速查找
-
-### 按功能查找
-- **基础操作** → [快速入门指南](./快速入门指南.md)
-- **工作模式** → [完整使用教程](./Pushdozer使用教程.md) 第4章
-- **笔刷几何体** → [完整使用教程](./Pushdozer使用教程.md) 第5章
-- **标高系统** → [完整使用教程](./Pushdozer使用教程.md) 第6章
-- **配置选项** → [配置参考](./配置参考.md)
-- **多人游戏** → [多人游戏功能](./MULTIPLAYER_FEATURES.md)
-
-### 按场景查找
-- **地形平整** → [快速入门指南](./快速入门指南.md) 场景1
-- **森林种植** → [快速入门指南](./快速入门指南.md) 场景2
-- **地形平滑** → [快速入门指南](./快速入门指南.md) 场景3
-- **水岸处理** → [快速入门指南](./快速入门指南.md) 场景4
-- **服务器管理** → [多人游戏功能](./MULTIPLAYER_FEATURES.md)
-
-## 📖 文档特点
-
-### 中文优先
-- 所有文档均使用中文编写
-- 界面截图和说明均为中文版本
-- 符合中文用户的使用习惯
-
-### 结构清晰
-- 使用目录和章节组织内容
-- 提供快速查找功能
-- 包含实际使用场景示例
-
-### 内容全面
-- 涵盖从基础到高级的所有功能
-- 包含配置、故障排除等实用信息
-- 提供性能优化建议
-
-## 🆘 获取帮助
-
-### 常见问题
-- 查看 [完整使用教程](./Pushdozer使用教程.md) 第9章
-- 查看 [快速入门指南](./快速入门指南.md) 常见问题部分
-
-### 技术支持
-- 检查游戏日志中的错误信息
-- 确认模组版本和依赖是否正确
-- 参考配置参考文档进行故障排除
-
-### 社区支持
-- Modrinth 页面：[https://modrinth.com/mod/pushdozer](https://modrinth.com/mod/pushdozer)
-- GitHub 仓库：查看项目页面获取最新信息
-
-## 📝 文档更新
-
-### 版本信息
-- 文档基于 Pushdozer 最新版本编写
-- 随模组更新同步更新文档
-- 标注重要的版本变化
-
-### 反馈建议
-如果您发现文档中的错误或有改进建议，欢迎通过以下方式反馈：
-- 在 Modrinth 页面提交反馈
-- 在 GitHub 仓库提交 Issue
-- 联系模组作者
-
----
-
-**提示**：建议将常用文档添加到浏览器书签，方便快速查阅。对于复杂操作，建议先在创造模式中练习。
+The legacy markdown files in this directory are kept for reference but may be outdated. Prefer the online docs site for accurate, up-to-date information.

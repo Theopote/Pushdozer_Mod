@@ -38,3 +38,12 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+run-gametest/
+
+# local dev config (runtime writes to .minecraft/config/)
+config/pushdozer_config.json
+
+# internal notes (not for publication)
+FIXES_SUMMARY.md
+OPTIMIZATION_REPORT.md

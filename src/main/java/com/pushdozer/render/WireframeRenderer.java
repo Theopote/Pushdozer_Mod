@@ -3,6 +3,8 @@ package com.pushdozer.render;
 import com.pushdozer.util.ExceptionPolicy;
 import net.minecraft.client.render.*;
 import org.joml.Matrix4f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.shapes.SphereShape;
 import com.pushdozer.shapes.ConeShape;
@@ -17,6 +19,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 public class WireframeRenderer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private static final float LINE_WIDTH = 2.0f;
 
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, GeometryShape shape, BlockPos basePos) {
@@ -66,7 +69,7 @@ public class WireframeRenderer {
             }
         } catch (RuntimeException e) {
             ExceptionPolicy.rethrowIfProgrammingError(e);
-            System.err.println("WireframeRenderer error: " + e.getMessage());
+            LOGGER.debug("WireframeRenderer error: {}", e.getMessage());
         }
     }
     

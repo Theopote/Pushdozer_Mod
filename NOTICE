@@ -1,0 +1,18 @@
+Pushdozer
+Copyright (c) 2024-2026 Theopote
+
+This project is licensed under the MIT License. See LICENSE.
+
+---
+
+Third-Party Notices
+
+BlockOutlineMeshCache
+  Source: Director project (com.director.client.renderer.mesh.BlockOutlineMeshCache)
+  License: Apache License 2.0
+  Used in: com.pushdozer.render.mesh.BlockOutlineMeshCache
+  Notes: Greedy exterior mesh algorithm adapted for brush volume preview rendering.
+
+Surface rendering approach (translucent fill via RenderLayers.entityTranslucent)
+  Inspired by: Director ToolPreviewManager
+  License: Apache License 2.0 (Director project)

@@ -8,7 +8,9 @@
 		"Theopote"
 	],
 	"contact": {
-		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/"
+		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/",
+		"sources": "https://github.com/Theopote/pushdozer",
+		"issues": "https://github.com/Theopote/pushdozer/issues"
 	},
 	"license": "MIT",
 	"environment": "*",

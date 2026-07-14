@@ -17,7 +17,9 @@ import java.util.Set;
 
 /**
  * Greedy exterior mesh generator for block volume previews.
- * Adapted from Director's BlockOutlineMeshCache.
+ * <p>
+ * Adapted from Director's {@code BlockOutlineMeshCache}
+ * (Apache License 2.0). See NOTICE in the project root.
  */
 public final class BlockOutlineMeshCache {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
