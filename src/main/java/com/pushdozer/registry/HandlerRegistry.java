@@ -1,6 +1,6 @@
 package com.pushdozer.registry;
 
-import com.pushdozer.config.domain.WorkMode;
+import com.pushdozer.config.PushdozerConfig.WorkMode;
 import com.pushdozer.items.handlers.TerrainToolHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

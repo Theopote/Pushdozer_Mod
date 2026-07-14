@@ -1,7 +1,7 @@
 package com.pushdozer;
 
 import com.pushdozer.config.PushdozerConfig;
-import com.pushdozer.config.domain.WorkMode;
+import com.pushdozer.config.PushdozerConfig.WorkMode;
 import com.pushdozer.items.ModItems;
 import com.pushdozer.items.handlers.*;
 import com.pushdozer.operations.UndoAction;

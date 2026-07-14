@@ -23,7 +23,7 @@ import java.util.*;
  * Abstract terrain tool handler base class
  * Provides shared base functionality for all terrain tools, subclasses only need to implement specific height calculation algorithms
  */
-public abstract class AbstractTerrainToolHandler {
+public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
 
     protected PushdozerConfig config;
 
@@ -39,6 +39,7 @@ public abstract class AbstractTerrainToolHandler {
      * Main entry point for handling terrain operations
      * Enhanced with multiplayer support and permission verification
      */
+    @Override
     public void handleOperation(PlayerEntity player, World world, UndoAction.ActionType actionType, PushdozerConfig config) {
         this.config = config;
         if (world.isClient()) return;

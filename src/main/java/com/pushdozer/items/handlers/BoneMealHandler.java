@@ -19,7 +19,7 @@ import java.util.*;
  * 骨粉模式处理器
  * 在指定区域使用骨粉促进植物生长
  */
-public class BoneMealHandler {
+public class BoneMealHandler implements TerrainToolHandler {
     private static final int POSITIONS_PER_TICK = 48;
 
     private PushdozerConfig config;

@@ -21,7 +21,7 @@ import java.util.*;
  * 根据配置面板中的方块类型和配置比例，对minecraft地形表面的方块进行替换
  * 如果异常那就默认替换为草方块
  */
-public class SurfaceConvertHandler {
+public class SurfaceConvertHandler implements TerrainToolHandler {
     private PushdozerConfig config;
     private static final Random RANDOM = new Random(); // 静态Random对象，避免重复创建
     private static final Set<Block> IGNORED_BLOCKS = Set.of(

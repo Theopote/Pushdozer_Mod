@@ -1,6 +1,6 @@
 package com.pushdozer.registry;
 
-import com.pushdozer.config.domain.WorkMode;
+import com.pushdozer.config.PushdozerConfig.WorkMode;
 import com.pushdozer.items.handlers.TerrainToolHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

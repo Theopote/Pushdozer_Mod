@@ -23,7 +23,7 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PlacementHandler {
+public class PlacementHandler implements TerrainToolHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private PushdozerConfig config;
 

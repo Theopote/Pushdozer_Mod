@@ -32,7 +32,7 @@ import java.util.Set;
  * 使用 BFS 从水体边缘向内陆扩展，按距离混合方块材质。
  * 植物种植与地形变更分离，支持撤销。
  */
-public class ShorelineProcessHandler {
+public class ShorelineProcessHandler implements TerrainToolHandler {
     private static final int MAX_SHORELINE_WIDTH = 20;
     private static final int DEFAULT_SHORELINE_WIDTH = 5;
     private static final float DEFAULT_VEGETATION_DENSITY = 0.3f;

@@ -24,7 +24,7 @@ import net.minecraft.world.World;
  * 挖掘模式处理器
  * 负责处理挖掘操作，支持分层挖掘功能
  */
-public class ExcavationHandler {
+public class ExcavationHandler implements TerrainToolHandler {
     private PushdozerConfig config;
 
     public ExcavationHandler() {

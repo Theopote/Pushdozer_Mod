@@ -34,7 +34,7 @@ import java.util.List;
  * - 数据驱动：使用植被注册表进行可扩展的植被选择
  * - API使用优化：使用Minecraft常量替代硬编码字符串
  */
-public class BatchPlantHandler {
+public class BatchPlantHandler implements TerrainToolHandler {
 
     private final Random random;
     private final SimplexNoiseSampler noiseSampler;

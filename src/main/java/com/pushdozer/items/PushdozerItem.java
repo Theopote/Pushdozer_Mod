@@ -2,7 +2,7 @@ package com.pushdozer.items;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
-import com.pushdozer.config.domain.WorkMode;
+import com.pushdozer.config.PushdozerConfig.WorkMode;
 import com.pushdozer.component.PushdozerComponents;
 import com.pushdozer.items.handlers.TerrainToolHandler;
 import com.pushdozer.services.ConfigService;
