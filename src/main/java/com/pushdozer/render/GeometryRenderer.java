@@ -16,6 +16,9 @@ public class GeometryRenderer {
             case POINT_CLOUD:
                 PointCloudRenderer.render(matrices, vertexConsumers, shape, basePos);
                 break;
+            case SURFACE:
+                SurfaceRenderer.render(matrices, vertexConsumers, shape, basePos);
+                break;
             case NONE:
                 // 不渲染任何内容
                 break;

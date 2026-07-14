@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "Aucun",
   "pushdozer.display_mode.wireframe": "Fil de Fer",
   "pushdozer.display_mode.point_cloud": "Nuage de Points",
+  "pushdozer.display_mode.surface": "Surface",
   "pushdozer.config.save_and_close": "Sauvegarder et Fermer",
   "pushdozer.config.saved": "Configuration sauvegardée.",
   "pushdozer.config.save_failed": "Échec de la sauvegarde de la configuration.",

@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "Tidak Ada",
   "pushdozer.display_mode.wireframe": "Wireframe",
   "pushdozer.display_mode.point_cloud": "Point Cloud",
+  "pushdozer.display_mode.surface": "Permukaan",
   "pushdozer.config.save_and_close": "Simpan dan Tutup",
   "pushdozer.config.saved": "Konfigurasi disimpan.",
   "pushdozer.config.save_failed": "Gagal menyimpan konfigurasi.",

@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "Nenhum",
   "pushdozer.display_mode.wireframe": "Arame",
   "pushdozer.display_mode.point_cloud": "Nuvem de Pontos",
+  "pushdozer.display_mode.surface": "Superfície",
   "pushdozer.config.save_and_close": "Salvar e Fechar",
   "pushdozer.config.saved": "Configuração salva.",
   "pushdozer.config.save_failed": "Falha ao salvar configuração.",

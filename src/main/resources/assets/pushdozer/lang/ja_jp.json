@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "なし",
   "pushdozer.display_mode.wireframe": "ワイヤーフレーム",
   "pushdozer.display_mode.point_cloud": "ポイントクラウド",
+  "pushdozer.display_mode.surface": "表面",
   "pushdozer.config.save_and_close": "保存して閉じる",
   "pushdozer.config.saved": "設定が保存されました。",
   "pushdozer.config.save_failed": "設定の保存に失敗しました。",

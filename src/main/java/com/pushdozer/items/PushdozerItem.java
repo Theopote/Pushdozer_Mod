@@ -97,7 +97,8 @@ public class PushdozerItem extends Item {
     public enum DisplayMode {
         NONE("pushdozer.display_mode.none"),
         WIREFRAME("pushdozer.display_mode.wireframe"),
-        POINT_CLOUD("pushdozer.display_mode.point_cloud");
+        POINT_CLOUD("pushdozer.display_mode.point_cloud"),
+        SURFACE("pushdozer.display_mode.surface");
 
         // Add Codec for enum to enable serialization by the data component system
         // Use custom resolver to handle unknown enum values and provide defaults

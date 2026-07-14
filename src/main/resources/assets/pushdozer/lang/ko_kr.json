@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "없음",
   "pushdozer.display_mode.wireframe": "와이어프레임",
   "pushdozer.display_mode.point_cloud": "포인트 클라우드",
+  "pushdozer.display_mode.surface": "표면",
   "pushdozer.config.save_and_close": "저장하고 닫기",
   "pushdozer.config.saved": "설정이 저장되었습니다.",
   "pushdozer.config.save_failed": "설정 저장에 실패했습니다.",

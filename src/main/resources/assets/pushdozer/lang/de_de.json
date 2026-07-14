@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "Keine",
   "pushdozer.display_mode.wireframe": "Drahtgitter",
   "pushdozer.display_mode.point_cloud": "Punktwolke",
+  "pushdozer.display_mode.surface": "Oberfläche",
   "pushdozer.config.save_and_close": "Speichern und Schließen",
   "pushdozer.config.saved": "Konfiguration gespeichert.",
   "pushdozer.config.save_failed": "Konfiguration konnte nicht gespeichert werden.",

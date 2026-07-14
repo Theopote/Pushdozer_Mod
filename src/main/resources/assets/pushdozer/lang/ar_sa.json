@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "لا شيء",
   "pushdozer.display_mode.wireframe": "إطار سلكي",
   "pushdozer.display_mode.point_cloud": "سحابة نقاط",
+  "pushdozer.display_mode.surface": "سطح",
   "pushdozer.config.save_and_close": "حفظ وإغلاق",
   "pushdozer.config.saved": "تم حفظ الإعدادات.",
   "pushdozer.config.save_failed": "فشل في حفظ الإعدادات.",

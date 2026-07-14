@@ -41,6 +41,7 @@
   "pushdozer.display_mode.none": "Нет",
   "pushdozer.display_mode.wireframe": "Каркас",
   "pushdozer.display_mode.point_cloud": "Облако точек",
+  "pushdozer.display_mode.surface": "Поверхность",
   "pushdozer.config.save_and_close": "Сохранить и закрыть",
   "pushdozer.config.saved": "Конфигурация сохранена.",
   "pushdozer.config.save_failed": "Не удалось сохранить конфигурацию.",

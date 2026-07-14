@@ -61,6 +61,9 @@ public class ShapeRenderer {
             case POINT_CLOUD:
                 renderPointCloud(shape, config);
                 break;
+            case SURFACE:
+                renderSurface(shape, config);
+                break;
             default:
                 // 不渲染任何内容
                 break;
@@ -86,8 +89,19 @@ public class ShapeRenderer {
             MatrixStack matrices = new MatrixStack();
             VertexConsumerProvider vertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
             BlockPos basePos = client.player.getBlockPos();
-            
+
             PointCloudRenderer.render(matrices, vertexConsumers, shape, basePos);
+        }
+    }
+
+    private static void renderSurface(GeometryShape shape, PushdozerConfig config) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            MatrixStack matrices = new MatrixStack();
+            VertexConsumerProvider vertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
+            BlockPos basePos = client.player.getBlockPos();
+
+            SurfaceRenderer.render(matrices, vertexConsumers, shape, basePos);
         }
     }
 }

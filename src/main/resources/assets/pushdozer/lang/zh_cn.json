@@ -35,6 +35,7 @@
     "pushdozer.display_mode.none": "不显示",
     "pushdozer.display_mode.wireframe": "线框",
     "pushdozer.display_mode.point_cloud": "点云",
+    "pushdozer.display_mode.surface": "表面",
     "pushdozer.config.save_and_close": "保存并关闭",
     "pushdozer.config.saved": "配置已保存。",
     "pushdozer.config.save_failed": "配置保存失败。",
