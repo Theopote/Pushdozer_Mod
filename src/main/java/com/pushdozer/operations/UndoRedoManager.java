@@ -185,7 +185,7 @@ public class UndoRedoManager {
         };
 
         if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
-            LOGGER.debug(“Applying {} blocks in batches across ticks (max {} per tick)”,
+            LOGGER.debug("Applying {} blocks in batches across ticks (max {} per tick)",
                 validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
             BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
                 BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
@@ -199,7 +199,7 @@ public class UndoRedoManager {
     /**
      * Synchronizes undo/redo block changes to the triggering player.
      * <p>
-     * This method is split into two paths: “small operation block-by-block sync / large operation chunk-by-chunk sync”
+     * This method is split into two paths: "small operation block-by-block sync / large operation chunk-by-chunk sync"
      * to facilitate threshold branch coverage in unit tests while avoiding fragile tests caused by directly constructing complex chunk data packet objects.
      */
     protected void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
