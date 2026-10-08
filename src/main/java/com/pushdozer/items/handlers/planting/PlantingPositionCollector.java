@@ -108,7 +108,7 @@ public class PlantingPositionCollector {
             // 基于密度的最小间距，仅对简单植物生效
             int spacingRadius = 0;
             if (plantType == PushdozerConfig.PlantType.FLOWERS || plantType == PushdozerConfig.PlantType.GRASS) {
-                float d = Math.max(0f, Math.min(1f, config.getPlantDensity()));
+                float d = Math.clamp(config.getPlantDensity(), 0f, 1f);
                 spacingRadius = Math.max(1, Math.round(1 + (1.0f - d) * 2)); // 1..3 格的列级抑制
             }
 

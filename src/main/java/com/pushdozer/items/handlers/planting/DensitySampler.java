@@ -33,7 +33,7 @@ public class DensitySampler {
     }
 
     public boolean shouldPlantHere(BlockPos pos) {
-        double density = Math.max(0.0, Math.min(1.0, config.getPlantDensity()));
+        double density = Math.clamp(config.getPlantDensity(), 0.0, 1.0);
         double finalProb = computeFinalProbability(pos, density);
         Random positionRandom = PositionRandom.forOperation(pos, worldSeed, DENSITY_RANDOM_SALT);
         return positionRandom.nextFloat() < (float) finalProb;
@@ -68,9 +68,9 @@ public class DensitySampler {
         double p = (n + 1.0) * 0.5;
         int h = (x * 73856093) ^ (z * 19349663);
         double jitter = ((h & 1023) / 1023.0) * 0.1 - 0.05;
-        p = Math.max(0.0, Math.min(1.0, p + jitter));
+        p = Math.clamp(p + jitter, 0.0, 1.0);
 
-        double baseProb = Math.max(0.0, Math.min(1.0, p * density));
+        double baseProb = Math.clamp(p * density, 0.0, 1.0);
         double minProb = (config.getPlantType() == PushdozerConfig.PlantType.TREES) ? MIN_TREE_PROB : MIN_PLANT_PROB;
         return Math.max(minProb, baseProb);
     }
