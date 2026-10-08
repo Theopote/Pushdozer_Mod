@@ -2,6 +2,7 @@ package com.pushdozer.gametest;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.items.handlers.ExcavationHandler;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.UndoRedoManager;
@@ -78,7 +79,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
     @GameTest
     public void excavationUndoRestoresBrokenBlocks(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerPlayerEntity player = context.createMockCreativeServerPlayerInWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
         PushdozerConfig config = PushdozerGameTestSupport.createExcavationConfig(Blocks.STONE);
 
         List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
@@ -87,7 +88,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
             absoluteTargets.add(context.getAbsolutePos(relative));
         }
 
-        PushdozerMod.excavationHandler.excavateBlocksAt(player, world, config, absoluteTargets);
+        new ExcavationHandler().excavateBlocksAt(player, world, config, absoluteTargets);
 
         context.runAtTick(context.getTick() + 1, () -> {
             for (BlockPos relative : EXCAVATION_TARGETS) {
@@ -113,6 +114,10 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         final AtomicInteger blockUpdatePackets = new AtomicInteger();
         final AtomicInteger chunkDataPackets = new AtomicInteger();
 
+        void runUndoRedoAction(UndoAction action, ServerPlayerEntity player, ServerWorld world) {
+            executeUndoRedoAction(action, player, world, true, ok -> {});
+        }
+
         @Override
         protected void sendPacket(ServerPlayerEntity player, Packet<?> packet) {
             if (packet instanceof BlockUpdateS2CPacket) {
@@ -127,7 +132,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
     @GameTest
     public void undoSync_smallOperation_sendsBlockUpdates(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerPlayerEntity player = context.createMockCreativeServerPlayerInWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
 
         PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
 
@@ -143,7 +148,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         }
 
         UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, positions, original, updated);
-        manager.executeUndoRedoAction(action, player, world, true, ok -> {});
+        manager.runUndoRedoAction(action, player, world);
 
         context.runAtTick(context.getTick() + 2, () -> {
             context.assertTrue(manager.blockUpdatePackets.get() > 0, "Expected BlockUpdate packets for small undo");
@@ -155,7 +160,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
     @GameTest
     public void undoSync_largeOperation_sendsChunkDataTwice(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerPlayerEntity player = context.createMockCreativeServerPlayerInWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
 
         PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
 
@@ -175,7 +180,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         }
 
         UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, positions, original, updated);
-        manager.executeUndoRedoAction(action, player, world, true, ok -> {});
+        manager.runUndoRedoAction(action, player, world);
 
         // Needs a few ticks: 4096 blocks are applied across ticks (1024 per tick), then two chunk sync passes.
         context.runAtTick(context.getTick() + 15, () -> {
