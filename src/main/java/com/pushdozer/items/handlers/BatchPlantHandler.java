@@ -10,6 +10,7 @@ import com.pushdozer.items.handlers.planting.model.BatchPlantingResult;
 import com.pushdozer.items.handlers.planting.model.PlantingPosition;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
+import com.pushdozer.operations.VegetationOperation;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
@@ -17,7 +18,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.noise.SimplexNoiseSampler;
-import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -27,22 +27,13 @@ import java.util.List;
 /**
  * 批量种植处理器
  * 根据生物群系自动生成合理的植被（树木、花草）
- * <p>
- * 优化版本：
- * - 性能优化：减少getBlockState调用，使用批量操作
- * - 撤销逻辑修复：正确处理树生成边界，避免操作冲突
- * - 用户体验改进：单个撤销操作包含所有变更
- * - 数据驱动：使用植被注册表进行可扩展的植被选择
- * - API使用优化：使用Minecraft常量替代硬编码字符串
  */
 public class BatchPlantHandler implements TerrainToolHandler {
 
-    private final Random random;
     private final SimplexNoiseSampler noiseSampler;
 
     public BatchPlantHandler() {
-        this.random = Random.create();
-        this.noiseSampler = new SimplexNoiseSampler(Random.create(1234L));
+        this.noiseSampler = new SimplexNoiseSampler(net.minecraft.util.math.random.Random.create(1234L));
     }
 
     public void handleBatchPlant(PlayerEntity player, World world, PushdozerConfig config) {
@@ -52,15 +43,14 @@ public class BatchPlantHandler implements TerrainToolHandler {
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
         if (shape == null) return;
 
-        DensitySampler densitySampler = new DensitySampler(config, random, noiseSampler);
+        long worldSeed = serverWorld.getSeed();
+        DensitySampler densitySampler = new DensitySampler(config, worldSeed, noiseSampler);
         PlantingPositionCollector positionCollector = new PlantingPositionCollector(config, densitySampler);
         SimplePlantProcessor simplePlantProcessor = new SimplePlantProcessor(config);
-        TreeGenerator treeGenerator = new TreeGenerator(config, random);
+        TreeGenerator treeGenerator = new TreeGenerator(config, worldSeed);
 
-        // 添加调试日志
         PushdozerMod.LOGGER.info("Batch planting started at position: {}, plant type: {}", basePos, config.getPlantType());
 
-        // 收集所有需要种植的位置
         List<PlantingPosition> plantingPositions = positionCollector.collect(world, shape);
         if (plantingPositions.isEmpty()) {
             PushdozerMod.LOGGER.info("No planting positions found");
@@ -77,6 +67,16 @@ public class BatchPlantHandler implements TerrainToolHandler {
             } else {
                 simplePlantPositions.add(pos);
             }
+        }
+
+        List<BlockPos> lockPositions = new ArrayList<>();
+        lockPositions.addAll(collectSimplePlantLockPositions(simplePlantPositions));
+        lockPositions.addAll(TreeGenerator.collectLockPositions(treePositions, config));
+
+        var operation = VegetationOperation.tryBegin(serverWorld, lockPositions);
+        if (operation.isEmpty()) {
+            TerrainOperationFeedback.notifyRegionBusy(player);
+            return;
         }
 
         BatchPlantingResult result = new BatchPlantingResult();
@@ -102,26 +102,41 @@ public class BatchPlantHandler implements TerrainToolHandler {
 
         Runnable afterSimplePlants = () -> {
             if (treePositions.isEmpty()) {
-                pushUndo.run();
+                try {
+                    pushUndo.run();
+                } finally {
+                    operation.get().release();
+                }
             } else {
-                treeGenerator.scheduleTreesAcrossTicks(serverWorld, treePositions, 0, new HashSet<>(), result, pushUndo);
+                treeGenerator.scheduleTreesAcrossTicks(
+                    serverWorld, treePositions, 0, new HashSet<>(), result, operation.get(), pushUndo
+                );
             }
         };
 
         if (result.hasSimplePlants()) {
-            if (!BlockOperation.applyTerrainChanges(
-                serverWorld,
+            BlockOperation.applyTerrainPhaseWithToken(
+                operation.get().token(),
                 result.getSimplePlantPositions(),
                 result.getSimplePlantNewStates(),
+                result.getTallPlantPairs(),
                 applied -> {
                     result.reconcileSimplePlants(applied);
                     afterSimplePlants.run();
                 }
-            )) {
-                TerrainOperationFeedback.notifyRegionBusy(player);
-            }
+            );
         } else {
             afterSimplePlants.run();
         }
+    }
+
+    private static List<BlockPos> collectSimplePlantLockPositions(List<PlantingPosition> simplePlantPositions) {
+        List<BlockPos> lockPositions = new ArrayList<>(simplePlantPositions.size() * 2);
+        for (PlantingPosition plantingPosition : simplePlantPositions) {
+            BlockPos pos = plantingPosition.position();
+            lockPositions.add(pos);
+            lockPositions.add(pos.up());
+        }
+        return lockPositions;
     }
 }

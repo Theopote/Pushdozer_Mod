@@ -14,7 +14,10 @@ import com.pushdozer.operations.UndoRedoManager;
 import com.pushdozer.services.UndoRedoService;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.state.property.Properties;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
@@ -460,6 +463,62 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         context.complete();
     }
 
+    @GameTest
+    public void tallPlantApplyIsAtomicWhenUpperBlocked(TestContext context) {
+        BlockPos lower = new BlockPos(1, 1, 1);
+        BlockPos upper = lower.up();
+        context.setBlockState(lower, Blocks.AIR);
+        context.setBlockState(upper, Blocks.STONE);
+
+        ServerWorld world = context.getWorld();
+        BlockPos absoluteLower = context.getAbsolutePos(lower);
+        BlockPos absoluteUpper = context.getAbsolutePos(upper);
+        BlockState lowerPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
+        BlockState upperPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
+
+        BlockOperation.batchSetBlockStates(
+            List.of(absoluteLower, absoluteUpper),
+            List.of(lowerPlant, upperPlant),
+            world,
+            BlockOperation.BULK_WRITE_FLAGS,
+            List.of(new int[]{0, 1}),
+            applied -> {}
+        );
+
+        context.assertTrue(context.getBlockState(lower).isAir(), "Lower half must roll back when upper is blocked");
+        context.assertTrue(context.getBlockState(upper).isOf(Blocks.STONE), "Blocking stone must remain");
+        context.complete();
+    }
+
+    @GameTest
+    public void tallPlantApplyPlacesBothHalvesWhenSpaceIsClear(TestContext context) {
+        BlockPos ground = new BlockPos(2, 0, 1);
+        BlockPos lower = new BlockPos(2, 1, 1);
+        BlockPos upper = lower.up();
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+        context.setBlockState(lower, Blocks.AIR);
+        context.setBlockState(upper, Blocks.AIR);
+
+        ServerWorld world = context.getWorld();
+        BlockPos absoluteLower = context.getAbsolutePos(lower);
+        BlockPos absoluteUpper = context.getAbsolutePos(upper);
+        BlockState lowerPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
+        BlockState upperPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
+
+        BlockOperation.batchSetBlockStates(
+            List.of(absoluteLower, absoluteUpper),
+            List.of(lowerPlant, upperPlant),
+            world,
+            BlockOperation.BULK_WRITE_FLAGS,
+            List.of(new int[]{0, 1}),
+            applied -> {}
+        );
+
+        context.assertTrue(context.getBlockState(lower).isOf(Blocks.SUNFLOWER), "Lower sunflower half expected");
+        context.assertTrue(context.getBlockState(upper).isOf(Blocks.SUNFLOWER), "Upper sunflower half expected");
+        context.complete();
+    }
+
     @GameTest(maxTicks = 40)
     public void postProcessThreshold_4096_completesWithoutError(TestContext context) {
         ServerWorld world = context.getWorld();
@@ -495,6 +554,13 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
             for (BlockPos target : EXCAVATION_TARGETS) {
                 context.setBlockState(target, Blocks.STONE.getDefaultState());
             }
+        } else if ("tallPlantApplyIsAtomicWhenUpperBlocked".equals(method.getName())) {
+            context.setBlockState(new BlockPos(1, 1, 1), Blocks.AIR);
+            context.setBlockState(new BlockPos(1, 2, 1), Blocks.STONE);
+        } else if ("tallPlantApplyPlacesBothHalvesWhenSpaceIsClear".equals(method.getName())) {
+            context.setBlockState(new BlockPos(2, 0, 1), Blocks.GRASS_BLOCK);
+            context.setBlockState(new BlockPos(2, 1, 1), Blocks.AIR);
+            context.setBlockState(new BlockPos(2, 2, 1), Blocks.AIR);
         }
 
         method.invoke(this, context);

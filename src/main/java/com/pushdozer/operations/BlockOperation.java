@@ -107,6 +107,12 @@ public class BlockOperation {
 
     public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
                                               int flags, Consumer<AppliedChangeResult> onComplete) {
+        return batchSetBlockStates(positions, states, world, flags, null, onComplete);
+    }
+
+    public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
+                                              int flags, List<int[]> tallPlantPairs,
+                                              Consumer<AppliedChangeResult> onComplete) {
         if (positions.size() != states.size()) {
             LOGGER.error("位置和状态列表大小不匹配: {} vs {}", positions.size(), states.size());
             completeWith(onComplete, AppliedChangeResult.empty());
@@ -121,31 +127,114 @@ public class BlockOperation {
         AppliedChangeResult.Builder accumulator = new AppliedChangeResult.Builder();
 
         if (!(world instanceof ServerWorld serverWorld) || positions.size() <= SYNC_BLOCK_LIMIT) {
-            applyBlockStates(positions, states, world, flags, 0, positions.size(), accumulator);
+            applyBlockStates(positions, states, world, flags, 0, positions.size(), accumulator, tallPlantPairs);
             completeWith(onComplete, accumulator.build());
             return true;
         }
 
-        scheduleBlockStatesAcrossTicks(serverWorld, positions, states, flags, 0, accumulator, onComplete);
+        scheduleBlockStatesAcrossTicks(serverWorld, positions, states, flags, 0, accumulator, onComplete, tallPlantPairs);
         return false;
     }
 
     private static void applyBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
                                          int flags, int startIndex, int endIndex,
                                          AppliedChangeResult.Builder accumulator) {
-        for (int i = startIndex; i < endIndex; i++) {
-            BlockPos pos = positions.get(i);
-            if (!isChunkLoaded(world, pos)) {
-                LOGGER.debug("跳过未加载区块: {}", pos);
+        applyBlockStates(positions, states, world, flags, startIndex, endIndex, accumulator, null);
+    }
+
+    private static void applyBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
+                                         int flags, int startIndex, int endIndex,
+                                         AppliedChangeResult.Builder accumulator, List<int[]> tallPlantPairs) {
+        if (tallPlantPairs == null || tallPlantPairs.isEmpty()) {
+            for (int i = startIndex; i < endIndex; i++) {
+                applySingleBlock(positions, states, world, flags, i, accumulator);
+            }
+            return;
+        }
+
+        java.util.Set<Integer> paired = new java.util.HashSet<>();
+        for (int[] pair : tallPlantPairs) {
+            if (pair[0] < startIndex || pair[0] >= endIndex || pair[1] < startIndex || pair[1] >= endIndex) {
                 continue;
             }
-            BlockState newState = states.get(i);
-            BlockState originalState = world.getBlockState(pos);
-            boolean applied = trySetBlockState(world, pos, newState, flags);
-            if (applied) {
-                accumulator.addSuccess(pos, originalState, newState);
+            applyTallPlantPair(positions, states, world, flags, pair[0], pair[1], accumulator);
+            paired.add(pair[0]);
+            paired.add(pair[1]);
+        }
+
+        for (int i = startIndex; i < endIndex; i++) {
+            if (!paired.contains(i)) {
+                applySingleBlock(positions, states, world, flags, i, accumulator);
             }
         }
+    }
+
+    private static void applySingleBlock(List<BlockPos> positions, List<BlockState> states, World world,
+                                         int flags, int index, AppliedChangeResult.Builder accumulator) {
+        BlockPos pos = positions.get(index);
+        if (!isChunkLoaded(world, pos)) {
+            LOGGER.debug("跳过未加载区块: {}", pos);
+            return;
+        }
+        BlockState newState = states.get(index);
+        BlockState originalState = world.getBlockState(pos);
+        if (trySetBlockState(world, pos, newState, flags)) {
+            accumulator.addSuccess(pos, originalState, newState);
+        }
+    }
+
+    private static void applyTallPlantPair(List<BlockPos> positions, List<BlockState> states, World world,
+                                           int flags, int lowerIndex, int upperIndex,
+                                           AppliedChangeResult.Builder accumulator) {
+        BlockPos lowerPos = positions.get(lowerIndex);
+        BlockPos upperPos = positions.get(upperIndex);
+        if (!isChunkLoaded(world, lowerPos) || !isChunkLoaded(world, upperPos)) {
+            LOGGER.debug("跳过未加载区块的双高植物: {} / {}", lowerPos, upperPos);
+            return;
+        }
+
+        BlockState lowerNew = states.get(lowerIndex);
+        BlockState upperNew = states.get(upperIndex);
+        BlockState lowerOriginal = world.getBlockState(lowerPos);
+        BlockState upperOriginal = world.getBlockState(upperPos);
+
+        if (!canApplyTallPlantUpperHalf(world, upperPos, upperOriginal, upperNew)
+            || !canApplyTallPlantHalf(world, lowerPos, lowerOriginal, lowerNew)) {
+            return;
+        }
+
+        boolean lowerApplied = trySetBlockState(world, lowerPos, lowerNew, flags);
+        boolean upperApplied = trySetBlockState(world, upperPos, upperNew, flags);
+        if (lowerApplied && upperApplied) {
+            accumulator.addSuccess(lowerPos, lowerOriginal, lowerNew);
+            accumulator.addSuccess(upperPos, upperOriginal, upperNew);
+            return;
+        }
+
+        if (lowerApplied) {
+            trySetBlockState(world, lowerPos, lowerOriginal, flags);
+        }
+        if (upperApplied) {
+            trySetBlockState(world, upperPos, upperOriginal, flags);
+        }
+    }
+
+    private static boolean canApplyTallPlantHalf(World world, BlockPos pos, BlockState original, BlockState target) {
+        if (original.equals(target)) {
+            return true;
+        }
+        if (original.isAir() || original.isReplaceable()) {
+            return target.canPlaceAt(world, pos);
+        }
+        return false;
+    }
+
+    /** Upper half is validated before lower exists; only require a free upper cell. */
+    private static boolean canApplyTallPlantUpperHalf(World world, BlockPos pos, BlockState original, BlockState target) {
+        if (original.equals(target)) {
+            return true;
+        }
+        return original.isAir() || original.isReplaceable();
     }
 
     private static boolean trySetBlockState(World world, BlockPos pos, BlockState newState, int flags) {
@@ -162,8 +251,16 @@ public class BlockOperation {
                                                        List<BlockState> states, int flags, int startIndex,
                                                        AppliedChangeResult.Builder accumulator,
                                                        Consumer<AppliedChangeResult> onComplete) {
+        scheduleBlockStatesAcrossTicks(world, positions, states, flags, startIndex, accumulator, onComplete, null);
+    }
+
+    private static void scheduleBlockStatesAcrossTicks(ServerWorld world, List<BlockPos> positions,
+                                                       List<BlockState> states, int flags, int startIndex,
+                                                       AppliedChangeResult.Builder accumulator,
+                                                       Consumer<AppliedChangeResult> onComplete,
+                                                       List<int[]> tallPlantPairs) {
         int endIndex = Math.min(startIndex + BLOCKS_PER_TICK, positions.size());
-        applyBlockStates(positions, states, world, flags, startIndex, endIndex, accumulator);
+        applyBlockStates(positions, states, world, flags, startIndex, endIndex, accumulator, tallPlantPairs);
 
         if (endIndex >= positions.size()) {
             completeWith(onComplete, accumulator.build());
@@ -171,7 +268,7 @@ public class BlockOperation {
         }
 
         Objects.requireNonNull(world.getServer()).execute(() ->
-            scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, accumulator, onComplete)
+            scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, accumulator, onComplete, tallPlantPairs)
         );
     }
 
@@ -209,18 +306,33 @@ public class BlockOperation {
 
     private static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
                                           boolean placement, Consumer<AppliedChangeResult> onComplete) {
+        applyTerrainPhase(token, positions, newStates, placement, null, onComplete);
+    }
+
+    private static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
+                                          boolean placement, List<int[]> tallPlantPairs,
+                                          Consumer<AppliedChangeResult> onComplete) {
         if (positions.isEmpty()) {
             completeWith(onComplete, AppliedChangeResult.empty());
             return;
         }
 
-        batchSetBlockStates(positions, newStates, token.world(), BULK_WRITE_FLAGS, applied -> {
+        batchSetBlockStates(positions, newStates, token.world(), BULK_WRITE_FLAGS, tallPlantPairs, applied -> {
             if (placement) {
                 scheduleFallingBlockTicks(token.world(), applied);
             }
             postProcessBlockChanges(token.world(), applied.positions(), applied.appliedStates(),
                 () -> completeWith(onComplete, applied));
         });
+    }
+
+    /**
+     * Applies terrain changes under an already-acquired operation token (caller releases the lock).
+     */
+    public static void applyTerrainPhaseWithToken(TerrainOperationToken token, List<BlockPos> positions,
+                                                  List<BlockState> newStates, List<int[]> tallPlantPairs,
+                                                  Consumer<AppliedChangeResult> onComplete) {
+        applyTerrainPhase(token, positions, newStates, false, tallPlantPairs, onComplete);
     }
 
     /**

@@ -5,6 +5,8 @@ import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.handlers.planting.model.BatchPlantingResult;
 import com.pushdozer.items.handlers.planting.model.PlantingPosition;
 import com.pushdozer.items.handlers.planting.model.TreeGenerationResult;
+import com.pushdozer.operations.VegetationOperation;
+import com.pushdozer.util.PositionRandom;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.RegistryKey;
@@ -18,36 +20,63 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 
 public class TreeGenerator {
-    private static final int CORE_SCAN_RADIUS = 4; // 核心扫描半径，用于变化检测
-    private static final int TREE_HEIGHT_LIMIT = 32; // 最大树高度限制
+    private static final int DEFAULT_SCAN_RADIUS = 5;
+    private static final int LARGE_SCAN_RADIUS = 8;
+    private static final int DEFAULT_TREE_HEIGHT = 32;
+    private static final int LARGE_TREE_HEIGHT = 40;
+    private static final int SCAN_DEPTH = 4;
     /** 跨 tick 调度时，每个 tick 最多生成的树木数量 */
     private static final int TREE_GENERATIONS_PER_TICK = 4;
+    private static final long TREE_RANDOM_SALT = 0x54724565L;
 
     private final PushdozerConfig config;
-    private final Random random;
+    private final long worldSeed;
 
-    public TreeGenerator(PushdozerConfig config, Random random) {
+    public TreeGenerator(PushdozerConfig config, long worldSeed) {
         this.config = config;
-        this.random = random;
+        this.worldSeed = worldSeed;
+    }
+
+    /** @deprecated 使用 {@link #TreeGenerator(PushdozerConfig, long)} */
+    @Deprecated
+    public TreeGenerator(PushdozerConfig config, Random ignored) {
+        this(config, 0L);
+    }
+
+    /**
+     * 收集树木生成所需的保守锁定范围（含树冠/树根外扩）。
+     */
+    public static List<BlockPos> collectLockPositions(List<PlantingPosition> treePositions, PushdozerConfig config) {
+        List<BlockPos> lockPositions = new ArrayList<>();
+        int radius = getScanRadius(config.getSelectedTree());
+        int height = getScanHeight(config.getSelectedTree());
+        for (PlantingPosition plantingPosition : treePositions) {
+            BlockPos center = plantingPosition.position();
+            BlockPos min = center.add(-radius, -SCAN_DEPTH, -radius);
+            BlockPos max = center.add(radius, height, radius);
+            for (BlockPos pos : BlockPos.iterate(min, max)) {
+                lockPositions.add(pos.toImmutable());
+            }
+        }
+        return lockPositions;
     }
 
     /**
      * 跨 tick 生成树木，避免大范围批量种植时单 tick 卡顿。
      */
     public void scheduleTreesAcrossTicks(ServerWorld world, List<PlantingPosition> treePositions,
-                                          int startIndex, Set<Long> blockedColumns,
-                                          BatchPlantingResult result, Runnable onComplete) {
+                                         int startIndex, Set<Long> blockedColumns,
+                                         BatchPlantingResult result, VegetationOperation operation,
+                                         Runnable onComplete) {
         int endIndex = Math.min(startIndex + TREE_GENERATIONS_PER_TICK, treePositions.size());
 
         for (int i = startIndex; i < endIndex; i++) {
@@ -55,12 +84,16 @@ public class TreeGenerator {
         }
 
         if (endIndex >= treePositions.size()) {
-            onComplete.run();
+            try {
+                onComplete.run();
+            } finally {
+                operation.release();
+            }
             return;
         }
 
-        Objects.requireNonNull(world.getServer()).execute(() ->
-            scheduleTreesAcrossTicks(world, treePositions, endIndex, blockedColumns, result, onComplete)
+        operation.scheduleNextBatch(() ->
+            scheduleTreesAcrossTicks(world, treePositions, endIndex, blockedColumns, result, operation, onComplete)
         );
     }
 
@@ -75,7 +108,7 @@ public class TreeGenerator {
             return;
         }
 
-        TreeGenerationResult treeResult = generateTreeWithSmartBoundary(world, pos.position());
+        TreeGenerationResult treeResult = generateTreeWithBoundaryScan(world, pos.position());
         if (treeResult.isEmpty()) {
             return;
         }
@@ -96,83 +129,67 @@ public class TreeGenerator {
     }
 
     /**
-     * 智能边界树生成
-     * 优化版本：只记录实际发生变化的方块，使用更小的核心区域
-     * 增强版本：添加空指针检查和生成验证
-     * 性能优化版本：使用BFS扫描变化，而非全区域扫描
+     * 在保守边界盒内做生成前后快照 diff，捕获全部树木相关变更。
      */
-    private TreeGenerationResult generateTreeWithSmartBoundary(ServerWorld world, BlockPos centerPos) {
+    private TreeGenerationResult generateTreeWithBoundaryScan(ServerWorld world, BlockPos centerPos) {
         TreeGenerationResult result = new TreeGenerationResult();
 
-        // 预先记录核心区域的原始状态（生成前快照）
-        BlockPos coreMinPos = centerPos.add(-CORE_SCAN_RADIUS, -CORE_SCAN_RADIUS, -CORE_SCAN_RADIUS);
-        BlockPos coreMaxPos = centerPos.add(CORE_SCAN_RADIUS, TREE_HEIGHT_LIMIT, CORE_SCAN_RADIUS);
+        int radius = getScanRadius(config.getSelectedTree());
+        int height = getScanHeight(config.getSelectedTree());
+        BlockPos scanMin = centerPos.add(-radius, -SCAN_DEPTH, -radius);
+        BlockPos scanMax = centerPos.add(radius, height, radius);
+
         Map<BlockPos, BlockState> originalStates = new HashMap<>();
-        for (BlockPos pos : BlockPos.iterate(coreMinPos, coreMaxPos)) {
+        for (BlockPos pos : BlockPos.iterate(scanMin, scanMax)) {
             originalStates.put(pos.toImmutable(), world.getBlockState(pos));
         }
 
-        // 生成树
         Optional<RegistryKey<ConfiguredFeature<?, ?>>> treeFeature = getTreeFeatureForBiome(world.getBiome(centerPos));
         if (treeFeature.isPresent()) {
             var registry = world.getRegistryManager().getOrThrow(RegistryKeys.CONFIGURED_FEATURE);
             ConfiguredFeature<?, ?> feature = registry.get(treeFeature.get());
 
-            // ⭐ 添加空指针检查：确保feature和chunkGenerator都不为null
             if (feature != null && world.getChunkManager().getChunkGenerator() != null) {
-                feature.generate(world, world.getChunkManager().getChunkGenerator(), this.random, centerPos);
+                Random treeRandom = PositionRandom.forOperation(centerPos, worldSeed, TREE_RANDOM_SALT);
+                feature.generate(world, world.getChunkManager().getChunkGenerator(), treeRandom, centerPos);
             } else {
-                // 记录树生成失败
                 PushdozerMod.LOGGER.warn("Tree generation failed: feature={}, chunkGenerator={}",
                         feature != null, world.getChunkManager().getChunkGenerator() != null);
                 return result;
             }
         } else {
-            // 记录无法获取树特性
             PushdozerMod.LOGGER.warn("No tree feature found for biome at position: {}", centerPos);
             return result;
         }
 
-        // 使用BFS扫描变化，从中心点开始扩散
-        Set<BlockPos> visited = new HashSet<>();
-        Queue<BlockPos> queue = new LinkedList<>();
-        queue.offer(centerPos);
-        visited.add(centerPos);
-
-        while (!queue.isEmpty()) {
-            BlockPos pos = queue.poll();
-            BlockState originalState = originalStates.get(pos);
+        for (Map.Entry<BlockPos, BlockState> entry : originalStates.entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockState originalState = entry.getValue();
             BlockState newState = world.getBlockState(pos);
-
-            if (originalState != null && !originalState.equals(newState)) {
+            if (!originalState.equals(newState)) {
                 result.addChange(pos, originalState, newState);
-
-                // 向周围扩散检查
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dy = -1; dy <= 1; dy++) {
-                        for (int dz = -1; dz <= 1; dz++) {
-                            BlockPos neighbor = pos.add(dx, dy, dz);
-                            if (!visited.contains(neighbor) &&
-                                    neighbor.getY() >= coreMinPos.getY() && neighbor.getY() <= coreMaxPos.getY() &&
-                                    Math.abs(neighbor.getX() - centerPos.getX()) <= CORE_SCAN_RADIUS &&
-                                    Math.abs(neighbor.getZ() - centerPos.getZ()) <= CORE_SCAN_RADIUS) {
-                                visited.add(neighbor);
-                                queue.offer(neighbor);
-                            }
-                        }
-                    }
-                }
             }
         }
 
         return result;
     }
 
-    /**
-     * 检查是否可以在指定位置生成植物
-     * 检查脚下土壤（使用标签），当前位置为空气或可替换
-     * 增强版本：支持更多基底类型，包括mycelium、rooted_dirt等
-     */
+    private static int getScanRadius(PushdozerConfig.TreeSpecies species) {
+        return switch (species) {
+            case JUNGLE, DARK_OAK, BIOME_ADAPTIVE -> LARGE_SCAN_RADIUS;
+            case SPRUCE -> 6;
+            default -> DEFAULT_SCAN_RADIUS;
+        };
+    }
+
+    private static int getScanHeight(PushdozerConfig.TreeSpecies species) {
+        return switch (species) {
+            case JUNGLE, BIOME_ADAPTIVE -> LARGE_TREE_HEIGHT;
+            case SPRUCE, DARK_OAK -> 36;
+            default -> DEFAULT_TREE_HEIGHT;
+        };
+    }
+
     private boolean canPlantAt(World world, BlockPos pos) {
         BlockState groundState = world.getBlockState(pos.down());
         boolean isSoil = groundState.isIn(BlockTags.DIRT)
@@ -189,28 +206,16 @@ public class TreeGenerator {
         return isSoil && (currentState.isAir() || currentState.isReplaceable());
     }
 
-    /**
-     * 数据驱动：根据标签选择树特性，优先用PushdozerBiomeTags，无则用字符串contains兜底
-     * 修复版本：修复逻辑缺陷，确保所有判断都能正确执行
-     * 优化版本：使用数据驱动的植被注册表
-     * 增强版本：支持用户选择的树种和尊重生物群系设置
-     */
     private Optional<RegistryKey<ConfiguredFeature<?, ?>>> getTreeFeatureForBiome(RegistryEntry<Biome> biomeEntry) {
-        // 改为仅受树木类型选项控制
         PushdozerConfig.TreeSpecies selectedTree = config.getSelectedTree();
 
-        // 生物群系自适应模式
         if (selectedTree == PushdozerConfig.TreeSpecies.BIOME_ADAPTIVE) {
             return BiomeVegetationRegistry.getTreeFeature(biomeEntry);
         }
 
-        // 如果用户选择了特定树种，直接返回对应的特性
         return Optional.of(getTreeFeatureForSpecies(selectedTree));
     }
 
-    /**
-     * 根据用户选择的树种获取对应的树特性
-     */
     private RegistryKey<ConfiguredFeature<?, ?>> getTreeFeatureForSpecies(PushdozerConfig.TreeSpecies species) {
         return switch (species) {
             case OAK -> RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, net.minecraft.util.Identifier.of("minecraft", "oak"));
@@ -219,7 +224,7 @@ public class TreeGenerator {
             case JUNGLE -> RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, net.minecraft.util.Identifier.of("minecraft", "jungle_tree"));
             case ACACIA -> RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, net.minecraft.util.Identifier.of("minecraft", "acacia"));
             case DARK_OAK -> RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, net.minecraft.util.Identifier.of("minecraft", "dark_oak"));
-            case BIOME_ADAPTIVE -> BiomeVegetationRegistry.DEFAULT_TREE; // 这种情况理论上不会发生，但为了安全
+            case BIOME_ADAPTIVE -> BiomeVegetationRegistry.DEFAULT_TREE;
         };
     }
 }

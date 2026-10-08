@@ -2,11 +2,16 @@ package com.pushdozer.items.handlers.planting.model;
 
 import com.pushdozer.operations.AppliedChangeResult;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.TallPlantBlock;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class BatchPlantingResult {
@@ -59,6 +64,37 @@ public final class BatchPlantingResult {
 
     public List<BlockState> getSimplePlantNewStates() {
         return simplePlantNewStates;
+    }
+
+    /**
+     * 返回双高植物在 simple plant 列表中的索引对 [lowerIndex, upperIndex]。
+     */
+    public List<int[]> getTallPlantPairs() {
+        Map<BlockPos, Integer> indexByPos = new HashMap<>();
+        for (int i = 0; i < simplePlantPositions.size(); i++) {
+            indexByPos.put(simplePlantPositions.get(i), i);
+        }
+
+        List<int[]> pairs = new ArrayList<>();
+        Set<Integer> used = new HashSet<>();
+        for (int i = 0; i < simplePlantNewStates.size(); i++) {
+            BlockState state = simplePlantNewStates.get(i);
+            if (!(state.getBlock() instanceof TallPlantBlock)) {
+                continue;
+            }
+            if (!state.contains(Properties.DOUBLE_BLOCK_HALF)
+                || state.get(Properties.DOUBLE_BLOCK_HALF) != DoubleBlockHalf.LOWER) {
+                continue;
+            }
+            Integer upperIndex = indexByPos.get(simplePlantPositions.get(i).up());
+            if (upperIndex == null || used.contains(i) || used.contains(upperIndex)) {
+                continue;
+            }
+            pairs.add(new int[]{i, upperIndex});
+            used.add(i);
+            used.add(upperIndex);
+        }
+        return pairs;
     }
 
     public boolean isEmpty() {

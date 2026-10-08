@@ -3,6 +3,8 @@ package com.pushdozer.operations;
 import com.pushdozer.PushdozerTestBase;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.state.property.Properties;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -124,6 +126,32 @@ class BlockOperationTest extends PushdozerTestBase {
 
         assertEquals(1, captured.get().positions().size());
         assertEquals(successPos, captured.get().positions().getFirst());
+    }
+
+    @Test
+    void batchSetBlockStates_skipsTallPlantPairWhenUpperIsBlocked() {
+        BlockPos lower = new BlockPos(0, 64, 0);
+        BlockPos upper = lower.up();
+        BlockState lowerPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
+        BlockState upperPlant = Blocks.SUNFLOWER.getDefaultState().with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
+        ServerWorld world = mock(ServerWorld.class);
+        when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.getBlockState(lower)).thenReturn(Blocks.AIR.getDefaultState());
+        when(world.getBlockState(lower.down())).thenReturn(Blocks.GRASS_BLOCK.getDefaultState());
+        when(world.getBlockState(upper)).thenReturn(Blocks.STONE.getDefaultState());
+
+        AtomicReference<AppliedChangeResult> captured = new AtomicReference<>();
+        BlockOperation.batchSetBlockStates(
+            List.of(lower, upper),
+            List.of(lowerPlant, upperPlant),
+            world,
+            BlockOperation.BULK_WRITE_FLAGS,
+            List.of(new int[]{0, 1}),
+            captured::set
+        );
+
+        assertTrue(captured.get().isEmpty());
+        verify(world, times(0)).setBlockState(any(), any(), anyInt());
     }
 
     @Test

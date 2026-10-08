@@ -37,7 +37,7 @@ public class SmoothingHandler extends AbstractTerrainToolHandler {
                                       BlockPos columnXZ,
                                       BlockPos brushCenter) {
         int brushRadius = getEffectiveBrushRadius(config);
-        float originalHeight = currentColumn.getOriginalHeight();
+        float originalHeight = currentColumn.originalHeight();
 
         float smoothedHeight = calculateSmoothedHeight(columns, columnXZ, brushCenter, brushRadius);
         if (Float.isNaN(smoothedHeight)) {

@@ -15,10 +15,8 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class PlantingPositionCollector {
@@ -37,16 +35,6 @@ public class PlantingPositionCollector {
     public List<PlantingPosition> collect(World world, GeometryShape shape) {
         List<PlantingPosition> positions = new ArrayList<>();
         PushdozerConfig.PlantType plantType = config.getPlantType();
-
-        // ⭐ 性能优化：批量获取BlockState
-        Map<BlockPos, BlockState> blockStates = new HashMap<>();
-        Map<BlockPos, BlockState> groundStates = new HashMap<>();
-
-        for (BlockPos pos : shape.getBlockPositions()) {
-            // 批量获取当前方块和地面方块状态
-            blockStates.put(pos, world.getBlockState(pos));
-            groundStates.put(pos.down(), world.getBlockState(pos.down()));
-        }
 
         Set<Long> seenColumns = new HashSet<>();
         if (plantType == PushdozerConfig.PlantType.CUSTOM) {

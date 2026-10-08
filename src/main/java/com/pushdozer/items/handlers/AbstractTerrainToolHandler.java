@@ -15,8 +15,6 @@ import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.network.NetworkManager;
 import net.minecraft.block.*;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.fluid.FluidState;
-import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
@@ -270,17 +268,17 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         }
 
         float t = (distanceSq - innerRadiusSq) / (outerRadiusSq - innerRadiusSq);
-        t = Math.max(0.0f, Math.min(1.0f, t));
+        t = Math.clamp(t, 0.0f, 1.0f);
         return (float) (Math.cos(t * Math.PI) * 0.5 + 0.5);
     }
 
     protected static float applySmoothstep(float strength) {
-        float t = Math.max(0.0f, Math.min(1.0f, strength));
+        float t = Math.clamp(strength, 0.0f, 1.0f);
         return t * t * (3.0f - 2.0f * t);
     }
 
     protected static float applySmootherstep(float strength) {
-        float t = Math.max(0.0f, Math.min(1.0f, strength));
+        float t = Math.clamp(strength, 0.0f, 1.0f);
         return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
     }
 
@@ -310,8 +308,8 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
     protected void applyHeightChange(World world, BlockPos columnXZ, TerrainColumn column,
                                    int targetHeight, List<BlockPos> affectedPositions,
                                    List<BlockState> originalStates, List<BlockState> newStates) {
-        int currentHeight = column.getOriginalHeight();
-        BlockState fillState = column.getMainBlockState();
+        int currentHeight = column.originalHeight();
+        BlockState fillState = column.mainBlockState();
 
         // Clamp target height to valid world range
         int clampedTargetHeight = WorldBounds.clampBuildableY(world, targetHeight);
@@ -332,8 +330,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
             } else if (fillState.isOf(Blocks.PODZOL) || fillState.isOf(Blocks.MYCELIUM)) {
                 // Podzol/Mycelium: use dirt inside, keep original surface
                 fillerState = Blocks.DIRT.getDefaultState();
-                topState = fillState;
-            }
+                }
 
             for (int y = currentHeight + 1; y <= clampedTargetHeight; y++) {
                 BlockPos pos = new BlockPos(columnXZ.getX(), y, columnXZ.getZ());
@@ -490,7 +487,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
             // Gaussian decay weight
             float weight = (float) Math.exp(-distanceSq / twoSigmaSquared);
 
-            weightedHeightSum += neighborColumn.getOriginalHeight() * weight;
+            weightedHeightSum += neighborColumn.originalHeight() * weight;
             totalWeight += weight;
         }
 
@@ -517,23 +514,11 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
     }
 
     /**
-     * Terrain column data class
-     */
-    protected static class TerrainColumn {
-        private final int originalHeight;
-        private final BlockState mainBlockState;
-
-        public TerrainColumn(BlockState mainBlockState, int initialHeight) {
-            this.mainBlockState = mainBlockState;
-            this.originalHeight = initialHeight;
+         * Terrain column data class
+         */
+        protected record TerrainColumn(int originalHeight, BlockState mainBlockState) {
+            public TerrainColumn(BlockState mainBlockState, int initialHeight) {
+                this(initialHeight, mainBlockState);
+            }
         }
-
-        public int getOriginalHeight() {
-            return originalHeight;
-        }
-
-        public BlockState getMainBlockState() {
-            return mainBlockState;
-        }
-    }
 } 

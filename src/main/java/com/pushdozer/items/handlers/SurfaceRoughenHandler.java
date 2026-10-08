@@ -112,7 +112,7 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
                                         BlockPos columnXZ,
                                         BlockPos brushCenter) {
         int brushRadius = getEffectiveBrushRadius(config);
-        float originalHeight = currentColumn.getOriginalHeight();
+        float originalHeight = currentColumn.originalHeight();
 
         float smoothedHeight = calculateSmoothedHeight(columns, columnXZ, brushCenter, brushRadius);
         if (Float.isNaN(smoothedHeight)) {
@@ -132,7 +132,7 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
     private float computeNoiseDelta(TerrainColumn currentColumn, BlockPos columnXZ) {
         float roughnessStrength = config.getRoughnessStrength();
         float roughnessAmount = Math.min(roughnessStrength * 3.0f, MAX_ROUGHNESS_AMPLITUDE);
-        roughnessAmount *= getMaterialRoughnessMultiplier(currentColumn.getMainBlockState());
+        roughnessAmount *= getMaterialRoughnessMultiplier(currentColumn.mainBlockState());
 
         float noiseValue = sampleOperationNoise(columnXZ.getX(), columnXZ.getZ());
         return noiseValue * roughnessAmount;
@@ -197,7 +197,7 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
     }
 
     private boolean isWaterSurfaceColumn(World world, BlockPos columnXZ, TerrainColumn column) {
-        BlockPos surfacePos = new BlockPos(columnXZ.getX(), column.getOriginalHeight(), columnXZ.getZ());
+        BlockPos surfacePos = new BlockPos(columnXZ.getX(), column.originalHeight(), columnXZ.getZ());
         return isWater(world, surfacePos);
     }
 

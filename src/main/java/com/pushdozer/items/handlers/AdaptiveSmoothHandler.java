@@ -51,7 +51,7 @@ public class AdaptiveSmoothHandler extends AbstractTerrainToolHandler {
                                         BlockPos columnXZ,
                                         BlockPos brushCenter) {
         int brushRadius = getEffectiveBrushRadius(config);
-        float originalHeight = currentColumn.getOriginalHeight();
+        float originalHeight = currentColumn.originalHeight();
 
         float multiScaleHeight = calculateMultiScaleSmoothedHeight(columns, currentColumn, columnXZ, brushCenter);
         float protectedHeight = applyFeatureProtection(
@@ -88,18 +88,18 @@ public class AdaptiveSmoothHandler extends AbstractTerrainToolHandler {
             }
 
             double spatialDistanceSq = offset.getX() * offset.getX() + offset.getZ() * offset.getZ();
-            float heightDiff = Math.abs(neighborColumn.getOriginalHeight() - currentColumn.getOriginalHeight());
+            float heightDiff = Math.abs(neighborColumn.originalHeight() - currentColumn.originalHeight());
 
             float spatialWeight = (float) Math.exp(-spatialDistanceSq / twoSpatialSigmaSquared);
             float heightWeight = (float) Math.exp(-heightDiff * heightDiff / twoHeightSigmaSquared);
             float bilateralWeight = spatialWeight * heightWeight;
 
-            weightedHeightSum += neighborColumn.getOriginalHeight() * bilateralWeight;
+            weightedHeightSum += neighborColumn.originalHeight() * bilateralWeight;
             totalWeight += bilateralWeight;
         }
 
         if (totalWeight <= 0) {
-            return currentColumn.getOriginalHeight();
+            return currentColumn.originalHeight();
         }
 
         return weightedHeightSum / totalWeight;
@@ -135,7 +135,7 @@ public class AdaptiveSmoothHandler extends AbstractTerrainToolHandler {
     private boolean detectStructuralFeature(Map<BlockPos, TerrainColumn> columns,
                                             TerrainColumn currentColumn,
                                             BlockPos columnXZ) {
-        float centerHeight = currentColumn.getOriginalHeight();
+        float centerHeight = currentColumn.originalHeight();
 
         Float north = getCardinalHeight(columns, columnXZ, 0, -1);
         Float south = getCardinalHeight(columns, columnXZ, 0, 1);
@@ -157,7 +157,7 @@ public class AdaptiveSmoothHandler extends AbstractTerrainToolHandler {
 
     private static Float getCardinalHeight(Map<BlockPos, TerrainColumn> columns, BlockPos columnXZ, int dx, int dz) {
         TerrainColumn neighbor = columns.get(new BlockPos(columnXZ.getX() + dx, 0, columnXZ.getZ() + dz));
-        return neighbor == null ? null : (float) neighbor.getOriginalHeight();
+        return neighbor == null ? null : (float) neighbor.originalHeight();
     }
 
     private float applyFeatureProtection(float originalHeight, float smoothedHeight, boolean structural) {

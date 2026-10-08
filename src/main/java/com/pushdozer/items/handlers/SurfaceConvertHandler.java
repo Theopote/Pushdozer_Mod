@@ -7,7 +7,6 @@ import com.pushdozer.items.handlers.surface.SurfaceConvertMaterialSelector;
 import com.pushdozer.items.handlers.surface.SurfacePlantSurvival;
 import com.pushdozer.items.handlers.terrain.TerrainSurfaceQueries;
 import com.pushdozer.items.handlers.vegetation.PlantBlockClassifier;
-import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;

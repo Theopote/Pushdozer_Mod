@@ -18,4 +18,9 @@ public final class PositionRandom {
     public static Random at(BlockPos pos, long salt) {
         return Random.create(pos.asLong() ^ salt);
     }
+
+    /** World-seeded, position-stable random for planting density and tree generation. */
+    public static Random forOperation(BlockPos pos, long worldSeed, long operationSalt) {
+        return Random.create(worldSeed ^ pos.asLong() ^ operationSalt);
+    }
 }

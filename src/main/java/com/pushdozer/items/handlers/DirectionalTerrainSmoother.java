@@ -44,7 +44,7 @@ final class DirectionalTerrainSmoother {
                 continue;
             }
             results.put(columnXZ, computeTargetFromPlanned(
-                column.getOriginalHeight(), columnXZ, brushCenter,
+                column.originalHeight(), columnXZ, brushCenter,
                 plannedHeights, spatiallySmoothed, params));
         }
         return results;
@@ -60,7 +60,7 @@ final class DirectionalTerrainSmoother {
         Map<BlockPos, Float> plannedHeights = buildPlannedHeights(sampleColumns, brushCenter, params);
         Map<BlockPos, Float> spatiallySmoothed = smoothHeightField(plannedHeights, params.brushRadius);
         return computeTargetFromPlanned(
-            currentColumn.getOriginalHeight(), columnXZ, brushCenter,
+            currentColumn.originalHeight(), columnXZ, brushCenter,
             plannedHeights, spatiallySmoothed, params);
     }
 
@@ -72,7 +72,7 @@ final class DirectionalTerrainSmoother {
         Map<BlockPos, Float> planned = new HashMap<>();
         for (Map.Entry<BlockPos, AbstractTerrainToolHandler.TerrainColumn> entry : sampleColumns.entrySet()) {
             BlockPos columnXZ = entry.getKey();
-            float originalHeight = entry.getValue().getOriginalHeight();
+            float originalHeight = entry.getValue().originalHeight();
             float centerFalloff = gaussianCenterFalloff(columnXZ, brushCenter, params.brushRadius);
             float moundDelta = params.direction * params.heightDelta * centerFalloff;
 
@@ -199,13 +199,13 @@ final class DirectionalTerrainSmoother {
             }
 
             float weight = (float) Math.exp(-distanceSq / twoSigmaSquared);
-            weightedSum += entry.getValue().getOriginalHeight() * weight;
+            weightedSum += entry.getValue().originalHeight() * weight;
             totalWeight += weight;
         }
 
         if (totalWeight <= 0.0f) {
             AbstractTerrainToolHandler.TerrainColumn local = sampleColumns.get(columnXZ);
-            return local != null ? local.getOriginalHeight() : 0.0f;
+            return local != null ? local.originalHeight() : 0.0f;
         }
         return weightedSum / totalWeight;
     }
