@@ -40,15 +40,20 @@ class SmoothRaiseHandlerTest extends PushdozerTestBase {
     }
 
     @Test
-    void singleBump_stillRaises() {
-        Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> columns = flatColumns(64, 5);
+    void singleBump_smoothsAndRaisesNeighbors() {
+        Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> columns = flatColumns(64, 10);
         BlockPos peak = new BlockPos(0, 0, 0);
         columns.put(peak, column(Blocks.STONE.getDefaultState(), 70));
+        BlockPos neighbor = new BlockPos(2, 0, 0);
         BlockPos brushCenter = new BlockPos(0, 64, 0);
 
-        int target = raiseHandler.computeTargetHeight(columns, columns.get(peak), peak, brushCenter);
+        int peakTarget = raiseHandler.computeTargetHeight(columns, columns.get(peak), peak, brushCenter);
+        int neighborTarget = raiseHandler.computeTargetHeight(columns, columns.get(neighbor), neighbor, brushCenter);
 
-        assertTrue(target > 70, "Raise should still lift a local peak");
+        assertTrue(neighborTarget > 64, "Smooth raise should lift flat neighbors toward the peak");
+        assertTrue(peakTarget <= 70, "Smooth raise should flatten a lone peak rather than only stacking height");
+        assertTrue(peakTarget - neighborTarget < 70 - 64,
+            "Height difference between peak and neighbor should shrink after smooth raise");
     }
 
     @Test

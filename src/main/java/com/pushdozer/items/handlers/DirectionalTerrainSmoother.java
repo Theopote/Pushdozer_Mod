@@ -2,12 +2,13 @@ package com.pushdozer.items.handlers;
 
 import net.minecraft.util.math.BlockPos;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Directional terrain editing: Gaussian mound/depression plus neighborhood smooth on original
- * heights, with edge falloff applied to the combined delta.
+ * Directional smooth raise/lower: neighborhood smooth on original heights, optional directional
+ * mound, spatial blend of the planned field, then a single edge-falloff on the final delta.
  */
 final class DirectionalTerrainSmoother {
 
@@ -21,6 +22,7 @@ final class DirectionalTerrainSmoother {
         int direction,
         float heightDelta,
         float terrainSmoothWeight,
+        float spatialSmoothBlend,
         float maxDeltaPerStroke,
         int brushRadius
     ) {
@@ -32,14 +34,18 @@ final class DirectionalTerrainSmoother {
         BlockPos brushCenter,
         Params params
     ) {
-        Map<BlockPos, Integer> results = new java.util.HashMap<>();
+        Map<BlockPos, Float> plannedHeights = buildPlannedHeights(sampleColumns, brushCenter, params);
+        Map<BlockPos, Float> spatiallySmoothed = smoothHeightField(plannedHeights, params.brushRadius);
+
+        Map<BlockPos, Integer> results = new HashMap<>();
         for (BlockPos columnXZ : modifyColumns) {
             AbstractTerrainToolHandler.TerrainColumn column = sampleColumns.get(columnXZ);
             if (column == null) {
                 continue;
             }
-            results.put(columnXZ, computeTargetHeight(
-                sampleColumns, column, columnXZ, brushCenter, params));
+            results.put(columnXZ, computeTargetFromPlanned(
+                column.getOriginalHeight(), columnXZ, brushCenter,
+                plannedHeights, spatiallySmoothed, params));
         }
         return results;
     }
@@ -51,16 +57,50 @@ final class DirectionalTerrainSmoother {
         BlockPos brushCenter,
         Params params
     ) {
-        float originalHeight = currentColumn.getOriginalHeight();
+        Map<BlockPos, Float> plannedHeights = buildPlannedHeights(sampleColumns, brushCenter, params);
+        Map<BlockPos, Float> spatiallySmoothed = smoothHeightField(plannedHeights, params.brushRadius);
+        return computeTargetFromPlanned(
+            currentColumn.getOriginalHeight(), columnXZ, brushCenter,
+            plannedHeights, spatiallySmoothed, params);
+    }
+
+    private static Map<BlockPos, Float> buildPlannedHeights(
+        Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> sampleColumns,
+        BlockPos brushCenter,
+        Params params
+    ) {
+        Map<BlockPos, Float> planned = new HashMap<>();
+        for (Map.Entry<BlockPos, AbstractTerrainToolHandler.TerrainColumn> entry : sampleColumns.entrySet()) {
+            BlockPos columnXZ = entry.getKey();
+            float originalHeight = entry.getValue().getOriginalHeight();
+            float centerFalloff = gaussianCenterFalloff(columnXZ, brushCenter, params.brushRadius);
+            float moundDelta = params.direction * params.heightDelta * centerFalloff;
+
+            float smoothedOriginal = smoothOriginalHeights(sampleColumns, columnXZ, params.brushRadius);
+            float neighborhoodSmoothDelta = (smoothedOriginal - originalHeight) * params.terrainSmoothWeight;
+
+            planned.put(columnXZ, originalHeight + moundDelta + neighborhoodSmoothDelta);
+        }
+        return planned;
+    }
+
+    private static int computeTargetFromPlanned(
+        float originalHeight,
+        BlockPos columnXZ,
+        BlockPos brushCenter,
+        Map<BlockPos, Float> plannedHeights,
+        Map<BlockPos, Float> spatiallySmoothed,
+        Params params
+    ) {
+        float planned = plannedHeights.getOrDefault(columnXZ, originalHeight);
+        float smoothed = spatiallySmoothed.getOrDefault(columnXZ, planned);
+        float blend = Math.max(0.0f, Math.min(1.0f, params.spatialSmoothBlend));
+        float finalHeight = planned * (1.0f - blend) + smoothed * blend;
+
         float edgeFalloff = AbstractTerrainToolHandler.calculateBrushEdgeFalloff(
             columnXZ, brushCenter, params.brushRadius);
-        float centerFalloff = gaussianCenterFalloff(columnXZ, brushCenter, params.brushRadius);
-        float moundDelta = params.direction * params.heightDelta * centerFalloff * edgeFalloff;
-
-        float smoothedOriginal = smoothOriginalHeights(sampleColumns, columnXZ, params.brushRadius);
-        float terrainDelta = (smoothedOriginal - originalHeight) * params.terrainSmoothWeight * edgeFalloff;
-        float delta = combineDirectionalDeltas(moundDelta, terrainDelta, params.direction);
-        delta = clampDirectionalDelta(delta, params.direction, params.maxDeltaPerStroke);
+        float rawDelta = (finalHeight - originalHeight) * edgeFalloff;
+        float delta = clampDirectionalDelta(rawDelta, params.direction, params.maxDeltaPerStroke);
 
         int target = Math.round(originalHeight + delta);
         if (params.direction > 0) {
@@ -69,11 +109,12 @@ final class DirectionalTerrainSmoother {
         return Math.min(target, Math.round(originalHeight));
     }
 
-    private static float combineDirectionalDeltas(float moundDelta, float terrainDelta, int direction) {
-        if (direction > 0) {
-            return Math.max(0.0f, moundDelta) + Math.max(0.0f, terrainDelta);
+    private static Map<BlockPos, Float> smoothHeightField(Map<BlockPos, Float> field, int brushRadius) {
+        Map<BlockPos, Float> smoothed = new HashMap<>();
+        for (BlockPos columnXZ : field.keySet()) {
+            smoothed.put(columnXZ, smoothFieldAt(field, columnXZ, brushRadius));
         }
-        return Math.min(0.0f, moundDelta) + Math.min(0.0f, terrainDelta);
+        return smoothed;
     }
 
     private static float clampDirectionalDelta(float rawDelta, int direction, float maxDeltaPerStroke) {
@@ -95,6 +136,40 @@ final class DirectionalTerrainSmoother {
 
         double twoSigmaSquared = 2.0 * sigma * sigma;
         return (float) Math.exp(-distanceSq / twoSigmaSquared);
+    }
+
+    private static float smoothFieldAt(Map<BlockPos, Float> field, BlockPos columnXZ, int brushRadius) {
+        float sigmaFactor = getSigmaFactor(brushRadius);
+        float sigma = brushRadius * sigmaFactor;
+        if (sigma < MIN_SIGMA) {
+            sigma = MIN_SIGMA;
+        }
+
+        double twoSigmaSquared = 2.0 * sigma * sigma;
+        float kernelRadius = sigma * GAUSSIAN_KERNEL_RADIUS_FACTOR;
+        float maxDistanceSq = kernelRadius * kernelRadius;
+
+        BlockPos currentCenterXZ = new BlockPos(columnXZ.getX(), 0, columnXZ.getZ());
+        float totalWeight = 0.0f;
+        float weightedSum = 0.0f;
+
+        for (Map.Entry<BlockPos, Float> entry : field.entrySet()) {
+            BlockPos neighborXZ = entry.getKey();
+            double distanceSq = neighborXZ.getSquaredDistance(currentCenterXZ);
+            if (distanceSq > maxDistanceSq) {
+                continue;
+            }
+
+            float weight = (float) Math.exp(-distanceSq / twoSigmaSquared);
+            weightedSum += entry.getValue() * weight;
+            totalWeight += weight;
+        }
+
+        if (totalWeight <= 0.0f) {
+            Float local = field.get(columnXZ);
+            return local != null ? local : 0.0f;
+        }
+        return weightedSum / totalWeight;
     }
 
     private static float smoothOriginalHeights(

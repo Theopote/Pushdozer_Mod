@@ -136,6 +136,11 @@ public class SurfaceConfig {
         return noiseSeed;
     }
 
+    public void setNoiseSeed(long noiseSeed) {
+        this.noiseSeed = noiseSeed;
+        onChange.onConfigChanged();
+    }
+
     public boolean isNoiseAutoScale() {
         return noiseAutoScale;
     }

@@ -88,6 +88,7 @@ abstract class AbstractDirectionalSmoothHandler extends AbstractTerrainToolHandl
             getDirection(),
             heightDelta,
             applySmootherstep(strength),
+            config.getDirectionalSmoothBlend(),
             getMaxDeltaPerStroke(),
             getEffectiveBrushRadius(config)
         );

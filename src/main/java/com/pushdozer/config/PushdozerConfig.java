@@ -520,6 +520,10 @@ public class PushdozerConfig {
         return surface.getNoiseSeed();
     }
 
+    public void setNoiseSeed(long noiseSeed) {
+        surface.setNoiseSeed(noiseSeed);
+    }
+
     public boolean isNoiseAutoScale() {
         return surface.isNoiseAutoScale();
     }

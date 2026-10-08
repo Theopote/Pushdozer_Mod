@@ -50,15 +50,20 @@ class SmoothLowerHandlerTest extends PushdozerTestBase {
     }
 
     @Test
-    void singleDepression_stillLowers() {
-        Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> columns = flatColumns(64, 5);
+    void singleDepression_smoothsAndLowersNeighbors() {
+        Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> columns = flatColumns(64, 10);
         BlockPos pit = new BlockPos(0, 0, 0);
         columns.put(pit, column(Blocks.STONE.getDefaultState(), 58));
+        BlockPos neighbor = new BlockPos(2, 0, 0);
         BlockPos brushCenter = new BlockPos(0, 64, 0);
 
-        int target = handler.computeTargetHeight(columns, columns.get(pit), pit, brushCenter);
+        int pitTarget = handler.computeTargetHeight(columns, columns.get(pit), pit, brushCenter);
+        int neighborTarget = handler.computeTargetHeight(columns, columns.get(neighbor), neighbor, brushCenter);
 
-        assertTrue(target < 58, "Lower should still cut a local depression");
+        assertTrue(neighborTarget < 64, "Smooth lower should cut flat neighbors toward the depression");
+        assertTrue(pitTarget >= 58, "Smooth lower should fill a lone pit rather than only digging deeper");
+        assertTrue(neighborTarget - pitTarget < 64 - 58,
+            "Height difference between pit and neighbor should shrink after smooth lower");
     }
 
     @Test
