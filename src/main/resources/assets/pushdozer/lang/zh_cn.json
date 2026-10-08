@@ -51,6 +51,7 @@
   "pushdozer.mode.smooth": "平滑模式",
   "pushdozer.mode.smooth_raise": "平滑提升",
   "pushdozer.mode.smooth_lower": "平滑降低",
+  "pushdozer.mode.standard_smooth": "普通平滑",
   "pushdozer.mode.surface_roughen": "表面粗糙",
   "pushdozer.mode.adaptive_smooth": "自适应平滑",
   "pushdozer.mode.surface_convert": "表层转换",

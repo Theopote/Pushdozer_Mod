@@ -11,12 +11,12 @@ import net.minecraft.text.Text;
 
 /**
  * 平滑模式配置面板
- * 第一到第三行：三种平滑变体（自适应/提升/降低）单选按钮
- * 第四行：平滑强度滑动条
- * 底部：确定按钮
+ * 第一到第四行：四种平滑变体（普通/自适应/提升/降低）单选按钮
+ * 第五行：平滑强度滑动条
  */
 public class SmoothConfigPanel extends WorkModeConfigPanel {
 
+    private ButtonWidget standardButton;
     private ButtonWidget adaptiveButton;
     private ButtonWidget raiseButton;
     private ButtonWidget lowerButton;
@@ -38,35 +38,40 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
         int contentLeft = panelLeft + WIDGET_MARGIN;
         int contentTop = panelTop + TITLE_HEIGHT + WIDGET_MARGIN;
         int contentWidth = PANEL_WIDTH - (WIDGET_MARGIN * 2);
+        int rowHeight = WIDGET_HEIGHT + WIDGET_MARGIN;
 
-        // 三个变体按钮（单选）
+        standardButton = ButtonWidget.builder(
+                getVariantButtonText(PushdozerConfig.SmoothVariant.STANDARD),
+                btn -> selectVariant(PushdozerConfig.SmoothVariant.STANDARD)
+        ).dimensions(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT).build();
+        widgets.add(standardButton);
+
         adaptiveButton = ButtonWidget.builder(
                 getVariantButtonText(PushdozerConfig.SmoothVariant.ADAPTIVE),
                 btn -> selectVariant(PushdozerConfig.SmoothVariant.ADAPTIVE)
-        ).dimensions(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT).build();
+        ).dimensions(contentLeft, contentTop + rowHeight, contentWidth, WIDGET_HEIGHT).build();
         widgets.add(adaptiveButton);
 
         raiseButton = ButtonWidget.builder(
                 getVariantButtonText(PushdozerConfig.SmoothVariant.RAISE),
                 btn -> selectVariant(PushdozerConfig.SmoothVariant.RAISE)
-        ).dimensions(contentLeft, contentTop + (WIDGET_HEIGHT + WIDGET_MARGIN), contentWidth, WIDGET_HEIGHT).build();
+        ).dimensions(contentLeft, contentTop + 2 * rowHeight, contentWidth, WIDGET_HEIGHT).build();
         widgets.add(raiseButton);
 
         lowerButton = ButtonWidget.builder(
                 getVariantButtonText(PushdozerConfig.SmoothVariant.LOWER),
                 btn -> selectVariant(PushdozerConfig.SmoothVariant.LOWER)
-        ).dimensions(contentLeft, contentTop + 2 * (WIDGET_HEIGHT + WIDGET_MARGIN), contentWidth, WIDGET_HEIGHT).build();
+        ).dimensions(contentLeft, contentTop + 3 * rowHeight, contentWidth, WIDGET_HEIGHT).build();
         widgets.add(lowerButton);
 
-        // 强度滑动条（第4行）
         float currentStrength = config.getSmoothStrength();
         strengthSlider = new SliderWidget(
                 contentLeft,
-                contentTop + 3 * (WIDGET_HEIGHT + WIDGET_MARGIN),
+                contentTop + 4 * rowHeight,
                 contentWidth,
                 WIDGET_HEIGHT,
                 getStrengthText(currentStrength),
-                (currentStrength - 0.1f) / 0.9f // 0.1-1.0 → 0-1
+                (currentStrength - 0.1f) / 0.9f
         ) {
             @Override
             protected void updateMessage() {
@@ -85,41 +90,34 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     protected void renderWidgets(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 先重置所有按钮的焦点状态
         for (Element widget : widgets) {
             if (widget instanceof ButtonWidget button) {
                 button.setFocused(false);
             }
         }
-        
-        // 然后设置当前选中按钮的焦点状态
+
         PushdozerConfig.SmoothVariant currentVariant = config.getSmoothVariant();
-        
+
         for (Element widget : widgets) {
             if (widget instanceof ButtonWidget button) {
-                // 检查是否为变体按钮（排除强度滑动条和确认按钮）
-                if (button == adaptiveButton || button == raiseButton || button == lowerButton) {
-                    boolean isSelected;
-                    if (button == adaptiveButton) {
-                        isSelected = (currentVariant == PushdozerConfig.SmoothVariant.ADAPTIVE);
-                    } else if (button == raiseButton) {
-                        isSelected = (currentVariant == PushdozerConfig.SmoothVariant.RAISE);
-                    } else {
-                        isSelected = (currentVariant == PushdozerConfig.SmoothVariant.LOWER);
-                    }
-                    
+                if (button == standardButton || button == adaptiveButton
+                    || button == raiseButton || button == lowerButton) {
+                    boolean isSelected = switch (currentVariant) {
+                        case STANDARD -> button == standardButton;
+                        case ADAPTIVE -> button == adaptiveButton;
+                        case RAISE -> button == raiseButton;
+                        case LOWER -> button == lowerButton;
+                    };
                     if (isSelected) {
-                        // 使用ButtonWidget的内置按下状态
                         button.setFocused(true);
                     }
                 }
             }
         }
-        
-        // 最后渲染所有按钮（让按钮自己处理文字渲染）
+
         for (Element widget : widgets) {
-            if (widget instanceof net.minecraft.client.gui.Drawable) {
-                ((net.minecraft.client.gui.Drawable) widget).render(context, mouseX, mouseY, delta);
+            if (widget instanceof net.minecraft.client.gui.Drawable drawable) {
+                drawable.render(context, mouseX, mouseY, delta);
             }
         }
     }
@@ -130,6 +128,9 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     private void updateVariantButtons() {
+        if (standardButton != null) {
+            standardButton.setMessage(getVariantButtonText(PushdozerConfig.SmoothVariant.STANDARD));
+        }
         if (adaptiveButton != null) {
             adaptiveButton.setMessage(getVariantButtonText(PushdozerConfig.SmoothVariant.ADAPTIVE));
         }
@@ -143,7 +144,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
 
     private Text getVariantButtonText(PushdozerConfig.SmoothVariant variant) {
         boolean selected = config.getSmoothVariant() == variant;
-        String prefix = selected ? "☑ " : ""; // 仅选中项带前缀
+        String prefix = selected ? "☑ " : "";
         return Text.literal(prefix).append(variant.getDisplayText());
     }
 
@@ -156,5 +157,3 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
         persistPanelConfig();
     }
 }
-
-

@@ -51,6 +51,7 @@
   "pushdozer.mode.smooth": "Smooth",
   "pushdozer.mode.smooth_raise": "Smooth Raise",
   "pushdozer.mode.smooth_lower": "Smooth Lower",
+  "pushdozer.mode.standard_smooth": "Standard Smooth",
   "pushdozer.mode.surface_roughen": "Surface Roughen",
   "pushdozer.mode.adaptive_smooth": "Adaptive Smooth",
   "pushdozer.mode.surface_convert": "Surface Convert",

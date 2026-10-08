@@ -72,12 +72,14 @@ public class PushdozerConfig {
     }
 
     public enum SmoothVariant {
+        STANDARD,
         ADAPTIVE,
         RAISE,
         LOWER;
 
         public Text getDisplayText() {
             return switch (this) {
+                case STANDARD -> Text.translatable("pushdozer.mode.standard_smooth");
                 case ADAPTIVE -> Text.translatable("pushdozer.mode.adaptive_smooth");
                 case RAISE -> Text.translatable("pushdozer.mode.smooth_raise");
                 case LOWER -> Text.translatable("pushdozer.mode.smooth_lower");

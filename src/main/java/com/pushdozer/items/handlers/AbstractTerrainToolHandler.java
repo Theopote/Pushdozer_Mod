@@ -149,68 +149,151 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
                                   List<BlockPos> affectedPositions,
                                   List<BlockState> originalStates,
                                   List<BlockState> newStates) {
-        // 1. Collect terrain information
-        Map<BlockPos, TerrainColumn> columns = collectTerrainColumns(world, shape, brushCenter, config);
-
-        if (columns.isEmpty()) {
+        Set<BlockPos> modifyColumns = collectModifyColumnPositions(shape);
+        if (modifyColumns.isEmpty()) {
             return;
         }
 
-        // 2. Calculate target heights
-        Map<BlockPos, Integer> targetHeights = new HashMap<>();
-        for (Map.Entry<BlockPos, TerrainColumn> entry : columns.entrySet()) {
-            BlockPos columnXZ = entry.getKey();
-            TerrainColumn column = entry.getValue();
+        int padding = getSamplePaddingBlocks(config);
+        Set<BlockPos> samplePositions = expandColumnPositions(modifyColumns, padding);
+        int searchStartY = shape.getMaxY(brushCenter);
+        Map<BlockPos, TerrainColumn> sampleColumns =
+            collectTerrainColumnsForPositions(world, samplePositions, searchStartY);
 
-            int targetHeight = calculateTargetHeight(columns, column, columnXZ, brushCenter);
-            targetHeights.put(columnXZ, targetHeight);
+        if (sampleColumns.isEmpty()) {
+            return;
         }
 
-        // 3. Apply height changes
+        Map<BlockPos, Integer> targetHeights = new HashMap<>();
+        for (BlockPos columnXZ : modifyColumns) {
+            TerrainColumn column = sampleColumns.get(columnXZ);
+            if (column == null) {
+                continue;
+            }
+            targetHeights.put(columnXZ, calculateTargetHeight(sampleColumns, column, columnXZ, brushCenter));
+        }
+
         for (Map.Entry<BlockPos, Integer> entry : targetHeights.entrySet()) {
             BlockPos columnXZ = entry.getKey();
-            int targetHeight = entry.getValue();
-            TerrainColumn column = columns.get(columnXZ);
-
-            applyHeightChange(world, columnXZ, column, targetHeight,
-                           affectedPositions, originalStates, newStates);
+            TerrainColumn column = sampleColumns.get(columnXZ);
+            applyHeightChange(world, columnXZ, column, entry.getValue(),
+                affectedPositions, originalStates, newStates);
         }
     }
 
+    /** Extra blocks beyond the brush footprint used for height sampling only. */
+    protected int getSamplePaddingBlocks(PushdozerConfig config) {
+        return 0;
+    }
+
+    protected int getEffectiveBrushRadius(PushdozerConfig config) {
+        return config.getLargestBrushDimension();
+    }
+
+    protected static Set<BlockPos> collectModifyColumnPositions(GeometryShape shape) {
+        return shape.getBlockPositions().stream()
+            .map(pos -> new BlockPos(pos.getX(), 0, pos.getZ()))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    protected static Set<BlockPos> expandColumnPositions(Set<BlockPos> centerColumns, int padding) {
+        if (padding <= 0) {
+            return centerColumns;
+        }
+        LinkedHashSet<BlockPos> expanded = new LinkedHashSet<>(centerColumns);
+        int padSq = padding * padding;
+        for (BlockPos column : centerColumns) {
+            for (int dz = -padding; dz <= padding; dz++) {
+                for (int dx = -padding; dx <= padding; dx++) {
+                    if (dx * dx + dz * dz <= padSq) {
+                        expanded.add(new BlockPos(column.getX() + dx, 0, column.getZ() + dz));
+                    }
+                }
+            }
+        }
+        return expanded;
+    }
+
+    protected Map<BlockPos, TerrainColumn> collectTerrainColumnsForPositions(World world, Set<BlockPos> columnPositions,
+                                                                             int searchStartY) {
+        Map<BlockPos, TerrainColumn> columns = new HashMap<>();
+        for (BlockPos columnXZ : columnPositions) {
+            BlockPos groundPos = findGroundBlock(world, columnXZ.withY(searchStartY));
+            if (groundPos == null) {
+                continue;
+            }
+
+            BlockState groundState = world.getBlockState(groundPos);
+            if (isIgnoredBlock(groundState) || groundState.isAir()) {
+                groundPos = findGroundBlock(world, groundPos.down());
+                if (groundPos == null) {
+                    continue;
+                }
+                groundState = world.getBlockState(groundPos);
+            }
+
+            if (isIgnoredBlock(groundState) || groundState.isAir()) {
+                continue;
+            }
+
+            columns.put(columnXZ, new TerrainColumn(groundState, groundPos.getY()));
+        }
+        return columns;
+    }
+
     /**
-     * Collect terrain information
+     * Collect terrain information (legacy wrapper; prefer sample/modify split in processTerrain).
      */
     protected Map<BlockPos, TerrainColumn> collectTerrainColumns(World world, GeometryShape shape, BlockPos brushCenter,
                                                                  PushdozerConfig config) {
-        Map<BlockPos, TerrainColumn> columns = new HashMap<>();
+        Set<BlockPos> modifyColumns = collectModifyColumnPositions(shape);
+        Set<BlockPos> samplePositions = expandColumnPositions(modifyColumns, getSamplePaddingBlocks(config));
+        return collectTerrainColumnsForPositions(world, samplePositions, shape.getMaxY(brushCenter));
+    }
 
-        // Get all unique (X,Z) coordinates
-        Set<BlockPos> uniqueXZPositions = shape.getBlockPositions().stream()
-            .map(pos -> new BlockPos(pos.getX(), 0, pos.getZ()))
-            .collect(java.util.stream.Collectors.toSet());
+    /** Cosine edge falloff from 80% to 100% of brush radius (0 at edge, 1 in core). */
+    protected static float calculateBrushEdgeFalloff(BlockPos columnXZ, BlockPos brushCenter, int brushRadius) {
+        int dx = columnXZ.getX() - brushCenter.getX();
+        int dz = columnXZ.getZ() - brushCenter.getZ();
+        float distanceSq = dx * dx + dz * dz;
 
-        for (BlockPos columnXZ : uniqueXZPositions) {
-            BlockPos groundPos = findGroundBlock(world, columnXZ.withY(brushCenter.getY() + config.getRadius()));
-            if (groundPos != null) {
-                BlockState groundState = world.getBlockState(groundPos);
+        float innerRadius = brushRadius * 0.8f;
+        float outerRadiusSq = (float) brushRadius * brushRadius;
+        float innerRadiusSq = innerRadius * innerRadius;
 
-                // Ensure the found block is not an ignored block
-                if (isIgnoredBlock(groundState) || groundState.isAir()) {
-                    groundPos = findGroundBlock(world, groundPos.down());
-                    if (groundPos == null) continue;
-                    groundState = world.getBlockState(groundPos);
-                }
-
-                if (isIgnoredBlock(groundState) || groundState.isAir()) {
-                    continue;
-                }
-
-                TerrainColumn column = new TerrainColumn(groundState, groundPos.getY());
-                columns.put(columnXZ, column);
-            }
+        if (distanceSq <= innerRadiusSq) {
+            return 1.0f;
+        }
+        if (distanceSq >= outerRadiusSq) {
+            return 0.0f;
         }
 
-        return columns;
+        float t = (distanceSq - innerRadiusSq) / (outerRadiusSq - innerRadiusSq);
+        t = Math.max(0.0f, Math.min(1.0f, t));
+        return (float) (Math.cos(t * Math.PI) * 0.5 + 0.5);
+    }
+
+    protected static float applySmoothstep(float strength) {
+        float t = Math.max(0.0f, Math.min(1.0f, strength));
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    protected static float applySmootherstep(float strength) {
+        float t = Math.max(0.0f, Math.min(1.0f, strength));
+        return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+    }
+
+    protected static float blendHeightWithStrengthAndFalloff(float originalHeight, float smoothedHeight,
+                                                             float mappedStrength, float falloff) {
+        return originalHeight + (smoothedHeight - originalHeight) * mappedStrength * falloff;
+    }
+
+    protected static float clampHeightDelta(float originalHeight, float targetHeight, float maxDelta) {
+        if (maxDelta <= 0.0f) {
+            return targetHeight;
+        }
+        float delta = targetHeight - originalHeight;
+        return originalHeight + Math.max(-maxDelta, Math.min(maxDelta, delta));
     }
 
     /**
@@ -434,7 +517,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         }
 
         if (totalWeight <= 0) {
-            return 0; // Return default value, will be replaced with original height in actual use
+            return Float.NaN;
         }
 
         return weightedHeightSum / totalWeight;
