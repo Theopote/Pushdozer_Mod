@@ -96,8 +96,8 @@ class SmoothLowerHandlerTest extends PushdozerTestBase {
 
         int target = handler.computeTargetHeight(columns, columns.get(center), center, brushCenter);
 
-        assertTrue(64 - target <= 8, "Lower delta should not exceed max per stroke (8)");
-        assertTrue(64 - target >= 7, "At full strength center should reach near max delta");
+        assertTrue(64 - target <= 3, "Lower delta should not exceed max per stroke (3)");
+        assertTrue(64 - target >= 1, "At full strength center should produce a modest lower");
     }
 
     private static Map<BlockPos, AbstractTerrainToolHandler.TerrainColumn> flatColumns(int height, int radius) {

@@ -21,6 +21,9 @@ abstract class AbstractDirectionalSmoothHandler extends AbstractTerrainToolHandl
 
     protected abstract float getMaxDeltaPerStroke();
 
+    /** Legacy bump scale at brush center (strength 1.0): raise 2.0, lower 1.5. */
+    protected abstract float getBumpScale();
+
     @Override
     protected int getSamplePaddingBlocks(PushdozerConfig config) {
         int brushRadius = getEffectiveBrushRadius(config);
@@ -52,6 +55,8 @@ abstract class AbstractDirectionalSmoothHandler extends AbstractTerrainToolHandl
             return;
         }
 
+        collectVegetationInBrushShape(world, shape, affectedPositions, originalStates, newStates);
+
         DirectionalTerrainSmoother.Params params = buildParams(config);
         Map<BlockPos, Integer> targetHeights = DirectionalTerrainSmoother.computeTargetHeights(
             sampleColumns, modifyColumns, brushCenter, params);
@@ -77,13 +82,13 @@ abstract class AbstractDirectionalSmoothHandler extends AbstractTerrainToolHandl
     }
 
     protected DirectionalTerrainSmoother.Params buildParams(PushdozerConfig config) {
-        float maxDelta = getMaxDeltaPerStroke();
-        float heightDelta = config.getSmoothStrength() * maxDelta;
+        float strength = config.getSmoothStrength();
+        float heightDelta = strength * getBumpScale();
         return new DirectionalTerrainSmoother.Params(
             getDirection(),
             heightDelta,
-            config.getDirectionalSmoothBlend(),
-            maxDelta,
+            applySmootherstep(strength),
+            getMaxDeltaPerStroke(),
             getEffectiveBrushRadius(config)
         );
     }

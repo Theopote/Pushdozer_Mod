@@ -389,6 +389,24 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
     }
 
     /**
+     * Remove vegetation blocks inside the brush volume before terrain height edits.
+     */
+    protected void collectVegetationInBrushShape(World world, GeometryShape shape,
+                                                 List<BlockPos> affectedPositions,
+                                                 List<BlockState> originalStates,
+                                                 List<BlockState> newStates) {
+        for (BlockPos pos : shape.getBlockPositions()) {
+            BlockState state = world.getBlockState(pos);
+            if (!isIgnoredBlock(state)) {
+                continue;
+            }
+            affectedPositions.add(pos);
+            originalStates.add(state);
+            newStates.add(Blocks.AIR.getDefaultState());
+        }
+    }
+
+    /**
      * Collect floating vegetation (executed after height changes are applied)
      */
     protected void collectFloatingVegetation(World world, GeometryShape shape,

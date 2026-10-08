@@ -98,8 +98,8 @@ class SmoothRaiseHandlerTest extends PushdozerTestBase {
 
         int target = raiseHandler.computeTargetHeight(columns, columns.get(center), center, brushCenter);
 
-        assertTrue(target - 64 <= 10, "Raise delta should not exceed max per stroke (10)");
-        assertTrue(target - 64 >= 9, "At full strength center should reach near max delta");
+        assertTrue(target - 64 <= 4, "Raise delta should not exceed max per stroke (4)");
+        assertTrue(target - 64 >= 1, "At full strength center should produce a modest raise");
     }
 
     @Test

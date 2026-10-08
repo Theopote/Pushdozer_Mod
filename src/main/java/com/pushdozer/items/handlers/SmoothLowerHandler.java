@@ -11,7 +11,8 @@ import net.minecraft.world.World;
  */
 public class SmoothLowerHandler extends AbstractDirectionalSmoothHandler {
 
-    private static final float MAX_LOWER_DEPTH = 8.0f;
+    private static final float MAX_LOWER_DEPTH = 3.0f;
+    private static final float BUMP_SCALE = 1.5f;
 
     public SmoothLowerHandler() {
     }
@@ -28,5 +29,10 @@ public class SmoothLowerHandler extends AbstractDirectionalSmoothHandler {
     @Override
     protected float getMaxDeltaPerStroke() {
         return MAX_LOWER_DEPTH;
+    }
+
+    @Override
+    protected float getBumpScale() {
+        return BUMP_SCALE;
     }
 }

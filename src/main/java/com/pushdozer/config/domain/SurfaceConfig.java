@@ -41,7 +41,7 @@ public class SurfaceConfig {
     @Expose
     private float smoothStrength = 0.5f;
     @Expose
-    private float directionalSmoothBlend = 0.35f;
+    private float directionalSmoothBlend = 0.65f;
     @Expose
     private PushdozerConfig.SmoothVariant smoothVariant = PushdozerConfig.SmoothVariant.ADAPTIVE;
     @Expose
