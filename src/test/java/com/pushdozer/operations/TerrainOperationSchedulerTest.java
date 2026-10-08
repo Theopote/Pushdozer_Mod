@@ -68,6 +68,19 @@ class TerrainOperationSchedulerTest extends PushdozerTestBase {
     }
 
     @Test
+    void isIdle_reflectsActiveLocks() {
+        ServerWorld world = mockWorld();
+        UUID operationId = UUID.randomUUID();
+
+        assertTrue(scheduler.isIdle());
+        assertTrue(scheduler.tryAcquire(world, operationId, List.of(new BlockPos(0, 64, 0))));
+        assertFalse(scheduler.isIdle());
+
+        scheduler.release(world, operationId);
+        assertTrue(scheduler.isIdle());
+    }
+
+    @Test
     void release_allowsReacquireAfterCompletion() {
         ServerWorld world = mockWorld();
         UUID operationId = UUID.randomUUID();

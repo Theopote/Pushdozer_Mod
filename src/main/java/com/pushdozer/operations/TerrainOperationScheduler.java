@@ -152,6 +152,16 @@ public final class TerrainOperationScheduler {
         return new WorldKey(world.getRegistryKey());
     }
 
+    /** @return true when no operation currently holds chunk locks in any dimension */
+    public boolean isIdle() {
+        for (Map<ChunkPos, UUID> lockedChunks : activeChunks.values()) {
+            if (!lockedChunks.isEmpty()) {
+                return false;
+            }
+        }
+        return operationChunks.isEmpty();
+    }
+
     /** Test-only cleanup between cases. */
     public void resetForTests() {
         worldLocks.clear();

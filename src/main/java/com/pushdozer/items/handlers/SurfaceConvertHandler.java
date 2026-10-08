@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Surface convert: replace natural terrain at brush X/Z columns with configured materials.
@@ -51,13 +52,15 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
 
     /**
      * Applies surface convert at an explicit brush center (used by GameTest and direct callers).
+     *
+     * @return false when target chunks are locked by another in-flight operation
      */
-    public void applySurfaceConvert(World world, PlayerEntity player, GeometryShape shape,
-                                    BlockPos brushCenter, PushdozerConfig config) {
+    public boolean applySurfaceConvert(World world, PlayerEntity player, GeometryShape shape,
+                                       BlockPos brushCenter, PushdozerConfig config) {
         SurfaceConvertMaterialSelector.SelectionContext materials = SurfaceConvertMaterialSelector.prepare(config);
         if (materials.isEmpty()) {
             TerrainOperationFeedback.notifyInvalidSurfaceConvertConfig(player);
-            return;
+            return false;
         }
 
         List<BlockPos> affectedPositions = new ArrayList<>();
@@ -66,23 +69,35 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
 
         convertSurface(world, shape, brushCenter, config, materials, affectedPositions, originalStates, newStates);
 
-        if (!affectedPositions.isEmpty() && world instanceof ServerWorld serverWorld) {
-            if (!BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, applied -> {
-                if (applied.isEmpty()) {
-                    return;
-                }
-                UndoAction undoAction = new UndoAction(
-                    UndoAction.ActionType.SURFACE_CONVERT,
-                    serverWorld.getRegistryKey(),
-                    applied.positions(),
-                    applied.originalStates(),
-                    applied.appliedStates()
-                );
-                PushdozerMod.pushUndoAction(player, undoAction);
-            })) {
-                TerrainOperationFeedback.notifyRegionBusy(player);
-            }
+        if (affectedPositions.isEmpty()) {
+            return false;
         }
+        if (!(world instanceof ServerWorld serverWorld)) {
+            return false;
+        }
+
+        AtomicBoolean appliedAny = new AtomicBoolean(false);
+        if (!BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, applied -> {
+            if (applied.isEmpty()) {
+                return;
+            }
+            appliedAny.set(true);
+            UndoAction undoAction = new UndoAction(
+                UndoAction.ActionType.SURFACE_CONVERT,
+                serverWorld.getRegistryKey(),
+                applied.positions(),
+                applied.originalStates(),
+                applied.appliedStates()
+            );
+            PushdozerMod.pushUndoAction(player, undoAction);
+        })) {
+            TerrainOperationFeedback.notifyRegionBusy(player);
+            return false;
+        }
+        if (affectedPositions.size() <= BlockOperation.SYNC_BLOCK_LIMIT) {
+            return appliedAny.get();
+        }
+        return true;
     }
 
     private void convertSurface(World world, GeometryShape shape, BlockPos brushCenter, PushdozerConfig config,
