@@ -199,28 +199,26 @@ public class UndoRedoManager {
         List<BlockPos> validPositions = validated.positions();
         List<BlockState> validNewStates = validated.states();
 
-        Runnable afterPostProcess = () -> {
-            try {
-                syncUndoChangesToClient(serverWorld, player, validPositions, isUndo);
-                onFinished.accept(true);
-            } finally {
-                scheduler.release(serverWorld, operationId);
-            }
-        };
+        BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
+            BlockOperation.BULK_WRITE_FLAGS, applied -> {
+                if (applied.isEmpty()) {
+                    scheduler.release(serverWorld, operationId);
+                    onFinished.accept(false);
+                    return;
+                }
 
-        Runnable afterBlocksApplied = () ->
-            BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates, afterPostProcess);
+                Runnable afterPostProcess = () -> {
+                    try {
+                        syncUndoChangesToClient(serverWorld, player, applied.positions(), isUndo);
+                        onFinished.accept(true);
+                    } finally {
+                        scheduler.release(serverWorld, operationId);
+                    }
+                };
 
-        if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
-            LOGGER.debug("Applying {} blocks in batches across ticks (max {} per tick)",
-                validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
-                BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
-        } else {
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
-                BlockOperation.BULK_WRITE_FLAGS);
-            afterBlocksApplied.run();
-        }
+                BlockOperation.postProcessBlockChanges(
+                    serverWorld, applied.positions(), applied.appliedStates(), afterPostProcess);
+            });
     }
 
     private record ValidatedUndoTargets(List<BlockPos> positions, List<BlockState> states,

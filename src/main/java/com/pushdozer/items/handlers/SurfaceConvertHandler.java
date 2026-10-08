@@ -7,6 +7,7 @@ import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
+import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
@@ -23,7 +24,6 @@ import java.util.*;
  * 如果异常那就默认替换为草方块
  */
 public class SurfaceConvertHandler implements TerrainToolHandler {
-    private PushdozerConfig config;
     private static final Random RANDOM = new Random(); // 静态Random对象，避免重复创建
     private static final Set<Block> IGNORED_BLOCKS = Set.of(
         // 原木
@@ -73,7 +73,6 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
      * 处理表层转换操作
      */
     public void handleSurfaceConvert(PlayerEntity player, World world, PushdozerConfig config) {
-        this.config = config;
         if (world.isClient()) return;
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
@@ -88,16 +87,19 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
         List<BlockState> newStates = new ArrayList<>();
 
         // 执行表层转换
-        convertSurface(world, shape, affectedPositions, originalStates, newStates);
+        convertSurface(world, shape, config, affectedPositions, originalStates, newStates);
 
         if (!affectedPositions.isEmpty() && world instanceof ServerWorld serverWorld) {
-            if (!BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
+            if (!BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, applied -> {
+                if (applied.isEmpty()) {
+                    return;
+                }
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.SURFACE_CONVERT,
                     serverWorld.getRegistryKey(),
-                    affectedPositions,
-                    originalStates,
-                    newStates
+                    applied.positions(),
+                    applied.originalStates(),
+                    applied.appliedStates()
                 );
                 PushdozerMod.pushUndoAction(player, undoAction);
             })) {
@@ -109,9 +111,9 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
     /**
      * 表层转换处理
      */
-    private void convertSurface(World world, GeometryShape shape, 
+    private void convertSurface(World world, GeometryShape shape, PushdozerConfig config,
                               List<BlockPos> affectedPositions,
-                              List<BlockState> originalStates, 
+                              List<BlockState> originalStates,
                               List<BlockState> newStates) {
         // 按XZ分组，收集每个柱子的所有Y
         Map<BlockPos, List<Integer>> columnYMap = new HashMap<>();
@@ -134,7 +136,7 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
                 if (!world.isAir(surfacePos) && !isWater(world, surfacePos) && 
                     !isIgnoredBlock(state)) {
                     // 找到真正的地表
-                    Block targetBlock = selectTargetBlock();
+                    Block targetBlock = selectTargetBlock(config);
                     BlockState targetState = targetBlock.getDefaultState();
                     if (state.getBlock() != targetBlock) {
                         affectedPositions.add(surfacePos);
@@ -155,7 +157,7 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
     /**
      * 根据配置比例选择目标方块
      */
-    private Block selectTargetBlock() {
+    private Block selectTargetBlock(PushdozerConfig config) {
         List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         
         if (surfaceBlocks.isEmpty()) {

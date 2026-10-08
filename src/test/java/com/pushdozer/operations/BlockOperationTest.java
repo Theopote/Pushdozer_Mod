@@ -11,12 +11,15 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -53,6 +56,7 @@ class BlockOperationTest extends PushdozerTestBase {
         List<BlockState> states = List.of(stone, stone, stone);
         ServerWorld world = mock(ServerWorld.class);
         when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.getBlockState(any())).thenReturn(Blocks.DIRT.getDefaultState());
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
 
         AtomicBoolean completed = new AtomicBoolean(false);
@@ -80,6 +84,7 @@ class BlockOperationTest extends PushdozerTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         when(world.getServer()).thenReturn(server);
         when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.getBlockState(any())).thenReturn(Blocks.DIRT.getDefaultState());
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
@@ -95,6 +100,30 @@ class BlockOperationTest extends PushdozerTestBase {
         assertFalse(sync);
         assertTrue(completed.get());
         verify(world, times(totalBlocks)).setBlockState(any(), any(), anyInt());
+    }
+
+    @Test
+    void batchSetBlockStates_recordsOnlySuccessfulWrites() {
+        BlockPos successPos = new BlockPos(0, 64, 0);
+        BlockPos failedPos = new BlockPos(1, 64, 0);
+        BlockState stone = Blocks.STONE.getDefaultState();
+        ServerWorld world = mock(ServerWorld.class);
+        when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.setBlockState(eq(successPos), any(), anyInt())).thenReturn(true);
+        when(world.setBlockState(eq(failedPos), any(), anyInt())).thenReturn(false);
+        when(world.getBlockState(any())).thenReturn(Blocks.DIRT.getDefaultState());
+
+        AtomicReference<AppliedChangeResult> captured = new AtomicReference<>();
+        BlockOperation.batchSetBlockStates(
+            List.of(successPos, failedPos),
+            List.of(stone, stone),
+            world,
+            BlockOperation.BULK_WRITE_FLAGS,
+            captured::set
+        );
+
+        assertEquals(1, captured.get().positions().size());
+        assertEquals(successPos, captured.get().positions().getFirst());
     }
 
     @Test

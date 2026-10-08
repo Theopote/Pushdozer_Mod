@@ -9,6 +9,7 @@ import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.util.TerrainBlockSelector;
+import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.network.NetworkManager;
@@ -20,13 +21,13 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PlacementHandler implements TerrainToolHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
-    private PushdozerConfig config;
 
     // 使用标签系统替代硬编码的装饰性方块集合
     private static final TagKey<Block> DECORATIVE_BLOCKS = TagKey.of(RegistryKeys.BLOCK, 
@@ -58,7 +59,6 @@ public class PlacementHandler implements TerrainToolHandler {
     }
 
     public List<BlockPos> handlePlacement(PlayerEntity player, World world, PushdozerConfig config) {
-        this.config = config;
         List<BlockPos> placedPositions = new ArrayList<>();
         if (world.isClient()) {
             return placedPositions; // 如果是客户端，直接返回空列表
@@ -80,10 +80,11 @@ public class PlacementHandler implements TerrainToolHandler {
             return placedPositions;
         }
 
-        return processBlockPlacement(shape, player, world);
+        return processBlockPlacement(shape, player, world, config);
     }
 
-    private List<BlockPos> processBlockPlacement(GeometryShape shape, PlayerEntity player, World world) {
+    private List<BlockPos> processBlockPlacement(GeometryShape shape, PlayerEntity player, World world,
+                                                 PushdozerConfig config) {
         List<BlockPos> placedBlocks = new ArrayList<>();
         List<BlockState> originalStates = new ArrayList<>();
         List<BlockState> newStates = new ArrayList<>();
@@ -109,12 +110,11 @@ public class PlacementHandler implements TerrainToolHandler {
             if (layerHasNonAllowedBlocks || startedPlacing) {
                 startedPlacing = true;
                 for (BlockPos pos : shape.getBlocksInLayer(center, y)) {
-                    if (isValidPlacementPosition(pos, world, shape, player)) {
+                    if (isValidPlacementPosition(pos, world, shape, player, config)) {
                         originalStates.add(world.getBlockState(pos));
                         placedBlocks.add(pos);
 
-                        // 获取要放置的方块
-                        Block fillBlock = getFillBlock(pos, world);
+                        Block fillBlock = getFillBlock(pos, world, config);
                         
                         // 应用方块替换规则
                         fillBlock = applyBlockReplacementRules(fillBlock);
@@ -131,37 +131,9 @@ public class PlacementHandler implements TerrainToolHandler {
         if (!placedBlocks.isEmpty() && world instanceof ServerWorld serverWorld) {
             LOGGER.info("创建撤销操作，放置方块数: {}", placedBlocks.size());
 
-            if (!BlockOperation.applyPlacementChanges(serverWorld, placedBlocks, newStates, () -> {
-                BlockOperation.BoundaryExtension boundaryExtension =
-                    BlockOperation.collectBoundaryExtension(placedBlocks, world);
-                LOGGER.info("边界扩展收集完成，扩展位置数: {}", boundaryExtension.getSize());
-
-                UndoAction undoAction = new UndoAction(
-                    UndoAction.ActionType.PLACE,
-                    serverWorld.getRegistryKey(),
-                    placedBlocks,
-                    originalStates,
-                    newStates,
-                    UndoAction.orderedBoundarySet(boundaryExtension.positions()),
-                    boundaryExtension.originalStates(),
-                    boundaryExtension.newStates()
-                );
-
-                LOGGER.info("撤销操作创建完成，验证状态: {}", undoAction.isValid());
-                PushdozerMod.pushUndoAction(player, undoAction);
-                PushdozerMod.debugUndoStacks(player);
-
-                if (!Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
-                    NetworkManager.broadcastTerrainOperation(
-                        serverWorld,
-                        "PLACE",
-                        placedBlocks,
-                        newStates
-                    );
-                    LOGGER.info("广播放置操作到其他玩家，影响方块数: {}，边界扩展: {}",
-                        placedBlocks.size(), boundaryExtension.getSize());
-                }
-            })) {
+            if (!BlockOperation.applyPlacementChanges(serverWorld, placedBlocks, newStates, applied ->
+                pushPlacementUndo(player, world, serverWorld, applied)
+            )) {
                 TerrainOperationFeedback.notifyRegionBusy(player);
             }
         } else if (placedBlocks.isEmpty()) {
@@ -171,10 +143,47 @@ public class PlacementHandler implements TerrainToolHandler {
         return placedBlocks;
     }
 
+    private static void pushPlacementUndo(PlayerEntity player, World world, ServerWorld serverWorld,
+                                            AppliedChangeResult applied) {
+        if (applied.isEmpty()) {
+            return;
+        }
+
+        BlockOperation.BoundaryExtension boundaryExtension =
+            BlockOperation.collectBoundaryExtension(applied.positions(), world);
+        LOGGER.info("边界扩展收集完成，扩展位置数: {}", boundaryExtension.getSize());
+
+        UndoAction undoAction = new UndoAction(
+            UndoAction.ActionType.PLACE,
+            serverWorld.getRegistryKey(),
+            applied.positions(),
+            applied.originalStates(),
+            applied.appliedStates(),
+            UndoAction.orderedBoundarySet(boundaryExtension.positions()),
+            boundaryExtension.originalStates(),
+            boundaryExtension.newStates()
+        );
+
+        LOGGER.info("撤销操作创建完成，验证状态: {}", undoAction.isValid());
+        PushdozerMod.pushUndoAction(player, undoAction);
+        PushdozerMod.debugUndoStacks(player);
+
+        if (!Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
+            NetworkManager.broadcastTerrainOperation(
+                serverWorld,
+                "PLACE",
+                applied.positions(),
+                applied.appliedStates()
+            );
+            LOGGER.info("广播放置操作到其他玩家，影响方块数: {}，边界扩展: {}",
+                applied.positions().size(), boundaryExtension.getSize());
+        }
+    }
+
     /**
      * 获取要放置的方块
      */
-    private Block getFillBlock(BlockPos pos, World world) {
+    private Block getFillBlock(BlockPos pos, World world, PushdozerConfig config) {
         if (config.getPlaceMode() == PushdozerConfig.PlaceMode.NATURAL_BLOCK) {
             // 自然方块铺设模式
             return config.getSelectedNaturalBlock();
@@ -262,7 +271,8 @@ public class PlacementHandler implements TerrainToolHandler {
         return block;
     }
 
-    private boolean isValidPlacementPosition(BlockPos pos, World world, GeometryShape shape, PlayerEntity player) {
+    private boolean isValidPlacementPosition(BlockPos pos, World world, GeometryShape shape, PlayerEntity player,
+                                             PushdozerConfig config) {
         if (pos == null || world == null || shape == null || player == null) {
             PushdozerMod.LOGGER.error("isValidPlacementPosition 方法接收到 null 参");
             return false;
@@ -285,8 +295,7 @@ public class PlacementHandler implements TerrainToolHandler {
         }
         // NO_LIMIT模式不限制标高
 
-        // 检查是否在玩家上方或与玩家同高度
-        if (isAboveOrAtPlayerLevel(pos, player)) {
+        if (intersectsPlayer(player, pos)) {
             return false;
         }
 
@@ -302,10 +311,10 @@ public class PlacementHandler implements TerrainToolHandler {
         return isAirOrDecorative(state, world, pos);
     }
 
-    private boolean isAboveOrAtPlayerLevel(BlockPos pos, PlayerEntity player) {
-        return pos.getX() == player.getBlockX() &&
-               pos.getZ() == player.getBlockZ() &&
-               pos.getY() >= player.getBlockY();
+    static boolean intersectsPlayer(PlayerEntity player, BlockPos pos) {
+        Box playerBox = player.getBoundingBox();
+        Box blockBox = new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+        return playerBox.intersects(blockBox);
     }
 
     private boolean isAirOrDecorative(BlockState state, World world, BlockPos pos) {
@@ -314,12 +323,10 @@ public class PlacementHandler implements TerrainToolHandler {
     }
 
     private boolean isNonSolidBlock(BlockState state, World world, BlockPos pos) {
-        return state.isAir() || 
-               state.getCollisionShape(world, pos).isEmpty() || 
-               state.getBlock() instanceof FallingBlock;
+        return state.isAir() || state.getCollisionShape(world, pos).isEmpty();
     }
 
-    private boolean isAllowedBlock(BlockState state, World world, BlockPos pos) {
+    public boolean isAllowedBlock(BlockState state, World world, BlockPos pos) {
         Block block = state.getBlock();
         return state.isAir() || 
                isDecorativeBlock(block) || 

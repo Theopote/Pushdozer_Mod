@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * BlockOperation 工具类
@@ -93,40 +94,45 @@ public class BlockOperation {
     }
 
     public static void batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world, int flags) {
-        batchSetBlockStates(positions, states, world, flags, null);
+        batchSetBlockStates(positions, states, world, flags, (Consumer<AppliedChangeResult>) null);
     }
 
     public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
                                               int flags, Runnable onComplete) {
+        if (onComplete == null) {
+            return batchSetBlockStates(positions, states, world, flags, (Consumer<AppliedChangeResult>) null);
+        }
+        return batchSetBlockStates(positions, states, world, flags, result -> onComplete.run());
+    }
+
+    public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
+                                              int flags, Consumer<AppliedChangeResult> onComplete) {
         if (positions.size() != states.size()) {
             LOGGER.error("位置和状态列表大小不匹配: {} vs {}", positions.size(), states.size());
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            completeWith(onComplete, AppliedChangeResult.empty());
             return true;
         }
 
         if (positions.isEmpty()) {
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            completeWith(onComplete, AppliedChangeResult.empty());
             return true;
         }
+
+        AppliedChangeResult.Builder accumulator = new AppliedChangeResult.Builder();
 
         if (!(world instanceof ServerWorld serverWorld) || positions.size() <= SYNC_BLOCK_LIMIT) {
-            applyBlockStates(positions, states, world, flags, 0, positions.size());
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            applyBlockStates(positions, states, world, flags, 0, positions.size(), accumulator);
+            completeWith(onComplete, accumulator.build());
             return true;
         }
 
-        scheduleBlockStatesAcrossTicks(serverWorld, positions, states, flags, 0, onComplete);
+        scheduleBlockStatesAcrossTicks(serverWorld, positions, states, flags, 0, accumulator, onComplete);
         return false;
     }
 
     private static void applyBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
-                                         int flags, int startIndex, int endIndex) {
+                                         int flags, int startIndex, int endIndex,
+                                         AppliedChangeResult.Builder accumulator) {
         for (int i = startIndex; i < endIndex; i++) {
             BlockPos pos = positions.get(i);
             if (!isChunkLoaded(world, pos)) {
@@ -134,25 +140,38 @@ public class BlockOperation {
                 continue;
             }
             BlockState newState = states.get(i);
-            ExceptionPolicy.runPerItem("设置方块状态 " + pos, () -> world.setBlockState(pos, newState, flags), LOGGER);
+            BlockState originalState = world.getBlockState(pos);
+            boolean applied = trySetBlockState(world, pos, newState, flags);
+            if (applied) {
+                accumulator.addSuccess(pos, originalState, newState);
+            }
         }
+    }
+
+    private static boolean trySetBlockState(World world, BlockPos pos, BlockState newState, int flags) {
+        final boolean[] applied = {false};
+        ExceptionPolicy.runPerItem("设置方块状态 " + pos, () -> {
+            if (world.setBlockState(pos, newState, flags)) {
+                applied[0] = true;
+            }
+        }, LOGGER);
+        return applied[0];
     }
 
     private static void scheduleBlockStatesAcrossTicks(ServerWorld world, List<BlockPos> positions,
                                                        List<BlockState> states, int flags, int startIndex,
-                                                       Runnable onComplete) {
+                                                       AppliedChangeResult.Builder accumulator,
+                                                       Consumer<AppliedChangeResult> onComplete) {
         int endIndex = Math.min(startIndex + BLOCKS_PER_TICK, positions.size());
-        applyBlockStates(positions, states, world, flags, startIndex, endIndex);
+        applyBlockStates(positions, states, world, flags, startIndex, endIndex, accumulator);
 
         if (endIndex >= positions.size()) {
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            completeWith(onComplete, accumulator.build());
             return;
         }
 
         Objects.requireNonNull(world.getServer()).execute(() ->
-            scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, onComplete)
+            scheduleBlockStatesAcrossTicks(world, positions, states, flags, endIndex, accumulator, onComplete)
         );
     }
 
@@ -173,34 +192,34 @@ public class BlockOperation {
         TerrainOperationScheduler.getInstance().release(token.world(), token.operationId());
     }
 
-    /**
-     * Applies one phase under an existing terrain operation lock. The caller must release the lock after the final
-     * phase and its post-processing complete.
-     */
     public static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
-                                         Runnable onComplete) {
+                                         Consumer<AppliedChangeResult> onComplete) {
         applyTerrainPhase(token, positions, newStates, false, onComplete);
     }
 
+    public static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
+                                         Runnable onComplete) {
+        applyTerrainPhase(token, positions, newStates, onComplete == null ? null : result -> onComplete.run());
+    }
+
     public static void applyPlacementPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
-                                           Runnable onComplete) {
+                                           Consumer<AppliedChangeResult> onComplete) {
         applyTerrainPhase(token, positions, newStates, true, onComplete);
     }
 
     private static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
-                                            boolean placement, Runnable onComplete) {
+                                          boolean placement, Consumer<AppliedChangeResult> onComplete) {
         if (positions.isEmpty()) {
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            completeWith(onComplete, AppliedChangeResult.empty());
             return;
         }
 
-        batchSetBlockStates(positions, newStates, token.world(), BULK_WRITE_FLAGS, () -> {
+        batchSetBlockStates(positions, newStates, token.world(), BULK_WRITE_FLAGS, applied -> {
             if (placement) {
-                scheduleFallingBlockTicks(token.world(), positions, newStates);
+                scheduleFallingBlockTicks(token.world(), applied);
             }
-            postProcessBlockChanges(token.world(), positions, newStates, onComplete);
+            postProcessBlockChanges(token.world(), applied.positions(), applied.appliedStates(),
+                () -> completeWith(onComplete, applied));
         });
     }
 
@@ -208,24 +227,38 @@ public class BlockOperation {
      * @return false when target chunks are locked by another in-flight operation
      */
     public static boolean applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
-                                              Runnable onComplete) {
+                                              Consumer<AppliedChangeResult> onComplete) {
         return applyScheduledChanges(world, positions, newStates, onComplete, false);
+    }
+
+    public static boolean applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                              Runnable onComplete) {
+        if (onComplete == null) {
+            return applyTerrainChanges(world, positions, newStates, (Consumer<AppliedChangeResult>) null);
+        }
+        return applyTerrainChanges(world, positions, newStates, result -> onComplete.run());
     }
 
     /**
      * @return false when target chunks are locked by another in-flight operation
      */
     public static boolean applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
-                                                Runnable onComplete) {
+                                                Consumer<AppliedChangeResult> onComplete) {
         return applyScheduledChanges(world, positions, newStates, onComplete, true);
     }
 
+    public static boolean applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                                Runnable onComplete) {
+        if (onComplete == null) {
+            return applyPlacementChanges(world, positions, newStates, (Consumer<AppliedChangeResult>) null);
+        }
+        return applyPlacementChanges(world, positions, newStates, result -> onComplete.run());
+    }
+
     private static boolean applyScheduledChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
-                                                 Runnable onComplete, boolean placement) {
+                                                 Consumer<AppliedChangeResult> onComplete, boolean placement) {
         if (positions.isEmpty()) {
-            if (onComplete != null) {
-                onComplete.run();
-            }
+            completeWith(onComplete, AppliedChangeResult.empty());
             return true;
         }
 
@@ -235,11 +268,12 @@ public class BlockOperation {
             return false;
         }
 
-        Runnable finishOperation = () -> {
-            if (onComplete != null) {
-                onComplete.run();
+        Consumer<AppliedChangeResult> finishOperation = applied -> {
+            try {
+                completeWith(onComplete, applied);
+            } finally {
+                releaseTerrainOperation(token.get());
             }
-            releaseTerrainOperation(token.get());
         };
 
         if (placement) {
@@ -362,12 +396,18 @@ public class BlockOperation {
         return serverWorld.isChunkLoaded(new ChunkPos(pos).toLong());
     }
 
-    private static void scheduleFallingBlockTicks(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
-        for (int i = 0; i < positions.size(); i++) {
-            BlockState newState = newStates.get(i);
+    private static void scheduleFallingBlockTicks(ServerWorld world, AppliedChangeResult applied) {
+        for (int i = 0; i < applied.positions().size(); i++) {
+            BlockState newState = applied.appliedStates().get(i);
             if (newState.getBlock() instanceof FallingBlock) {
-                world.scheduleBlockTick(positions.get(i), newState.getBlock(), 2);
+                world.scheduleBlockTick(applied.positions().get(i), newState.getBlock(), 2);
             }
+        }
+    }
+
+    private static void completeWith(Consumer<AppliedChangeResult> onComplete, AppliedChangeResult result) {
+        if (onComplete != null) {
+            onComplete.accept(result);
         }
     }
 
@@ -375,7 +415,7 @@ public class BlockOperation {
                                     List<BlockState> newStates) {
 
         public int getSize() {
-                return positions.size();
-            }
+            return positions.size();
         }
+    }
 }

@@ -3,6 +3,7 @@ package com.pushdozer.gametest;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.handlers.ExcavationHandler;
+import com.pushdozer.items.handlers.PlacementHandler;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.TerrainOperationScheduler;
 import com.pushdozer.operations.UndoAction;
@@ -38,6 +39,20 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         new BlockPos(2, 1, 1),
         new BlockPos(3, 1, 1),
     };
+
+    @GameTest
+    public void placementDoesNotTreatSolidSandAsReplaceable(TestContext context) {
+        BlockPos sandPos = new BlockPos(1, 1, 1);
+        context.setBlockState(sandPos, Blocks.SAND);
+
+        PlacementHandler handler = new PlacementHandler();
+        BlockPos absolute = context.getAbsolutePos(sandPos);
+        context.assertFalse(
+            handler.isAllowedBlock(context.getBlockState(sandPos), context.getWorld(), absolute),
+            "Solid sand must not be treated as replaceable for placement"
+        );
+        context.complete();
+    }
 
     @GameTest
     public void batchTerrainWriteAppliesBlockStates(TestContext context) {
@@ -336,6 +351,8 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         if ("batchTerrainWriteAppliesBlockStates".equals(method.getName())) {
             context.setBlockState(new BlockPos(1, 1, 1), Blocks.AIR.getDefaultState());
+        } else if ("placementDoesNotTreatSolidSandAsReplaceable".equals(method.getName())) {
+            context.setBlockState(new BlockPos(1, 1, 1), Blocks.SAND.getDefaultState());
         } else if ("excavationUndoRestoresBrokenBlocks".equals(method.getName())) {
             for (BlockPos target : EXCAVATION_TARGETS) {
                 context.setBlockState(target, Blocks.STONE.getDefaultState());

@@ -8,6 +8,7 @@ import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.util.WorldBounds;
+import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.network.NetworkManager;
@@ -27,6 +28,7 @@ import java.util.*;
  */
 public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
 
+    /** Set for the synchronous planning phase of each operation; not read from async callbacks. */
     protected PushdozerConfig config;
 
     // REFINED: 简化忽略方块列表，使用BlockTags替代大部分硬编码
@@ -46,7 +48,6 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         this.config = config;
         if (world.isClient()) return;
 
-        // Multiplayer permission check
         if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
             return;
         }
@@ -62,20 +63,26 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         List<BlockState> originalStates = new ArrayList<>();
         List<BlockState> newStates = new ArrayList<>();
 
-        // Execute terrain operation (plan changes first, then apply across ticks)
-        processTerrain(world, shape, basePos, affectedPositions, originalStates, newStates);
+        processTerrain(world, shape, basePos, config, affectedPositions, originalStates, newStates);
 
         if (affectedPositions.isEmpty() || !(world instanceof ServerWorld serverWorld)) {
             return;
         }
 
-        Runnable finalizeOperation = () -> {
+        final AppliedChangeResult[] accumulated = {AppliedChangeResult.empty()};
+
+        Runnable pushUndoAndBroadcast = () -> {
+            AppliedChangeResult total = accumulated[0];
+            if (total.isEmpty()) {
+                return;
+            }
+
             UndoAction undoAction = new UndoAction(
                 actionType,
                 serverWorld.getRegistryKey(),
-                affectedPositions,
-                originalStates,
-                newStates
+                total.positions(),
+                total.originalStates(),
+                total.appliedStates()
             );
             PushdozerMod.pushUndoAction(player, undoAction);
 
@@ -83,8 +90,8 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
                 NetworkManager.broadcastTerrainOperation(
                     serverWorld,
                     actionType.name(),
-                    affectedPositions,
-                    newStates
+                    total.positions(),
+                    total.appliedStates()
                 );
             }
         };
@@ -97,31 +104,40 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         }
 
         BlockOperation.TerrainOperationToken token = operationToken.get();
-        BlockOperation.applyTerrainPhase(token, affectedPositions, newStates, () -> {
+        BlockOperation.applyTerrainPhase(token, affectedPositions, newStates, phase1 -> {
+            accumulated[0] = accumulated[0].mergedWith(phase1);
+
             List<BlockPos> vegetationPositions = new ArrayList<>();
             List<BlockState> vegetationOriginal = new ArrayList<>();
             List<BlockState> vegetationNew = new ArrayList<>();
             collectFloatingVegetation(world, shape, vegetationPositions, vegetationOriginal, vegetationNew);
 
             if (vegetationPositions.isEmpty()) {
-                finalizeOperation.run();
-                BlockOperation.releaseTerrainOperation(token);
+                try {
+                    pushUndoAndBroadcast.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
                 return;
             }
 
             if (!BlockOperation.extendTerrainOperation(token, vegetationPositions)) {
                 TerrainOperationFeedback.notifyRegionBusy(player);
-                finalizeOperation.run();
-                BlockOperation.releaseTerrainOperation(token);
+                try {
+                    pushUndoAndBroadcast.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
                 return;
             }
 
-            affectedPositions.addAll(vegetationPositions);
-            originalStates.addAll(vegetationOriginal);
-            newStates.addAll(vegetationNew);
-            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, () -> {
-                finalizeOperation.run();
-                BlockOperation.releaseTerrainOperation(token);
+            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, phase2 -> {
+                accumulated[0] = accumulated[0].mergedWith(phase2);
+                try {
+                    pushUndoAndBroadcast.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
             });
         });
     }
@@ -129,12 +145,12 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
     /**
      * Main method for processing terrain
      */
-    protected void processTerrain(World world, GeometryShape shape, BlockPos brushCenter,
+    protected void processTerrain(World world, GeometryShape shape, BlockPos brushCenter, PushdozerConfig config,
                                   List<BlockPos> affectedPositions,
                                   List<BlockState> originalStates,
                                   List<BlockState> newStates) {
         // 1. Collect terrain information
-        Map<BlockPos, TerrainColumn> columns = collectTerrainColumns(world, shape, brushCenter);
+        Map<BlockPos, TerrainColumn> columns = collectTerrainColumns(world, shape, brushCenter, config);
 
         if (columns.isEmpty()) {
             return;
@@ -164,7 +180,8 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
     /**
      * Collect terrain information
      */
-    protected Map<BlockPos, TerrainColumn> collectTerrainColumns(World world, GeometryShape shape, BlockPos brushCenter) {
+    protected Map<BlockPos, TerrainColumn> collectTerrainColumns(World world, GeometryShape shape, BlockPos brushCenter,
+                                                                 PushdozerConfig config) {
         Map<BlockPos, TerrainColumn> columns = new HashMap<>();
 
         // Get all unique (X,Z) coordinates

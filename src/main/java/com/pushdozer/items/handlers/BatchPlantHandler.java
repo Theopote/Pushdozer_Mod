@@ -13,7 +13,6 @@ import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
-import com.pushdozer.util.TerrainOperationFeedback;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -28,7 +27,7 @@ import java.util.List;
 /**
  * 批量种植处理器
  * 根据生物群系自动生成合理的植被（树木、花草）
- *
+ * <p>
  * 优化版本：
  * - 性能优化：减少getBlockState调用，使用批量操作
  * - 撤销逻辑修复：正确处理树生成边界，避免操作冲突
@@ -114,7 +113,10 @@ public class BatchPlantHandler implements TerrainToolHandler {
                 serverWorld,
                 result.getSimplePlantPositions(),
                 result.getSimplePlantNewStates(),
-                afterSimplePlants
+                applied -> {
+                    result.reconcileSimplePlants(applied);
+                    afterSimplePlants.run();
+                }
             )) {
                 TerrainOperationFeedback.notifyRegionBusy(player);
             }

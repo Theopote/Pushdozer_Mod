@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
+import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
 import com.pushdozer.util.TerrainOperationFeedback;
+import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
@@ -26,36 +28,37 @@ import net.minecraft.world.World;
  * 负责处理挖掘操作，支持分层挖掘功能
  */
 public class ExcavationHandler implements TerrainToolHandler {
-    private PushdozerConfig config;
 
     public ExcavationHandler() {
     }
 
     /**
      * 处理挖掘操作
-     * 
+     *
      * @param player 执行操作的玩家
      * @param world 世界对象
      * @param config 玩家个人配置
      * @return 被挖掘的方块位置列表
      */
     public List<BlockPos> handleExcavation(PlayerEntity player, World world, PushdozerConfig config) {
-        this.config = config;
         if (world.isClient()) {
+            return List.of();
+        }
+
+        if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
             return List.of();
         }
 
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
-        
+
         if (shape == null) {
             return List.of();
         }
 
-        List<BlockPos> blocksToBreak = getBlocksToBreak(player, world, shape);
-        
+        List<BlockPos> blocksToBreak = getBlocksToBreak(player, world, shape, config);
+
         if (!blocksToBreak.isEmpty()) {
-            // 执行挖掘操作
             performExcavation(world, blocksToBreak, player);
         }
 
@@ -66,10 +69,13 @@ public class ExcavationHandler implements TerrainToolHandler {
      * 在指定世界坐标执行挖掘并记录撤销栈（供 Game Test 与确定性调用场景使用）。
      */
     public void excavateBlocksAt(PlayerEntity player, ServerWorld world, PushdozerConfig config, List<BlockPos> worldPositions) {
-        this.config = config;
+        if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
+            return;
+        }
+
         List<BlockPos> filtered = worldPositions.stream()
-            .filter(pos -> isValidBreakTarget(world.getBlockState(pos), world, pos))
-            .filter(pos -> isValidHeightForExcavation(pos, player))
+            .filter(pos -> isValidBreakTarget(world.getBlockState(pos), world, pos, config))
+            .filter(pos -> isValidHeightForExcavation(pos, player, config))
             .collect(Collectors.toCollection(ArrayList::new));
 
         if (!filtered.isEmpty()) {
@@ -80,10 +86,10 @@ public class ExcavationHandler implements TerrainToolHandler {
     /**
      * 获取需要挖掘的方块列表
      */
-    private List<BlockPos> getBlocksToBreak(PlayerEntity player, World world, GeometryShape shape) {
+    private List<BlockPos> getBlocksToBreak(PlayerEntity player, World world, GeometryShape shape, PushdozerConfig config) {
         return shape.getBlockPositions().stream()
-                .filter(pos -> isValidBreakTarget(world.getBlockState(pos), world, pos))
-                .filter(pos -> isValidHeightForExcavation(pos, player))
+                .filter(pos -> isValidBreakTarget(world.getBlockState(pos), world, pos, config))
+                .filter(pos -> isValidHeightForExcavation(pos, player, config))
                 .collect(Collectors.toList());
     }
 
@@ -95,74 +101,74 @@ public class ExcavationHandler implements TerrainToolHandler {
             return;
         }
 
-        List<BlockState> originalStates = new ArrayList<>();
-        List<BlockState> newStates = new ArrayList<>();
-
-        for (BlockPos pos : positions) {
-            originalStates.add(world.getBlockState(pos));
+        List<BlockState> newStates = new ArrayList<>(positions.size());
+        for (int i = 0; i < positions.size(); i++) {
             newStates.add(Blocks.AIR.getDefaultState());
         }
 
-        if (!BlockOperation.applyTerrainChanges(serverWorld, positions, newStates, () -> {
-            BlockOperation.BoundaryExtension boundaryExtension =
-                BlockOperation.collectBoundaryExtension(positions, world);
-
-            UndoAction undoAction = new UndoAction(
-                UndoAction.ActionType.BREAK,
-                serverWorld.getRegistryKey(),
-                positions,
-                originalStates,
-                newStates,
-                UndoAction.orderedBoundarySet(boundaryExtension.positions()),
-                boundaryExtension.originalStates(),
-                boundaryExtension.newStates()
-            );
-            PushdozerMod.pushUndoAction(player, undoAction);
-        })) {
+        if (!BlockOperation.applyTerrainChanges(serverWorld, positions, newStates, applied ->
+            pushExcavationUndo(player, world, serverWorld, applied)
+        )) {
             TerrainOperationFeedback.notifyRegionBusy(player);
         }
+    }
+
+    private static void pushExcavationUndo(PlayerEntity player, World world, ServerWorld serverWorld,
+                                             AppliedChangeResult applied) {
+        if (applied.isEmpty()) {
+            return;
+        }
+
+        BlockOperation.BoundaryExtension boundaryExtension =
+            BlockOperation.collectBoundaryExtension(applied.positions(), world);
+
+        UndoAction undoAction = new UndoAction(
+            UndoAction.ActionType.BREAK,
+            serverWorld.getRegistryKey(),
+            applied.positions(),
+            applied.originalStates(),
+            applied.appliedStates(),
+            UndoAction.orderedBoundarySet(boundaryExtension.positions()),
+            boundaryExtension.originalStates(),
+            boundaryExtension.newStates()
+        );
+        PushdozerMod.pushUndoAction(player, undoAction);
     }
 
     /**
      * 检查方块是否可以挖掘
      */
-    private boolean isValidBreakTarget(BlockState state, World world, BlockPos pos) {
+    private boolean isValidBreakTarget(BlockState state, World world, BlockPos pos, PushdozerConfig config) {
         if (world.isAir(pos)) {
             return false;
         }
 
         Block block = state.getBlock();
-        
-        // 检查是否在可破坏方块列表中
+
         if (!config.isBlockBreakable(block)) {
             return false;
         }
 
-        // 检查是否在忽略列表中
         String blockId = Registries.BLOCK.getId(block).toString();
         if (config.getIgnoredBlockIds().contains(blockId)) {
             return false;
         }
 
-        // 检查是否为不可破坏的方块
         return !(block.getHardness() < 0);
     }
 
     /**
      * 检查标高是否适合挖掘（挖掘模式：只能在此标高以上工作）
      */
-    private boolean isValidHeightForExcavation(BlockPos pos, PlayerEntity player) {
+    private boolean isValidHeightForExcavation(BlockPos pos, PlayerEntity player, PushdozerConfig config) {
         PushdozerConfig.HeightMode heightMode = config.getHeightMode();
         if (heightMode == PushdozerConfig.HeightMode.NO_LIMIT) {
-            // 标高不限：不限制标高
             return true;
         } else if (heightMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER) {
-            // 跟随玩家标高：只能在玩家当前高度及以上挖掘
             return pos.getY() >= player.getBlockY();
         } else if (heightMode == PushdozerConfig.HeightMode.LOCKED_ONCE || heightMode == PushdozerConfig.HeightMode.CUSTOM) {
-            // 锁定到玩家标高/自定义标高：只能在锁定高度+1及以上挖掘
             return pos.getY() >= config.getLockedHeight() + 1;
         }
-        return true; // 默认允许
+        return true;
     }
 }

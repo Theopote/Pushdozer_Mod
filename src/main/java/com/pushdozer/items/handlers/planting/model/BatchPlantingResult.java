@@ -1,10 +1,13 @@
 package com.pushdozer.items.handlers.planting.model;
 
+import com.pushdozer.operations.AppliedChangeResult;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class BatchPlantingResult {
     private final List<BlockPos> allPositions = new ArrayList<>();
@@ -72,5 +75,32 @@ public final class BatchPlantingResult {
 
     public int getTreeCount() {
         return treeCount;
+    }
+
+    public void reconcileSimplePlants(AppliedChangeResult applied) {
+        Set<BlockPos> plannedSimple = new HashSet<>(simplePlantPositions);
+        for (int i = allPositions.size() - 1; i >= 0; i--) {
+            if (plannedSimple.contains(allPositions.get(i))) {
+                allPositions.remove(i);
+                allOriginalStates.remove(i);
+                allNewStates.remove(i);
+            }
+        }
+
+        simplePlantPositions.clear();
+        simplePlantNewStates.clear();
+        simplePlantCount = 0;
+
+        for (int i = 0; i < applied.positions().size(); i++) {
+            BlockPos pos = applied.positions().get(i);
+            BlockState original = applied.originalStates().get(i);
+            BlockState newState = applied.appliedStates().get(i);
+            allPositions.add(pos);
+            allOriginalStates.add(original);
+            allNewStates.add(newState);
+            simplePlantPositions.add(pos);
+            simplePlantNewStates.add(newState);
+            simplePlantCount++;
+        }
     }
 }

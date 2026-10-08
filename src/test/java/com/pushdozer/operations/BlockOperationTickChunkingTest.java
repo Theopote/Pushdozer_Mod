@@ -40,6 +40,7 @@ class BlockOperationTickChunkingTest extends PushdozerTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         when(world.getServer()).thenReturn(server);
         when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.getBlockState(any())).thenReturn(Blocks.DIRT.getDefaultState());
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
@@ -73,6 +74,7 @@ class BlockOperationTickChunkingTest extends PushdozerTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         when(world.getServer()).thenReturn(server);
         when(world.isChunkLoaded(anyLong())).thenReturn(true);
+        when(world.getBlockState(any())).thenReturn(Blocks.DIRT.getDefaultState());
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);

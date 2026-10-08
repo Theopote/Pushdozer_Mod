@@ -9,6 +9,7 @@ import com.pushdozer.items.handlers.shoreline.ShorelineVegetationPlanner;
 import com.pushdozer.items.handlers.shoreline.model.ShorelineResult;
 import com.pushdozer.items.handlers.shoreline.model.ShorelineTransition;
 import com.pushdozer.items.handlers.shoreline.model.VegetationPlacement;
+import com.pushdozer.operations.AppliedChangeResult;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
@@ -39,12 +40,10 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
     private static final int DEFAULT_SHORELINE_WIDTH = 5;
     private static final float DEFAULT_VEGETATION_DENSITY = 0.3f;
 
-    private PushdozerConfig config;
-
     public ShorelineProcessHandler() {
     }
 
-    private void validateConfig(PushdozerConfig config) {
+    private static void validateConfig(PushdozerConfig config) {
         if (config.getShorelineWidth() < 1) {
             PushdozerMod.LOGGER.warn("Invalid shoreline width {}, resetting to default ({})", config.getShorelineWidth(), DEFAULT_SHORELINE_WIDTH);
             config.setShorelineWidth(DEFAULT_SHORELINE_WIDTH);
@@ -61,7 +60,7 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
         }
     }
 
-    private boolean validateParameters(PlayerEntity player, World world) {
+    private static boolean validateParameters(PlayerEntity player, World world) {
         if (player == null) {
             PushdozerMod.LOGGER.warn("Invalid parameters for shoreline processing: player is null");
             return false;
@@ -69,7 +68,7 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
         return true;
     }
 
-    private GeometryShape getProcessingShape(PlayerEntity player) {
+    private static GeometryShape getProcessingShape(PlayerEntity player, PushdozerConfig config) {
         BlockPos basePos = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
 
@@ -81,7 +80,6 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
     }
 
     public void handleShorelineProcess(PlayerEntity player, World world, PushdozerConfig config) {
-        this.config = config;
         validateConfig(config);
 
         if (world.isClient()) {
@@ -92,7 +90,7 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
             return;
         }
 
-        GeometryShape shape = getProcessingShape(player);
+        GeometryShape shape = getProcessingShape(player, config);
         if (shape == null) {
             return;
         }
@@ -125,7 +123,11 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
         }
 
         BlockOperation.TerrainOperationToken token = operationToken.get();
-        BlockOperation.applyTerrainPhase(token, result.affectedPositions, result.newStates, () -> {
+        final AppliedChangeResult[] accumulated = {AppliedChangeResult.empty()};
+
+        BlockOperation.applyTerrainPhase(token, result.affectedPositions, result.newStates, phase1 -> {
+            accumulated[0] = accumulated[0].mergedWith(phase1);
+
             List<VegetationPlacement> vegetationPlacements =
                 vegetationPlanner.collectVegetationPositions(world, result.vegetationPositions);
             List<BlockPos> vegetationPositions = new ArrayList<>();
@@ -135,41 +137,47 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
                 world, vegetationPlacements, vegetationPositions, vegetationOriginal, vegetationNew, player
             );
 
-            Runnable finish = () -> {
-                result.affectedPositions.addAll(vegetationPositions);
-                result.originalStates.addAll(vegetationOriginal);
-                result.newStates.addAll(vegetationNew);
-                createUndoActionAndNotifyPlayer(player, serverWorld, result, vegetationCount);
-            };
+            Runnable finish = () -> createUndoActionAndNotifyPlayer(player, serverWorld, result, vegetationCount, accumulated[0]);
 
             if (vegetationPositions.isEmpty()) {
-                finish.run();
-                BlockOperation.releaseTerrainOperation(token);
+                try {
+                    finish.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
                 return;
             }
 
             if (!BlockOperation.extendTerrainOperation(token, vegetationPositions)) {
                 TerrainOperationFeedback.notifyRegionBusy(player);
-                finish.run();
-                BlockOperation.releaseTerrainOperation(token);
+                try {
+                    finish.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
                 return;
             }
 
-            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, () -> {
-                finish.run();
-                BlockOperation.releaseTerrainOperation(token);
+            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, phase2 -> {
+                accumulated[0] = accumulated[0].mergedWith(phase2);
+                try {
+                    finish.run();
+                } finally {
+                    BlockOperation.releaseTerrainOperation(token);
+                }
             });
         });
     }
 
-    private void createUndoActionAndNotifyPlayer(PlayerEntity player, ServerWorld world, ShorelineResult result, int vegetationCount) {
-        if (!result.affectedPositions.isEmpty()) {
+    private void createUndoActionAndNotifyPlayer(PlayerEntity player, ServerWorld world, ShorelineResult result,
+                                                   int vegetationCount, AppliedChangeResult applied) {
+        if (!applied.isEmpty()) {
             UndoAction undoAction = new UndoAction(
                 UndoAction.ActionType.PLACE,
                 world.getRegistryKey(),
-                result.affectedPositions,
-                result.originalStates,
-                result.newStates
+                applied.positions(),
+                applied.originalStates(),
+                applied.appliedStates()
             );
             PushdozerMod.pushUndoAction(player, undoAction);
         }

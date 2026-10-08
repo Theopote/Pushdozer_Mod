@@ -60,6 +60,32 @@ class BlockOperationLifecycleTest extends PushdozerTestBase {
     }
 
     @Test
+    void applyTerrainChanges_releasesLockWhenCallbackThrows() {
+        DeferredServerWorld deferred = new DeferredServerWorld();
+        when(deferred.world.getBlockState(any())).thenReturn(Blocks.STONE.getDefaultState());
+        when(deferred.world.getLightingProvider()).thenReturn(mock(LightingProvider.class));
+
+        BlockPos pos = new BlockPos(0, 64, 0);
+        ChunkPos targetChunk = new ChunkPos(pos);
+
+        try {
+            assertTrue(BlockOperation.applyTerrainChanges(
+                deferred.world,
+                List.of(pos),
+                List.of(Blocks.DIRT.getDefaultState()),
+                applied -> {
+                    throw new RuntimeException("callback failure");
+                }
+            ));
+            deferred.runAllPendingTasks();
+        } catch (RuntimeException ignored) {
+            // finishOperation must still release the lock even when the callback throws
+        }
+
+        assertFalse(scheduler.isChunkBusy(deferred.world, targetChunk));
+    }
+
+    @Test
     void twoPhaseTerrainOperation_reusesSameLockForVegetationPhase() {
         DeferredServerWorld deferred = new DeferredServerWorld();
         when(deferred.world.getBlockState(any())).thenReturn(Blocks.STONE.getDefaultState());
