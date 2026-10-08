@@ -71,6 +71,18 @@ public class PushdozerConfig {
         }
     }
 
+    public enum SurfaceConvertDistribution {
+        PATCHY,
+        SCATTER;
+
+        public Text getDisplayText() {
+            return switch (this) {
+                case PATCHY -> Text.translatable("pushdozer.surface_convert.distribution.patchy");
+                case SCATTER -> Text.translatable("pushdozer.surface_convert.distribution.scatter");
+            };
+        }
+    }
+
     public enum SmoothVariant {
         STANDARD,
         ADAPTIVE,
@@ -558,6 +570,30 @@ public class PushdozerConfig {
 
     public List<SurfaceConfig.SurfaceConvertBlock> getSurfaceConvertBlocks() {
         return surface.getSurfaceConvertBlocks();
+    }
+
+    public boolean isConvertArtificialSurfaces() {
+        return surface.isConvertArtificialSurfaces();
+    }
+
+    public void setConvertArtificialSurfaces(boolean convertArtificialSurfaces) {
+        surface.setConvertArtificialSurfaces(convertArtificialSurfaces);
+    }
+
+    public SurfaceConvertDistribution getSurfaceConvertDistribution() {
+        return surface.getSurfaceConvertDistribution();
+    }
+
+    public void setSurfaceConvertDistribution(SurfaceConvertDistribution distribution) {
+        surface.setSurfaceConvertDistribution(distribution);
+    }
+
+    public int getSurfaceConvertMaxBelowSurfaceDepth() {
+        return surface.getSurfaceConvertMaxBelowSurfaceDepth();
+    }
+
+    public void setSurfaceConvertMaxBelowSurfaceDepth(int depth) {
+        surface.setSurfaceConvertMaxBelowSurfaceDepth(depth);
     }
 
     public PlantType getPlantType() {

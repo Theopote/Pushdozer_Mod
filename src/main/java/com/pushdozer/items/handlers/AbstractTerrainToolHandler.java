@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.items.handlers.terrain.TerrainSurfaceQueries;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.PositionRandom;
 import com.pushdozer.util.OperationPermissions;
@@ -300,31 +301,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
      * Find ground block
      */
     protected BlockPos findGroundBlock(World world, BlockPos initialPos) {
-        BlockPos.Mutable currentPos = new BlockPos.Mutable(initialPos.getX(), initialPos.getY(), initialPos.getZ());
-
-        if (world.isAir(currentPos) || isWater(world, currentPos) || isIgnoredBlock(world.getBlockState(currentPos))) {
-            // Starting from air, search downward
-        } else {
-            // If starting point is solid, first search upward to find the sky
-            // REFINED: Use world.getHeight() for compatibility with dynamic world height
-            while (currentPos.getY() < world.getHeight() &&
-                   !world.isAir(currentPos) && !isWater(world, currentPos) &&
-                   !isIgnoredBlock(world.getBlockState(currentPos))) {
-                currentPos.move(0, 1, 0);
-            }
-        }
-
-        // Search downward to find the first non-air/water/ignored block
-        while (currentPos.getY() >= world.getBottomY() &&
-               (world.isAir(currentPos) || isWater(world, currentPos) ||
-                isIgnoredBlock(world.getBlockState(currentPos)))) {
-            currentPos.move(0, -1, 0);
-        }
-
-        if (currentPos.getY() < world.getBottomY()) {
-            return null;
-        }
-        return currentPos.toImmutable();
+        return TerrainSurfaceQueries.findGroundBlock(world, initialPos);
     }
 
     /**
@@ -446,8 +423,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
      * Check if water
      */
     protected boolean isWater(World world, BlockPos pos) {
-        FluidState fluidState = world.getFluidState(pos);
-        return !fluidState.isEmpty() && fluidState.isStill();
+        return TerrainSurfaceQueries.isWater(world, pos);
     }
 
     /**
@@ -455,23 +431,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
      * REFINED: Uses BlockTags for better compatibility and extensibility
      */
     protected boolean isIgnoredBlock(BlockState state) {
-        // Use tags to automatically be compatible with vanilla updates and blocks added by other mods
-        if (state.isIn(BlockTags.LOGS) ||
-            state.isIn(BlockTags.LEAVES) ||
-            state.isIn(BlockTags.FLOWERS) ||
-            state.isIn(BlockTags.SAPLINGS) ||
-            state.isIn(BlockTags.CROPS) ||
-            state.isIn(BlockTags.SMALL_FLOWERS)) {
-            return true;
-        }
-
-        // Check bamboo (no suitable tag)
-        if (state.getBlock() instanceof BambooBlock) {
-            return true;
-        }
-
-        // For blocks without suitable tags, use simplified Set
-        return IGNORED_BLOCKS.contains(state.getBlock());
+        return TerrainSurfaceQueries.isIgnoredBlock(state);
     }
 
     /**

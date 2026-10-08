@@ -11,7 +11,9 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
@@ -30,6 +32,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     private static final int MAX_BLOCKS = 5;
     private static final int ROW_HEIGHT = 20;
     private static final int BLOCK_ICON_SIZE = 20;
+    private static final int OPTION_ROW_COUNT = 2;
 
     public SurfaceConvertConfigPanel(PushdozerConfigScreen parent, PushdozerConfig config) {
         super(parent, config);
@@ -64,6 +67,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         for (int i = 0; i < surfaceBlocks.size() && i < MAX_BLOCKS; i++) {
             currentY += ROW_HEIGHT + WIDGET_MARGIN;
         }
+        currentY += OPTION_ROW_COUNT * (WIDGET_HEIGHT + WIDGET_MARGIN);
         if (surfaceBlocks.size() == 1) {
             currentY += WIDGET_HEIGHT + WIDGET_MARGIN; // addBlockButton
             currentY += WIDGET_HEIGHT; // confirmButton
@@ -102,6 +106,7 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             widgets.addAll(row.getWidgets());
             currentY += ROW_HEIGHT + WIDGET_MARGIN;
         }
+        currentY = addSurfaceConvertOptionWidgets(contentLeft, contentWidth, currentY);
         if (surfaceBlocks.size() == 1) {
             ButtonWidget addBlockButton = ButtonWidget.builder(
                             Text.translatable("pushdozer.config.add_block"),
@@ -165,6 +170,44 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
                     .build();
             widgets.add(confirmButton);
         }
+    }
+
+    private int addSurfaceConvertOptionWidgets(int contentLeft, int contentWidth, int currentY) {
+        CyclingButtonWidget<PushdozerConfig.SurfaceConvertDistribution> distributionButton =
+            CyclingButtonWidget.<PushdozerConfig.SurfaceConvertDistribution>builder(
+                    PushdozerConfig.SurfaceConvertDistribution::getDisplayText,
+                    config.getSurfaceConvertDistribution())
+                .values(PushdozerConfig.SurfaceConvertDistribution.values())
+                .build(contentLeft, currentY, contentWidth, WIDGET_HEIGHT,
+                    Text.translatable("pushdozer.config.surface_convert_distribution",
+                        config.getSurfaceConvertDistribution().getDisplayText()),
+                    (button, value) -> {
+                        config.setSurfaceConvertDistribution(value);
+                        button.setMessage(Text.translatable("pushdozer.config.surface_convert_distribution",
+                            value.getDisplayText()));
+                    });
+        distributionButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.surface_convert_distribution")));
+        widgets.add(distributionButton);
+        currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
+
+        ButtonWidget artificialButton = ButtonWidget.builder(
+                artificialSurfacesLabel(config.isConvertArtificialSurfaces()),
+                button -> {
+                    config.setConvertArtificialSurfaces(!config.isConvertArtificialSurfaces());
+                    button.setMessage(artificialSurfacesLabel(config.isConvertArtificialSurfaces()));
+                })
+            .dimensions(contentLeft, currentY, contentWidth, WIDGET_HEIGHT)
+            .build();
+        artificialButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.convert_artificial_surfaces")));
+        widgets.add(artificialButton);
+        return currentY + WIDGET_HEIGHT + WIDGET_MARGIN;
+    }
+
+    private static Text artificialSurfacesLabel(boolean enabled) {
+        String state = enabled
+            ? Text.translatable("pushdozer.common.on").getString()
+            : Text.translatable("pushdozer.common.off").getString();
+        return Text.translatable("pushdozer.config.convert_artificial_surfaces", state);
     }
 
     private void addSelectedBlock(Block block) {

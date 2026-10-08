@@ -2,6 +2,7 @@ package com.pushdozer.gametest;
 
 import com.mojang.authlib.GameProfile;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.config.domain.SurfaceConfig;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.block.Block;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -18,6 +19,21 @@ final class PushdozerGameTestSupport {
         PushdozerConfig config = new PushdozerConfig();
         config.setBreakableBlocks(List.of(breakableBlocks));
         config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
+        return config;
+    }
+
+    static PushdozerConfig createSurfaceConvertConfig(String targetBlockId) {
+        PushdozerConfig config = new PushdozerConfig();
+        config.setGeometryType(PushdozerConfig.GeometryType.BOX);
+        config.setLength(1);
+        config.setWidth(1);
+        config.setBoxHeight(3);
+        config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
+        config.setNoiseSeed(42L);
+        config.setSurfaceConvertDistribution(PushdozerConfig.SurfaceConvertDistribution.SCATTER);
+        config.setSurfaceConvertMaxBelowSurfaceDepth(0);
+        config.getSurfaceConvertBlocks().clear();
+        config.getSurfaceConvertBlocks().add(new SurfaceConfig.SurfaceConvertBlock(targetBlockId, 100f));
         return config;
     }
 

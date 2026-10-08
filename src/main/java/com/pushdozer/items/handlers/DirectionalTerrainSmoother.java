@@ -94,7 +94,7 @@ final class DirectionalTerrainSmoother {
     ) {
         float planned = plannedHeights.getOrDefault(columnXZ, originalHeight);
         float smoothed = spatiallySmoothed.getOrDefault(columnXZ, planned);
-        float blend = Math.max(0.0f, Math.min(1.0f, params.spatialSmoothBlend));
+        float blend = Math.clamp(params.spatialSmoothBlend, 0.0f, 1.0f);
         float finalHeight = planned * (1.0f - blend) + smoothed * blend;
 
         float edgeFalloff = AbstractTerrainToolHandler.calculateBrushEdgeFalloff(

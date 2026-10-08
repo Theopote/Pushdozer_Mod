@@ -4,6 +4,9 @@ import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.handlers.ExcavationHandler;
 import com.pushdozer.items.handlers.PlacementHandler;
+import com.pushdozer.items.handlers.SurfaceConvertHandler;
+import com.pushdozer.shapes.GeometryShape;
+import com.pushdozer.shapes.GeometryShapeFactory;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.TerrainOperationScheduler;
 import com.pushdozer.operations.UndoAction;
@@ -213,27 +216,28 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         });
     }
 
-    @GameTest
+    @GameTest(maxTicks = 20)
     public void terrainScheduler_rejectsOverlappingChunkWrites(TestContext context) {
-        ServerWorld world = context.getWorld();
-        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
-        scheduler.resetForTests();
+        context.runAtTick(context.getTick() + 2, () -> {
+            ServerWorld world = context.getWorld();
+            TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
 
-        UUID firstOperation = UUID.randomUUID();
-        UUID secondOperation = UUID.randomUUID();
-        BlockPos anchor = context.getAbsolutePos(new BlockPos(1, 1, 1));
+            UUID firstOperation = UUID.randomUUID();
+            UUID secondOperation = UUID.randomUUID();
+            BlockPos anchor = context.getAbsolutePos(new BlockPos(1, 1, 1));
 
-        List<BlockPos> firstChunks = List.of(anchor, anchor.add(1, 0, 0));
-        context.assertTrue(scheduler.tryAcquire(world, firstOperation, firstChunks),
-            "First operation should acquire chunk lock");
-        context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(2, 0, 0))),
-            "Overlapping chunk write should be rejected while lock is held");
+            List<BlockPos> firstChunks = List.of(anchor, anchor.add(1, 0, 0));
+            context.assertTrue(scheduler.tryAcquire(world, firstOperation, firstChunks),
+                "First operation should acquire chunk lock");
+            context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(2, 0, 0))),
+                "Overlapping chunk write should be rejected while lock is held");
 
-        scheduler.release(world, firstOperation);
-        context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(1, 0, 0))),
-            "Chunk lock should be available after release");
-        scheduler.release(world, secondOperation);
-        context.complete();
+            scheduler.release(world, firstOperation);
+            context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(1, 0, 0))),
+                "Chunk lock should be available after release");
+            scheduler.release(world, secondOperation);
+            context.complete();
+        });
     }
 
     @GameTest
@@ -263,7 +267,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         });
     }
 
-    @GameTest(maxTicks = 40)
+    @GameTest(maxTicks = 60)
     public void undoReentry_blockedWhileLargeUndoPending(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
@@ -294,14 +298,147 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
         manager.pushUndoAction(player, action);
-        manager.undoLastAction(player, world);
-        manager.undoLastAction(player, world);
 
-        context.runAtTick(context.getTick() + 15, () -> {
-            context.assertTrue(manager.getUndoStackSize(player) == 0,
-                "Large undo should consume the only stack entry once");
+        // Defer undo until other parallel batch-0 terrain ops release chunk locks.
+        context.runAtTick(context.getTick() + 2, () -> {
+            manager.undoLastAction(player, world);
+            manager.undoLastAction(player, world);
+            context.runAtTick(context.getTick() + 20, () -> {
+                context.assertTrue(manager.getUndoStackSize(player) == 0,
+                    "Large undo should consume the only stack entry once");
+                context.complete();
+            });
+        });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void surfaceConvertGrassToDirt(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos center = new BlockPos(2, 1, 2);
+        context.setBlockState(center, Blocks.GRASS_BLOCK);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
+        applySurfaceConvert(context, world, player, center, config);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(center).isOf(Blocks.DIRT), "Grass surface should become dirt");
             context.complete();
         });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void surfaceConvertProtectsRoof(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos ground = new BlockPos(2, 1, 2);
+        BlockPos roof = new BlockPos(2, 2, 2);
+        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+        context.setBlockState(roof, Blocks.OAK_PLANKS);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:sand");
+        applySurfaceConvert(context, world, player, ground, config);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(roof).isOf(Blocks.OAK_PLANKS), "Roof planks must stay intact");
+            context.assertTrue(context.getBlockState(ground).isOf(Blocks.SAND), "Natural ground below roof should convert");
+            context.complete();
+        });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void surfaceConvertRetainsShortGrassOnDirt(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos ground = new BlockPos(2, 1, 2);
+        BlockPos plant = new BlockPos(2, 2, 2);
+        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+        context.setBlockState(plant, Blocks.SHORT_GRASS);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
+        applySurfaceConvert(context, world, player, ground, config);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(ground).isOf(Blocks.DIRT), "Surface should convert to dirt");
+            context.assertTrue(context.getBlockState(plant).isOf(Blocks.SHORT_GRASS),
+                "Short grass should survive on dirt");
+            context.complete();
+        });
+    }
+
+    @GameTest(maxTicks = 60)
+    public void surfaceConvertRemovesShortGrassOnStone(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos ground = new BlockPos(2, 1, 2);
+        BlockPos plant = new BlockPos(2, 2, 2);
+        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+        context.setBlockState(plant, Blocks.SHORT_GRASS);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
+        applySurfaceConvert(context, world, player, ground, config);
+
+        context.runAtTick(context.getTick() + 10, () -> {
+            context.assertFalse(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
+                "Surface should no longer be grass after convert");
+            context.assertTrue(context.getBlockState(ground).isOf(Blocks.STONE),
+                "Surface should convert to stone");
+            context.assertTrue(context.getBlockState(plant).isAir(),
+                "Short grass should be removed when base becomes stone");
+            context.complete();
+        });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void surfaceConvertUndoRestoresBlocks(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos ground = new BlockPos(2, 1, 2);
+        BlockPos plant = new BlockPos(2, 2, 2);
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+        context.setBlockState(plant, Blocks.SHORT_GRASS);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
+        applySurfaceConvert(context, world, player, ground, config);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(plant).isAir(), "Plant should be removed after convert");
+            UndoRedoService.getInstance().undoLastAction(player, world);
+            context.runAtTick(context.getTick() + 5, () -> {
+                context.assertTrue(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
+                    "Undo should restore grass block");
+                context.assertTrue(context.getBlockState(plant).isOf(Blocks.SHORT_GRASS),
+                    "Undo should restore removed plant");
+                context.complete();
+            });
+        });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void surfaceConvertSkipsInvalidTargetConfig(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos ground = new BlockPos(2, 1, 2);
+        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+
+        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:oak_door");
+        applySurfaceConvert(context, world, player, ground, config);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
+                "Invalid target config must not modify terrain");
+            context.complete();
+        });
+    }
+
+    private static void applySurfaceConvert(TestContext context, ServerWorld world, ServerPlayerEntity player,
+                                            BlockPos relativeCenter, PushdozerConfig config) {
+        BlockPos absoluteCenter = context.getAbsolutePos(relativeCenter);
+        GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, absoluteCenter);
+        new SurfaceConvertHandler().applySurfaceConvert(world, player, shape, absoluteCenter, config);
     }
 
     @GameTest
@@ -346,7 +483,8 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
     @Override
     public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
-        TerrainOperationScheduler.getInstance().resetForTests();
+        // Do not reset TerrainOperationScheduler here: batch-0 GameTests run in parallel and
+        // clearing global chunk locks mid-flight causes flaky terrain apply failures.
         context.setBlockState(new BlockPos(0, 0, 0), Blocks.STONE.getDefaultState());
 
         if ("batchTerrainWriteAppliesBlockStates".equals(method.getName())) {

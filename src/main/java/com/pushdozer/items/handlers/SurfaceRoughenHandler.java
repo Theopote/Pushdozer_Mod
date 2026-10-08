@@ -206,9 +206,9 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
             return config.getNoiseFrequency();
         }
         int r = Math.max(1, getEffectiveBrushRadius(config));
-        float scale = (float) Math.max(0.5, Math.min(4.0, 12.0 / r));
+        float scale = (float) Math.clamp(12.0 / r, 0.5, 4.0);
         float freq = DEFAULT_NOISE_FREQUENCY * scale;
-        return Math.max(0.01f, Math.min(0.15f, freq));
+        return Math.clamp(freq, 0.01f, 0.15f);
     }
 
     private float getNoisePersistence() {
@@ -223,6 +223,6 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
             return config.getNoiseOctaves();
         }
         int r = Math.max(1, getEffectiveBrushRadius(config));
-        return 3 + Math.min(2, Math.max(0, (r - 6) / 8));
+        return 3 + Math.clamp((r - 6) / 8, 0, 2);
     }
 }

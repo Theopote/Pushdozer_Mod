@@ -30,7 +30,7 @@ public class SurfaceConfig {
         }
 
         public void setPercentage(float percentage) {
-            this.percentage = Math.max(0.0f, Math.min(100.0f, percentage));
+            this.percentage = Math.clamp(percentage, 0.0f, 100.0f);
         }
     }
 
@@ -62,6 +62,13 @@ public class SurfaceConfig {
     private List<SurfaceConvertBlock> surfaceConvertBlocks = new ArrayList<>(List.of(
         new SurfaceConvertBlock("minecraft:grass_block", 100.0f)
     ));
+    @Expose
+    private boolean convertArtificialSurfaces = false;
+    @Expose
+    private PushdozerConfig.SurfaceConvertDistribution surfaceConvertDistribution =
+        PushdozerConfig.SurfaceConvertDistribution.PATCHY;
+    @Expose
+    private int surfaceConvertMaxBelowSurfaceDepth = 3;
 
     private ConfigChangeNotifier onChange = () -> {};
 
@@ -92,7 +99,7 @@ public class SurfaceConfig {
     }
 
     public void setSmoothStrength(float smoothStrength) {
-        this.smoothStrength = Math.max(0.1f, Math.min(1.0f, smoothStrength));
+        this.smoothStrength = Math.clamp(smoothStrength, 0.1f, 1.0f);
         onChange.onConfigChanged();
     }
 
@@ -101,7 +108,7 @@ public class SurfaceConfig {
     }
 
     public void setDirectionalSmoothBlend(float directionalSmoothBlend) {
-        this.directionalSmoothBlend = Math.max(0.0f, Math.min(1.0f, directionalSmoothBlend));
+        this.directionalSmoothBlend = Math.clamp(directionalSmoothBlend, 0.0f, 1.0f);
         onChange.onConfigChanged();
     }
 
@@ -119,7 +126,7 @@ public class SurfaceConfig {
     }
 
     public void setRoughnessStrength(float roughnessStrength) {
-        this.roughnessStrength = Math.max(0.1f, Math.min(2.0f, roughnessStrength));
+        this.roughnessStrength = Math.clamp(roughnessStrength, 0.1f, 2.0f);
         onChange.onConfigChanged();
     }
 
@@ -128,7 +135,7 @@ public class SurfaceConfig {
     }
 
     public void setSmoothingIntensity(float smoothingIntensity) {
-        this.smoothingIntensity = Math.max(0.0f, Math.min(1.0f, smoothingIntensity));
+        this.smoothingIntensity = Math.clamp(smoothingIntensity, 0.0f, 1.0f);
         onChange.onConfigChanged();
     }
 
@@ -155,7 +162,7 @@ public class SurfaceConfig {
     }
 
     public void setNoiseFrequency(float value) {
-        this.noiseFrequency = Math.max(0.005f, Math.min(0.2f, value));
+        this.noiseFrequency = Math.clamp(value, 0.005f, 0.2f);
         onChange.onConfigChanged();
     }
 
@@ -164,7 +171,7 @@ public class SurfaceConfig {
     }
 
     public void setNoisePersistence(float value) {
-        this.noisePersistence = Math.max(0.05f, Math.min(0.95f, value));
+        this.noisePersistence = Math.clamp(value, 0.05f, 0.95f);
         onChange.onConfigChanged();
     }
 
@@ -173,7 +180,7 @@ public class SurfaceConfig {
     }
 
     public void setNoiseOctaves(int value) {
-        this.noiseOctaves = Math.max(1, Math.min(6, value));
+        this.noiseOctaves = Math.clamp(value, 1, 6);
         onChange.onConfigChanged();
     }
 
@@ -188,5 +195,39 @@ public class SurfaceConfig {
         if (surfaceConvertBlocks.isEmpty()) {
             surfaceConvertBlocks.add(new SurfaceConvertBlock("minecraft:grass_block", 100.0f));
         }
+        if (surfaceConvertDistribution == null) {
+            surfaceConvertDistribution = PushdozerConfig.SurfaceConvertDistribution.PATCHY;
+        }
+    }
+
+    public boolean isConvertArtificialSurfaces() {
+        return convertArtificialSurfaces;
+    }
+
+    public void setConvertArtificialSurfaces(boolean convertArtificialSurfaces) {
+        this.convertArtificialSurfaces = convertArtificialSurfaces;
+        onChange.onConfigChanged();
+    }
+
+    public PushdozerConfig.SurfaceConvertDistribution getSurfaceConvertDistribution() {
+        return surfaceConvertDistribution == null
+            ? PushdozerConfig.SurfaceConvertDistribution.PATCHY
+            : surfaceConvertDistribution;
+    }
+
+    public void setSurfaceConvertDistribution(PushdozerConfig.SurfaceConvertDistribution distribution) {
+        this.surfaceConvertDistribution = distribution == null
+            ? PushdozerConfig.SurfaceConvertDistribution.PATCHY
+            : distribution;
+        onChange.onConfigChanged();
+    }
+
+    public int getSurfaceConvertMaxBelowSurfaceDepth() {
+        return surfaceConvertMaxBelowSurfaceDepth;
+    }
+
+    public void setSurfaceConvertMaxBelowSurfaceDepth(int depth) {
+        this.surfaceConvertMaxBelowSurfaceDepth = Math.clamp(depth, 0, 16);
+        onChange.onConfigChanged();
     }
 }

@@ -5,15 +5,15 @@ import java.util.Random;
 /**
  * Deterministic 2D Perlin noise from a full 64-bit seed and world-space coordinates.
  */
-final class SeededPerlinNoise {
+public final class SeededPerlinNoise {
 
     private final int[] permutation;
 
-    SeededPerlinNoise(long seed) {
+    public SeededPerlinNoise(long seed) {
         this.permutation = buildPermutation(seed);
     }
 
-    float sample(double worldX, double worldZ, float frequency, float persistence, int octaves) {
+    public float sample(double worldX, double worldZ, float frequency, float persistence, int octaves) {
         float noise = 0.0f;
         float amplitude = 1.0f;
         float freq = frequency;
@@ -23,7 +23,7 @@ final class SeededPerlinNoise {
             noise += amplitude * perlinNoise(worldX * freq, worldZ * freq);
             maxAmplitude += amplitude;
             amplitude *= persistence;
-            freq *= 2.0;
+            freq *= 2.0F;
         }
 
         return maxAmplitude > 0.0f ? noise / maxAmplitude : 0.0f;

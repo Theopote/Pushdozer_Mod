@@ -28,4 +28,11 @@ public final class TerrainOperationFeedback {
             serverPlayer.sendMessage(Text.translatable("pushdozer.message.operation_denied.undo_conflict"), true);
         }
     }
+
+    public static void notifyInvalidSurfaceConvertConfig(PlayerEntity player) {
+        LOGGER.debug("Surface convert skipped for {}: no valid target materials", player.getName().getString());
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            serverPlayer.sendMessage(Text.translatable("pushdozer.message.surface_convert.invalid_materials"), true);
+        }
+    }
 }
