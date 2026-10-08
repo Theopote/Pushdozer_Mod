@@ -2,12 +2,13 @@ package com.pushdozer.operations;
 
 import com.pushdozer.PushdozerTestBase;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.light.LightingProvider;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -27,19 +28,20 @@ import static org.mockito.Mockito.when;
 
 class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
 
+    private final TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
+
+    @AfterEach
+    void resetScheduler() {
+        scheduler.resetForTests();
+    }
+
     private static class CountingManager extends UndoRedoManager {
-        final AtomicInteger smallCalls = new AtomicInteger();
-        final AtomicInteger largeCalls = new AtomicInteger();
+        final AtomicInteger blockUpdateSyncCalls = new AtomicInteger();
 
         @Override
-        protected void syncSmallOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions) {
-            smallCalls.incrementAndGet();
-        }
-
-        @Override
-        protected void syncLargeOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions,
-                                          LightingProvider lightProvider) {
-            largeCalls.incrementAndGet();
+        protected void syncBlockUpdatesToClient(ServerWorld serverWorld, ServerPlayerEntity serverPlayer,
+                                                List<BlockPos> validPositions) {
+            blockUpdateSyncCalls.incrementAndGet();
         }
     }
 
@@ -51,8 +53,9 @@ class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
         when(world.getBottomY()).thenReturn(-64);
         when(world.getHeight()).thenReturn(384);
         when(world.getRegistryKey()).thenReturn(World.OVERWORLD);
-        when(world.getLightingProvider()).thenReturn(mock(LightingProvider.class));
-        when(world.getBlockState(any())).thenReturn(mock(BlockState.class));
+        BlockState sharedState = Blocks.STONE.getDefaultState();
+        when(world.getBlockState(any())).thenReturn(sharedState);
+        when(world.getLightingProvider()).thenReturn(mock(net.minecraft.world.chunk.light.LightingProvider.class));
         return world;
     }
 
@@ -60,44 +63,40 @@ class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
         List<BlockPos> positions = new ArrayList<>(count);
         List<BlockState> original = new ArrayList<>(count);
         List<BlockState> updated = new ArrayList<>(count);
-        BlockState state = mock(BlockState.class);
+        BlockState sharedState = Blocks.STONE.getDefaultState();
         for (int i = 0; i < count; i++) {
-            // Spread across a few chunks, but all will be treated as loaded in mocks.
             positions.add(new BlockPos(i, 64, 0));
-            original.add(state);
-            updated.add(state);
+            original.add(sharedState);
+            updated.add(sharedState);
         }
         return new UndoAction(UndoAction.ActionType.BREAK, World.OVERWORLD, positions, original, updated);
     }
 
     @Test
-    void executeUndoRedoAction_4095Positions_usesSmallSyncPath() {
+    void executeUndoRedoAction_4095Positions_usesBlockUpdateSyncPath() {
         CountingManager manager = new CountingManager();
         MinecraftServer server = mock(MinecraftServer.class);
         ServerWorld world = mockServerWorld(server);
 
-        // Run scheduled tasks immediately so the method completes in test.
         doAnswer(invocation -> {
             Runnable r = invocation.getArgument(0);
             r.run();
             return null;
         }).when(server).execute(any(Runnable.class));
 
-        UUID playerId = UUID.randomUUID();
         ServerPlayerEntity player = mock(ServerPlayerEntity.class);
-        when(player.getUuid()).thenReturn(playerId);
+        when(player.getUuid()).thenReturn(UUID.randomUUID());
         when(player.getName()).thenReturn(net.minecraft.text.Text.literal("test"));
 
         AtomicBoolean finished = new AtomicBoolean(false);
-        manager.executeUndoRedoAction(actionOfSize(4095), player, (World) world, true, ok -> finished.set(true));
+        manager.executeUndoRedoAction(actionOfSize(4095), player, world, true, ok -> finished.set(true));
 
         assertTrue(finished.get());
-        assertEquals(1, manager.smallCalls.get());
-        assertEquals(0, manager.largeCalls.get());
+        assertEquals(1, manager.blockUpdateSyncCalls.get());
     }
 
     @Test
-    void executeUndoRedoAction_4096Positions_usesLargeSyncPath() {
+    void executeUndoRedoAction_4096Positions_usesBlockUpdateSyncPath() {
         CountingManager manager = new CountingManager();
         MinecraftServer server = mock(MinecraftServer.class);
         ServerWorld world = mockServerWorld(server);
@@ -108,17 +107,14 @@ class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
             return null;
         }).when(server).execute(any(Runnable.class));
 
-        UUID playerId = UUID.randomUUID();
         ServerPlayerEntity player = mock(ServerPlayerEntity.class);
-        when(player.getUuid()).thenReturn(playerId);
+        when(player.getUuid()).thenReturn(UUID.randomUUID());
         when(player.getName()).thenReturn(net.minecraft.text.Text.literal("test"));
 
         AtomicBoolean finished = new AtomicBoolean(false);
-        manager.executeUndoRedoAction(actionOfSize(4096), player, (World) world, true, ok -> finished.set(true));
+        manager.executeUndoRedoAction(actionOfSize(4096), player, world, true, ok -> finished.set(true));
 
         assertTrue(finished.get());
-        assertEquals(0, manager.smallCalls.get());
-        assertEquals(1, manager.largeCalls.get());
+        assertEquals(1, manager.blockUpdateSyncCalls.get());
     }
 }
-

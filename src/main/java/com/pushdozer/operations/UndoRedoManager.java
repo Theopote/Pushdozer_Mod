@@ -11,10 +11,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.block.BlockState;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
-import net.minecraft.world.chunk.WorldChunk;
-import net.minecraft.world.chunk.light.LightingProvider;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +23,6 @@ import org.slf4j.LoggerFactory;
 public class UndoRedoManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
     private static final int MAX_UNDO_REDO_STEPS = 30;
-    private static final int LARGE_OPERATION_THRESHOLD = 4096;
     private final Map<StackKey, PlayerUndoRedoStacks> playerStacks = new ConcurrentHashMap<>();
 
     private final Map<UUID, Long> lastActionTime = new ConcurrentHashMap<>();
@@ -176,18 +172,31 @@ public class UndoRedoManager {
 
         List<BlockPos> validPositions = new ArrayList<>(positions.size());
         List<BlockState> validNewStates = new ArrayList<>(positions.size());
-        int skipped = 0;
+        int skippedUnavailable = 0;
+        int skippedConflict = 0;
         for (int i = 0; i < positions.size(); i++) {
             BlockPos pos = positions.get(i);
-            if (WorldBounds.isLoadedBuildablePos(serverWorld, pos)) {
-                validPositions.add(pos);
-                validNewStates.add(isUndo ? originalStates.get(i) : newStates.get(i));
-            } else {
-                skipped++;
+            if (!WorldBounds.isLoadedBuildablePos(serverWorld, pos)) {
+                skippedUnavailable++;
+                continue;
             }
+
+            BlockState expectedCurrent = isUndo ? newStates.get(i) : originalStates.get(i);
+            BlockState actualCurrent = serverWorld.getBlockState(pos);
+            if (!actualCurrent.equals(expectedCurrent)) {
+                skippedConflict++;
+                continue;
+            }
+
+            validPositions.add(pos);
+            validNewStates.add(isUndo ? originalStates.get(i) : newStates.get(i));
         }
-        if (skipped > 0) {
-            LOGGER.debug("Position validation skipped {} unavailable positions", skipped);
+        if (skippedUnavailable > 0) {
+            LOGGER.debug("Position validation skipped {} unavailable positions", skippedUnavailable);
+        }
+        if (skippedConflict > 0) {
+            LOGGER.debug("Skipped {} positions with conflicting block state during {}",
+                skippedConflict, isUndo ? "undo" : "redo");
         }
 
         if (validPositions.isEmpty()) {
@@ -195,12 +204,22 @@ public class UndoRedoManager {
             return;
         }
 
-        boolean isLarge = validPositions.size() >= LARGE_OPERATION_THRESHOLD;
+        UUID operationId = UUID.randomUUID();
+        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
+        if (!scheduler.tryAcquire(serverWorld, operationId, validPositions)) {
+            LOGGER.warn("Undo/redo skipped due to chunk conflict");
+            onFinished.accept(false);
+            return;
+        }
 
         Runnable afterBlocksApplied = () -> {
-            BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates);
-            syncUndoChangesToClient(serverWorld, player, validPositions, isLarge, isUndo);
-            onFinished.accept(true);
+            try {
+                BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates);
+                syncUndoChangesToClient(serverWorld, player, validPositions, isUndo);
+                onFinished.accept(true);
+            } finally {
+                scheduler.release(serverWorld, operationId);
+            }
         };
 
         if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
@@ -216,25 +235,21 @@ public class UndoRedoManager {
     }
 
     protected void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,
-                                          boolean isLarge, boolean isUndo) {
+                                          boolean isUndo) {
         if (!(player instanceof ServerPlayerEntity serverPlayer)) {
-            LOGGER.debug("Completed {} operation, updated valid positions: {} (large operation: {})",
-                isUndo ? "undo" : "redo", validPositions.size(), isLarge);
+            LOGGER.debug("Completed {} operation, updated valid positions: {}",
+                isUndo ? "undo" : "redo", validPositions.size());
             return;
         }
 
-        LightingProvider lightProvider = serverWorld.getLightingProvider();
-        if (!isLarge) {
-            syncSmallOperation(serverWorld, serverPlayer, validPositions);
-        } else {
-            syncLargeOperation(serverWorld, serverPlayer, validPositions, lightProvider);
-        }
+        syncBlockUpdatesToClient(serverWorld, serverPlayer, validPositions);
 
-        LOGGER.debug("Completed {} operation, updated valid positions: {} (large operation: {})",
-            isUndo ? "undo" : "redo", validPositions.size(), isLarge);
+        LOGGER.debug("Completed {} operation, updated valid positions: {}",
+            isUndo ? "undo" : "redo", validPositions.size());
     }
 
-    protected void syncSmallOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions) {
+    protected void syncBlockUpdatesToClient(ServerWorld serverWorld, ServerPlayerEntity serverPlayer,
+                                            List<BlockPos> validPositions) {
         for (BlockPos pos : validPositions) {
             if (!serverWorld.isChunkLoaded(new ChunkPos(pos).toLong())) {
                 continue;
@@ -244,37 +259,6 @@ public class UndoRedoManager {
                 sendPacket(serverPlayer, new BlockUpdateS2CPacket(pos, currentState));
             }, LOGGER);
         }
-    }
-
-    protected void syncLargeOperation(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, List<BlockPos> validPositions,
-                                      LightingProvider lightProvider) {
-        Set<ChunkPos> affectedChunks = new HashSet<>();
-        for (BlockPos pos : validPositions) {
-            affectedChunks.add(new ChunkPos(pos));
-        }
-        sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "Large operation fast sync");
-        Objects.requireNonNull(serverWorld.getServer()).execute(() ->
-            sendChunks(serverWorld, serverPlayer, affectedChunks, lightProvider, "Delayed lighting sync")
-        );
-    }
-
-    protected void sendChunks(ServerWorld serverWorld, ServerPlayerEntity serverPlayer, Set<ChunkPos> chunks,
-                              LightingProvider lightProvider, String reason) {
-        int sent = 0;
-        for (ChunkPos chunkPos : chunks) {
-            if (!serverWorld.isChunkLoaded(chunkPos.toLong())) {
-                continue;
-            }
-            WorldChunk chunk = serverWorld.getChunk(chunkPos.x, chunkPos.z);
-            if (chunk == null) {
-                continue;
-            }
-            ExceptionPolicy.runPerItem("Send chunk data " + chunkPos, () ->
-                sendPacket(serverPlayer, new ChunkDataS2CPacket(chunk, lightProvider, null, null)),
-                LOGGER);
-            sent++;
-        }
-        LOGGER.debug("{}: Sent {} chunks to player {}", reason, sent, serverPlayer.getName().getString());
     }
 
     protected void sendPacket(ServerPlayerEntity player, Packet<?> packet) {

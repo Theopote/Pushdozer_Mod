@@ -4,6 +4,7 @@ import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.handlers.ExcavationHandler;
 import com.pushdozer.operations.BlockOperation;
+import com.pushdozer.operations.TerrainOperationScheduler;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.UndoRedoManager;
 import com.pushdozer.services.UndoRedoService;
@@ -22,6 +23,7 @@ import net.minecraft.world.World;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -138,12 +140,14 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
 
         // 10 blocks inside same chunk.
-        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        BlockPos relativeBase = new BlockPos(0, 1, 0);
         List<BlockPos> positions = new ArrayList<>();
         List<net.minecraft.block.BlockState> original = new ArrayList<>();
         List<net.minecraft.block.BlockState> updated = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            positions.add(base.add(i, 0, 0));
+            BlockPos relative = relativeBase.add(i, 0, 0);
+            context.setBlockState(relative, Blocks.AIR);
+            positions.add(context.getAbsolutePos(relative));
             original.add(Blocks.STONE.getDefaultState());
             updated.add(Blocks.AIR.getDefaultState());
         }
@@ -159,21 +163,23 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
     }
 
     @GameTest(maxTicks = 40)
-    public void undoSync_largeOperation_sendsChunkDataTwice(TestContext context) {
+    public void undoSync_largeOperation_sendsBlockUpdates(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
 
         PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
 
         // 4096 blocks: 16x16x16 cube within a single chunk (x,z 0-15).
-        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        BlockPos relativeBase = new BlockPos(0, 1, 0);
         List<BlockPos> positions = new ArrayList<>(4096);
         List<net.minecraft.block.BlockState> original = new ArrayList<>(4096);
         List<net.minecraft.block.BlockState> updated = new ArrayList<>(4096);
         for (int y = 0; y < 16; y++) {
             for (int z = 0; z < 16; z++) {
                 for (int x = 0; x < 16; x++) {
-                    positions.add(base.add(x, y, z));
+                    BlockPos relative = relativeBase.add(x, y, z);
+                    context.setBlockState(relative, Blocks.AIR);
+                    positions.add(context.getAbsolutePos(relative));
                     original.add(Blocks.STONE.getDefaultState());
                     updated.add(Blocks.AIR.getDefaultState());
                 }
@@ -183,13 +189,36 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
         manager.runUndoRedoAction(action, player, world);
 
-        // Needs several ticks: 4096 blocks apply across ticks, post-process is scheduled, then chunk sync passes.
         context.runAtTick(context.getTick() + 25, () -> {
-            context.assertTrue(manager.chunkDataPackets.get() >= 2, "Expected ChunkData packets (fast + delayed) for large undo");
-            // Large sync path should avoid per-block updates.
-            context.assertTrue(manager.blockUpdatePackets.get() == 0, "Expected no BlockUpdate packets for large undo");
+            context.assertTrue(manager.blockUpdatePackets.get() > 0,
+                "Expected BlockUpdate packets for large undo");
+            context.assertTrue(manager.chunkDataPackets.get() == 0,
+                "Expected no ChunkData packets for unified undo sync");
             context.complete();
         });
+    }
+
+    @GameTest
+    public void terrainScheduler_rejectsOverlappingChunkWrites(TestContext context) {
+        ServerWorld world = context.getWorld();
+        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
+        scheduler.resetForTests();
+
+        UUID firstOperation = UUID.randomUUID();
+        UUID secondOperation = UUID.randomUUID();
+        BlockPos anchor = context.getAbsolutePos(new BlockPos(1, 1, 1));
+
+        List<BlockPos> firstChunks = List.of(anchor, anchor.add(1, 0, 0));
+        context.assertTrue(scheduler.tryAcquire(world, firstOperation, firstChunks),
+            "First operation should acquire chunk lock");
+        context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(2, 0, 0))),
+            "Overlapping chunk write should be rejected while lock is held");
+
+        scheduler.release(world, firstOperation);
+        context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(1, 0, 0))),
+            "Chunk lock should be available after release");
+        scheduler.release(world, secondOperation);
+        context.complete();
     }
 
     @GameTest
@@ -225,14 +254,27 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
         PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
 
-        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        // Keep all 600 positions inside one chunk so parallel GameTests do not share chunk locks.
+        BlockPos relativeBase = new BlockPos(0, 1, 0);
         List<BlockPos> positions = new ArrayList<>(600);
         List<net.minecraft.block.BlockState> original = new ArrayList<>(600);
         List<net.minecraft.block.BlockState> updated = new ArrayList<>(600);
-        for (int i = 0; i < 600; i++) {
-            positions.add(base.add(i % 16, 0, i / 16));
-            original.add(Blocks.STONE.getDefaultState());
-            updated.add(Blocks.AIR.getDefaultState());
+        int index = 0;
+        outer:
+        for (int y = 0; y < 16; y++) {
+            for (int z = 0; z < 16; z++) {
+                for (int x = 0; x < 16; x++) {
+                    if (index >= 600) {
+                        break outer;
+                    }
+                    BlockPos relative = relativeBase.add(x, y, z);
+                    context.setBlockState(relative, Blocks.AIR);
+                    positions.add(context.getAbsolutePos(relative));
+                    original.add(Blocks.STONE.getDefaultState());
+                    updated.add(Blocks.AIR.getDefaultState());
+                    index++;
+                }
+            }
         }
 
         UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
@@ -240,7 +282,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         manager.undoLastAction(player, world);
         manager.undoLastAction(player, world);
 
-        context.runAtTick(context.getTick() + 10, () -> {
+        context.runAtTick(context.getTick() + 15, () -> {
             context.assertTrue(manager.getUndoStackSize(player) == 0,
                 "Large undo should consume the only stack entry once");
             context.complete();
@@ -289,6 +331,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
     @Override
     public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
+        TerrainOperationScheduler.getInstance().resetForTests();
         context.setBlockState(new BlockPos(0, 0, 0), Blocks.STONE.getDefaultState());
 
         if ("batchTerrainWriteAppliesBlockStates".equals(method.getName())) {

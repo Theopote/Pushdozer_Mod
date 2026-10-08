@@ -47,3 +47,4 @@ config/pushdozer_config.json
 # internal notes (not for publication)
 FIXES_SUMMARY.md
 OPTIMIZATION_REPORT.md
+/logs

@@ -19,6 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * BlockOperation 工具类
@@ -150,25 +151,52 @@ public class BlockOperation {
         );
     }
 
-    public static void applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
-                                           Runnable onComplete) {
-        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
-            postProcessBlockChanges(world, positions, newStates);
-            if (onComplete != null) {
-                onComplete.run();
-            }
-        });
+    /**
+     * @return false when target chunks are locked by another in-flight operation
+     */
+    public static boolean applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                              Runnable onComplete) {
+        return applyScheduledChanges(world, positions, newStates, onComplete, false);
     }
 
-    public static void applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
-                                             Runnable onComplete) {
-        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
-            scheduleFallingBlockTicks(world, positions, newStates);
-            postProcessBlockChanges(world, positions, newStates);
+    /**
+     * @return false when target chunks are locked by another in-flight operation
+     */
+    public static boolean applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                                Runnable onComplete) {
+        return applyScheduledChanges(world, positions, newStates, onComplete, true);
+    }
+
+    private static boolean applyScheduledChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                                 Runnable onComplete, boolean placement) {
+        if (positions.isEmpty()) {
             if (onComplete != null) {
                 onComplete.run();
             }
+            return true;
+        }
+
+        UUID operationId = UUID.randomUUID();
+        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
+        if (!scheduler.tryAcquire(world, operationId, positions)) {
+            LOGGER.warn("Skipped terrain apply due to chunk conflict ({} positions)", positions.size());
+            return false;
+        }
+
+        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
+            try {
+                if (placement) {
+                    scheduleFallingBlockTicks(world, positions, newStates);
+                }
+                postProcessBlockChanges(world, positions, newStates);
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            } finally {
+                scheduler.release(world, operationId);
+            }
         });
+        return true;
     }
 
     public static void postProcessBlockChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
