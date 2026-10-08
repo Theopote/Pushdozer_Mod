@@ -14,10 +14,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,6 +40,9 @@ public class BlockOperation {
     public static final int POST_PROCESS_PER_TICK = 2048;
 
     public static final int BULK_WRITE_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
+
+    public record TerrainOperationToken(UUID operationId, ServerWorld world) {
+    }
 
     public record BlockChange(BlockPos pos, BlockState before, BlockState after) {
     }
@@ -151,6 +156,54 @@ public class BlockOperation {
         );
     }
 
+    public static Optional<TerrainOperationToken> beginTerrainOperation(ServerWorld world, Collection<BlockPos> positions) {
+        UUID operationId = UUID.randomUUID();
+        if (!positions.isEmpty()
+            && !TerrainOperationScheduler.getInstance().tryAcquire(world, operationId, positions)) {
+            return Optional.empty();
+        }
+        return Optional.of(new TerrainOperationToken(operationId, world));
+    }
+
+    public static boolean extendTerrainOperation(TerrainOperationToken token, Collection<BlockPos> additionalPositions) {
+        return TerrainOperationScheduler.getInstance().tryExtend(token.world(), token.operationId(), additionalPositions);
+    }
+
+    public static void releaseTerrainOperation(TerrainOperationToken token) {
+        TerrainOperationScheduler.getInstance().release(token.world(), token.operationId());
+    }
+
+    /**
+     * Applies one phase under an existing terrain operation lock. The caller must release the lock after the final
+     * phase and its post-processing complete.
+     */
+    public static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
+                                         Runnable onComplete) {
+        applyTerrainPhase(token, positions, newStates, false, onComplete);
+    }
+
+    public static void applyPlacementPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
+                                           Runnable onComplete) {
+        applyTerrainPhase(token, positions, newStates, true, onComplete);
+    }
+
+    private static void applyTerrainPhase(TerrainOperationToken token, List<BlockPos> positions, List<BlockState> newStates,
+                                            boolean placement, Runnable onComplete) {
+        if (positions.isEmpty()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+
+        batchSetBlockStates(positions, newStates, token.world(), BULK_WRITE_FLAGS, () -> {
+            if (placement) {
+                scheduleFallingBlockTicks(token.world(), positions, newStates);
+            }
+            postProcessBlockChanges(token.world(), positions, newStates, onComplete);
+        });
+    }
+
     /**
      * @return false when target chunks are locked by another in-flight operation
      */
@@ -176,31 +229,37 @@ public class BlockOperation {
             return true;
         }
 
-        UUID operationId = UUID.randomUUID();
-        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
-        if (!scheduler.tryAcquire(world, operationId, positions)) {
+        Optional<TerrainOperationToken> token = beginTerrainOperation(world, positions);
+        if (token.isEmpty()) {
             LOGGER.warn("Skipped terrain apply due to chunk conflict ({} positions)", positions.size());
             return false;
         }
 
-        batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
-            try {
-                if (placement) {
-                    scheduleFallingBlockTicks(world, positions, newStates);
-                }
-                postProcessBlockChanges(world, positions, newStates);
-                if (onComplete != null) {
-                    onComplete.run();
-                }
-            } finally {
-                scheduler.release(world, operationId);
+        Runnable finishOperation = () -> {
+            if (onComplete != null) {
+                onComplete.run();
             }
-        });
+            releaseTerrainOperation(token.get());
+        };
+
+        if (placement) {
+            applyPlacementPhase(token.get(), positions, newStates, finishOperation);
+        } else {
+            applyTerrainPhase(token.get(), positions, newStates, finishOperation);
+        }
         return true;
     }
 
     public static void postProcessBlockChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
+        postProcessBlockChanges(world, positions, newStates, null);
+    }
+
+    public static void postProcessBlockChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
+                                                Runnable onComplete) {
         if (positions.isEmpty()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
             return;
         }
 
@@ -209,12 +268,15 @@ public class BlockOperation {
         Set<BlockPos> neighborTargets = collectNeighborUpdateTargets(world, changed);
 
         if (positions.size() >= LARGE_POST_PROCESS_THRESHOLD) {
-            schedulePostProcessAcrossTicks(world, relightTargets, new ArrayList<>(neighborTargets), 0, 0);
+            schedulePostProcessAcrossTicks(world, relightTargets, new ArrayList<>(neighborTargets), 0, 0, onComplete);
             return;
         }
 
         applyRelightBatch(world, relightTargets, 0, relightTargets.size());
         applyNeighborUpdates(world, neighborTargets);
+        if (onComplete != null) {
+            onComplete.run();
+        }
     }
 
     private static Set<BlockPos> collectNeighborUpdateTargets(ServerWorld world, Set<BlockPos> changed) {
@@ -240,14 +302,14 @@ public class BlockOperation {
 
     private static void schedulePostProcessAcrossTicks(ServerWorld world, List<BlockPos> relightTargets,
                                                        List<BlockPos> neighborTargets, int relightIndex,
-                                                       int neighborIndex) {
+                                                       int neighborIndex, Runnable onComplete) {
         relightIndex = applyRelightBatch(world, relightTargets, relightIndex,
             Math.min(relightIndex + POST_PROCESS_PER_TICK, relightTargets.size()));
 
         if (relightIndex < relightTargets.size()) {
             int nextRelightIndex = relightIndex;
             Objects.requireNonNull(world.getServer()).execute(() ->
-                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, nextRelightIndex, neighborIndex)
+                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, nextRelightIndex, neighborIndex, onComplete)
             );
             return;
         }
@@ -258,8 +320,13 @@ public class BlockOperation {
         if (endNeighborIndex < neighborTargets.size()) {
             int nextNeighborIndex = endNeighborIndex;
             Objects.requireNonNull(world.getServer()).execute(() ->
-                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, relightTargets.size(), nextNeighborIndex)
+                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, relightTargets.size(), nextNeighborIndex, onComplete)
             );
+            return;
+        }
+
+        if (onComplete != null) {
+            onComplete.run();
         }
     }
 
@@ -304,31 +371,11 @@ public class BlockOperation {
         }
     }
 
-    public static class BoundaryExtension {
-        private final LinkedHashSet<BlockPos> positions;
-        private final List<BlockState> originalStates;
-        private final List<BlockState> newStates;
-
-        public BoundaryExtension(LinkedHashSet<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates) {
-            this.positions = positions;
-            this.originalStates = originalStates;
-            this.newStates = newStates;
-        }
-
-        public LinkedHashSet<BlockPos> getPositions() {
-            return positions;
-        }
-
-        public List<BlockState> getOriginalStates() {
-            return originalStates;
-        }
-
-        public List<BlockState> getNewStates() {
-            return newStates;
-        }
+    public record BoundaryExtension(LinkedHashSet<BlockPos> positions, List<BlockState> originalStates,
+                                    List<BlockState> newStates) {
 
         public int getSize() {
-            return positions.size();
+                return positions.size();
+            }
         }
-    }
 }

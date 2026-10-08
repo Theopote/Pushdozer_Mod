@@ -13,6 +13,7 @@ import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -22,6 +23,7 @@ import net.minecraft.world.World;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -115,7 +117,15 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
             return;
         }
 
-        BlockOperation.applyTerrainChanges(serverWorld, result.affectedPositions, result.newStates, () -> {
+        Optional<BlockOperation.TerrainOperationToken> operationToken =
+            BlockOperation.beginTerrainOperation(serverWorld, result.affectedPositions);
+        if (operationToken.isEmpty()) {
+            TerrainOperationFeedback.notifyRegionBusy(player);
+            return;
+        }
+
+        BlockOperation.TerrainOperationToken token = operationToken.get();
+        BlockOperation.applyTerrainPhase(token, result.affectedPositions, result.newStates, () -> {
             List<VegetationPlacement> vegetationPlacements =
                 vegetationPlanner.collectVegetationPositions(world, result.vegetationPositions);
             List<BlockPos> vegetationPositions = new ArrayList<>();
@@ -134,9 +144,21 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
 
             if (vegetationPositions.isEmpty()) {
                 finish.run();
-            } else {
-                BlockOperation.applyTerrainChanges(serverWorld, vegetationPositions, vegetationNew, finish);
+                BlockOperation.releaseTerrainOperation(token);
+                return;
             }
+
+            if (!BlockOperation.extendTerrainOperation(token, vegetationPositions)) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+                finish.run();
+                BlockOperation.releaseTerrainOperation(token);
+                return;
+            }
+
+            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, () -> {
+                finish.run();
+                BlockOperation.releaseTerrainOperation(token);
+            });
         });
     }
 

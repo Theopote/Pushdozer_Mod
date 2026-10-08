@@ -1,7 +1,8 @@
 package com.pushdozer.operations;
 
-import com.pushdozer.util.WorldBounds;
 import com.pushdozer.util.ExceptionPolicy;
+import com.pushdozer.util.TerrainOperationFeedback;
+import com.pushdozer.util.WorldBounds;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -170,10 +171,70 @@ public class UndoRedoManager {
         LOGGER.debug("Starting {} operation, player: {}, affected blocks: {}",
             isUndo ? "undo" : "redo", player.getName().getString(), positions.size());
 
+        UUID operationId = UUID.randomUUID();
+        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
+        if (!scheduler.tryAcquire(serverWorld, operationId, positions)) {
+            LOGGER.warn("Undo/redo skipped due to chunk conflict");
+            TerrainOperationFeedback.notifyUndoConflict(player);
+            onFinished.accept(false);
+            return;
+        }
+
+        ValidatedUndoTargets validated = validateUndoTargets(serverWorld, positions, originalStates, newStates, isUndo);
+        if (validated.skippedUnavailable() > 0) {
+            LOGGER.debug("Position validation skipped {} unavailable positions", validated.skippedUnavailable());
+        }
+        if (validated.skippedConflict() > 0) {
+            LOGGER.debug("Skipped {} positions with conflicting block state during {}",
+                validated.skippedConflict(), isUndo ? "undo" : "redo");
+        }
+
+        if (validated.positions().isEmpty()) {
+            scheduler.release(serverWorld, operationId);
+            TerrainOperationFeedback.notifyUndoConflict(player);
+            onFinished.accept(false);
+            return;
+        }
+
+        List<BlockPos> validPositions = validated.positions();
+        List<BlockState> validNewStates = validated.states();
+
+        Runnable afterPostProcess = () -> {
+            try {
+                syncUndoChangesToClient(serverWorld, player, validPositions, isUndo);
+                onFinished.accept(true);
+            } finally {
+                scheduler.release(serverWorld, operationId);
+            }
+        };
+
+        Runnable afterBlocksApplied = () ->
+            BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates, afterPostProcess);
+
+        if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
+            LOGGER.debug("Applying {} blocks in batches across ticks (max {} per tick)",
+                validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
+                BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
+        } else {
+            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
+                BlockOperation.BULK_WRITE_FLAGS);
+            afterBlocksApplied.run();
+        }
+    }
+
+    private record ValidatedUndoTargets(List<BlockPos> positions, List<BlockState> states,
+                                        int skippedUnavailable, int skippedConflict) {
+    }
+
+    private static ValidatedUndoTargets validateUndoTargets(ServerWorld serverWorld, List<BlockPos> positions,
+                                                            List<BlockState> originalStates, List<BlockState> newStates,
+                                                            boolean isUndo) {
         List<BlockPos> validPositions = new ArrayList<>(positions.size());
         List<BlockState> validNewStates = new ArrayList<>(positions.size());
         int skippedUnavailable = 0;
         int skippedConflict = 0;
+
         for (int i = 0; i < positions.size(); i++) {
             BlockPos pos = positions.get(i);
             if (!WorldBounds.isLoadedBuildablePos(serverWorld, pos)) {
@@ -191,47 +252,8 @@ public class UndoRedoManager {
             validPositions.add(pos);
             validNewStates.add(isUndo ? originalStates.get(i) : newStates.get(i));
         }
-        if (skippedUnavailable > 0) {
-            LOGGER.debug("Position validation skipped {} unavailable positions", skippedUnavailable);
-        }
-        if (skippedConflict > 0) {
-            LOGGER.debug("Skipped {} positions with conflicting block state during {}",
-                skippedConflict, isUndo ? "undo" : "redo");
-        }
 
-        if (validPositions.isEmpty()) {
-            onFinished.accept(false);
-            return;
-        }
-
-        UUID operationId = UUID.randomUUID();
-        TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
-        if (!scheduler.tryAcquire(serverWorld, operationId, validPositions)) {
-            LOGGER.warn("Undo/redo skipped due to chunk conflict");
-            onFinished.accept(false);
-            return;
-        }
-
-        Runnable afterBlocksApplied = () -> {
-            try {
-                BlockOperation.postProcessBlockChanges(serverWorld, validPositions, validNewStates);
-                syncUndoChangesToClient(serverWorld, player, validPositions, isUndo);
-                onFinished.accept(true);
-            } finally {
-                scheduler.release(serverWorld, operationId);
-            }
-        };
-
-        if (validPositions.size() > BlockOperation.SYNC_BLOCK_LIMIT) {
-            LOGGER.debug("Applying {} blocks in batches across ticks (max {} per tick)",
-                validPositions.size(), BlockOperation.BLOCKS_PER_TICK);
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
-                BlockOperation.BULK_WRITE_FLAGS, afterBlocksApplied);
-        } else {
-            BlockOperation.batchSetBlockStates(validPositions, validNewStates, serverWorld,
-                BlockOperation.BULK_WRITE_FLAGS);
-            afterBlocksApplied.run();
-        }
+        return new ValidatedUndoTargets(validPositions, validNewStates, skippedUnavailable, skippedConflict);
     }
 
     protected void syncUndoChangesToClient(ServerWorld serverWorld, PlayerEntity player, List<BlockPos> validPositions,

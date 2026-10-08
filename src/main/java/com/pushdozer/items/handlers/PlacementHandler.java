@@ -7,6 +7,7 @@ import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.util.TerrainBlockSelector;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
@@ -130,7 +131,7 @@ public class PlacementHandler implements TerrainToolHandler {
         if (!placedBlocks.isEmpty() && world instanceof ServerWorld serverWorld) {
             LOGGER.info("创建撤销操作，放置方块数: {}", placedBlocks.size());
 
-            BlockOperation.applyPlacementChanges(serverWorld, placedBlocks, newStates, () -> {
+            if (!BlockOperation.applyPlacementChanges(serverWorld, placedBlocks, newStates, () -> {
                 BlockOperation.BoundaryExtension boundaryExtension =
                     BlockOperation.collectBoundaryExtension(placedBlocks, world);
                 LOGGER.info("边界扩展收集完成，扩展位置数: {}", boundaryExtension.getSize());
@@ -141,9 +142,9 @@ public class PlacementHandler implements TerrainToolHandler {
                     placedBlocks,
                     originalStates,
                     newStates,
-                    UndoAction.orderedBoundarySet(boundaryExtension.getPositions()),
-                    boundaryExtension.getOriginalStates(),
-                    boundaryExtension.getNewStates()
+                    UndoAction.orderedBoundarySet(boundaryExtension.positions()),
+                    boundaryExtension.originalStates(),
+                    boundaryExtension.newStates()
                 );
 
                 LOGGER.info("撤销操作创建完成，验证状态: {}", undoAction.isValid());
@@ -160,7 +161,9 @@ public class PlacementHandler implements TerrainToolHandler {
                     LOGGER.info("广播放置操作到其他玩家，影响方块数: {}，边界扩展: {}",
                         placedBlocks.size(), boundaryExtension.getSize());
                 }
-            });
+            })) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+            }
         } else if (placedBlocks.isEmpty()) {
             LOGGER.info("没有放置任何方块，跳过撤销操作创建");
         }

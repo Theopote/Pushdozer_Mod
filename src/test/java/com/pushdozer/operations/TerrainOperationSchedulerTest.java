@@ -54,6 +54,20 @@ class TerrainOperationSchedulerTest extends PushdozerTestBase {
     }
 
     @Test
+    void tryExtend_addsChunksToExistingOperation() {
+        ServerWorld world = mockWorld();
+        UUID operationId = UUID.randomUUID();
+        BlockPos first = new BlockPos(0, 64, 0);
+        BlockPos second = new BlockPos(32, 64, 0);
+
+        assertTrue(scheduler.tryAcquire(world, operationId, List.of(first)));
+        assertTrue(scheduler.tryExtend(world, operationId, List.of(second)));
+        assertFalse(scheduler.tryAcquire(world, UUID.randomUUID(), List.of(second)));
+
+        scheduler.release(world, operationId);
+    }
+
+    @Test
     void release_allowsReacquireAfterCompletion() {
         ServerWorld world = mockWorld();
         UUID operationId = UUID.randomUUID();

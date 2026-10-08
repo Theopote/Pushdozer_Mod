@@ -6,6 +6,7 @@ import com.pushdozer.config.domain.SurfaceConfig;
 import com.pushdozer.util.RegistryBlocks;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
@@ -90,7 +91,7 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
         convertSurface(world, shape, affectedPositions, originalStates, newStates);
 
         if (!affectedPositions.isEmpty() && world instanceof ServerWorld serverWorld) {
-            BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
+            if (!BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.SURFACE_CONVERT,
                     serverWorld.getRegistryKey(),
@@ -99,7 +100,9 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
                     newStates
                 );
                 PushdozerMod.pushUndoAction(player, undoAction);
-            });
+            })) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+            }
         }
     }
 

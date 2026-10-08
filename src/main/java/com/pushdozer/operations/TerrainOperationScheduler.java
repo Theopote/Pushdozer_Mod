@@ -64,6 +64,39 @@ public final class TerrainOperationScheduler {
         }
     }
 
+    /**
+     * Adds more chunks to an in-flight operation. Fails when any new chunk is owned by another operation.
+     */
+    public boolean tryExtend(ServerWorld world, UUID operationId, Collection<BlockPos> positions) {
+        if (positions.isEmpty()) {
+            return true;
+        }
+
+        Set<ChunkPos> chunks = collectChunks(positions);
+        WorldKey key = worldKey(world);
+        Object lock = worldLocks.computeIfAbsent(key, ignored -> new Object());
+
+        synchronized (lock) {
+            Map<ChunkPos, UUID> lockedChunks = activeChunks.computeIfAbsent(key, ignored -> new HashMap<>());
+            for (ChunkPos chunkPos : chunks) {
+                UUID owner = lockedChunks.get(chunkPos);
+                if (owner != null && !owner.equals(operationId)) {
+                    LOGGER.debug("Cannot extend operation {}: chunk {} is busy for {}", operationId, chunkPos, owner);
+                    return false;
+                }
+            }
+
+            for (ChunkPos chunkPos : chunks) {
+                lockedChunks.put(chunkPos, operationId);
+            }
+
+            Map<UUID, Set<ChunkPos>> operations = operationChunks.computeIfAbsent(key, ignored -> new HashMap<>());
+            Set<ChunkPos> ownedChunks = operations.computeIfAbsent(operationId, ignored -> new HashSet<>());
+            ownedChunks.addAll(chunks);
+            return true;
+        }
+    }
+
     public void release(ServerWorld world, UUID operationId) {
         WorldKey key = worldKey(world);
         Object lock = worldLocks.get(key);

@@ -8,6 +8,7 @@ import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 
@@ -102,7 +103,7 @@ public class ExcavationHandler implements TerrainToolHandler {
             newStates.add(Blocks.AIR.getDefaultState());
         }
 
-        BlockOperation.applyTerrainChanges(serverWorld, positions, newStates, () -> {
+        if (!BlockOperation.applyTerrainChanges(serverWorld, positions, newStates, () -> {
             BlockOperation.BoundaryExtension boundaryExtension =
                 BlockOperation.collectBoundaryExtension(positions, world);
 
@@ -112,12 +113,14 @@ public class ExcavationHandler implements TerrainToolHandler {
                 positions,
                 originalStates,
                 newStates,
-                UndoAction.orderedBoundarySet(boundaryExtension.getPositions()),
-                boundaryExtension.getOriginalStates(),
-                boundaryExtension.getNewStates()
+                UndoAction.orderedBoundarySet(boundaryExtension.positions()),
+                boundaryExtension.originalStates(),
+                boundaryExtension.newStates()
             );
             PushdozerMod.pushUndoAction(player, undoAction);
-        });
+        })) {
+            TerrainOperationFeedback.notifyRegionBusy(player);
+        }
     }
 
     /**

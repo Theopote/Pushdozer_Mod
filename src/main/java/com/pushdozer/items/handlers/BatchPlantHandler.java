@@ -12,6 +12,8 @@ import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
+import com.pushdozer.util.TerrainOperationFeedback;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -108,12 +110,14 @@ public class BatchPlantHandler implements TerrainToolHandler {
         };
 
         if (result.hasSimplePlants()) {
-            BlockOperation.applyTerrainChanges(
+            if (!BlockOperation.applyTerrainChanges(
                 serverWorld,
                 result.getSimplePlantPositions(),
                 result.getSimplePlantNewStates(),
                 afterSimplePlants
-            );
+            )) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+            }
         } else {
             afterSimplePlants.run();
         }

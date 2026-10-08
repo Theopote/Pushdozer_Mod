@@ -6,6 +6,7 @@ import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.PositionRandom;
 import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.TerrainOperationFeedback;
 import com.pushdozer.util.WorldBounds;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.BlockOperation;
@@ -88,7 +89,15 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
             }
         };
 
-        BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
+        Optional<BlockOperation.TerrainOperationToken> operationToken =
+            BlockOperation.beginTerrainOperation(serverWorld, affectedPositions);
+        if (operationToken.isEmpty()) {
+            TerrainOperationFeedback.notifyRegionBusy(player);
+            return;
+        }
+
+        BlockOperation.TerrainOperationToken token = operationToken.get();
+        BlockOperation.applyTerrainPhase(token, affectedPositions, newStates, () -> {
             List<BlockPos> vegetationPositions = new ArrayList<>();
             List<BlockState> vegetationOriginal = new ArrayList<>();
             List<BlockState> vegetationNew = new ArrayList<>();
@@ -96,13 +105,24 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
 
             if (vegetationPositions.isEmpty()) {
                 finalizeOperation.run();
+                BlockOperation.releaseTerrainOperation(token);
+                return;
+            }
+
+            if (!BlockOperation.extendTerrainOperation(token, vegetationPositions)) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+                finalizeOperation.run();
+                BlockOperation.releaseTerrainOperation(token);
                 return;
             }
 
             affectedPositions.addAll(vegetationPositions);
             originalStates.addAll(vegetationOriginal);
             newStates.addAll(vegetationNew);
-            BlockOperation.applyTerrainChanges(serverWorld, vegetationPositions, vegetationNew, finalizeOperation);
+            BlockOperation.applyTerrainPhase(token, vegetationPositions, vegetationNew, () -> {
+                finalizeOperation.run();
+                BlockOperation.releaseTerrainOperation(token);
+            });
         });
     }
 
