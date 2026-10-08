@@ -41,6 +41,8 @@ public class SurfaceConfig {
     @Expose
     private float smoothStrength = 0.5f;
     @Expose
+    private float directionalSmoothBlend = 0.35f;
+    @Expose
     private PushdozerConfig.SmoothVariant smoothVariant = PushdozerConfig.SmoothVariant.ADAPTIVE;
     @Expose
     private float roughnessStrength = 0.5f;
@@ -91,6 +93,15 @@ public class SurfaceConfig {
 
     public void setSmoothStrength(float smoothStrength) {
         this.smoothStrength = Math.max(0.1f, Math.min(1.0f, smoothStrength));
+        onChange.onConfigChanged();
+    }
+
+    public float getDirectionalSmoothBlend() {
+        return directionalSmoothBlend;
+    }
+
+    public void setDirectionalSmoothBlend(float directionalSmoothBlend) {
+        this.directionalSmoothBlend = Math.max(0.0f, Math.min(1.0f, directionalSmoothBlend));
         onChange.onConfigChanged();
     }
 

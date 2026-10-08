@@ -484,6 +484,14 @@ public class PushdozerConfig {
         surface.setSmoothStrength(smoothStrength);
     }
 
+    public float getDirectionalSmoothBlend() {
+        return surface.getDirectionalSmoothBlend();
+    }
+
+    public void setDirectionalSmoothBlend(float directionalSmoothBlend) {
+        surface.setDirectionalSmoothBlend(directionalSmoothBlend);
+    }
+
     public SmoothVariant getSmoothVariant() {
         return surface.getSmoothVariant();
     }

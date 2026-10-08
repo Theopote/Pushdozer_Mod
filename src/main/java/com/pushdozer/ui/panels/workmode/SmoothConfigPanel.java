@@ -85,7 +85,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
                 config.setSmoothStrength(strength);
             }
         };
-        strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_strength")));
+        updateStrengthSliderPresentation();
         widgets.add(strengthSlider);
     }
 
@@ -125,6 +125,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     private void selectVariant(PushdozerConfig.SmoothVariant variant) {
         config.setSmoothVariant(variant);
         updateVariantButtons();
+        updateStrengthSliderPresentation();
     }
 
     private void updateVariantButtons() {
@@ -149,7 +150,28 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     private Text getStrengthText(float strength) {
+        if (usesDirectionalDepthLabel()) {
+            return Text.translatable("pushdozer.config.directional_depth", String.format("%.2f", strength));
+        }
         return Text.translatable("pushdozer.config.smooth_strength", String.format("%.2f", strength));
+    }
+
+    private boolean usesDirectionalDepthLabel() {
+        PushdozerConfig.SmoothVariant variant = config.getSmoothVariant();
+        return variant == PushdozerConfig.SmoothVariant.RAISE
+            || variant == PushdozerConfig.SmoothVariant.LOWER;
+    }
+
+    private void updateStrengthSliderPresentation() {
+        if (strengthSlider == null) {
+            return;
+        }
+        strengthSlider.setMessage(getStrengthText(config.getSmoothStrength()));
+        if (usesDirectionalDepthLabel()) {
+            strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.directional_depth")));
+        } else {
+            strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_strength")));
+        }
     }
 
     @Override
