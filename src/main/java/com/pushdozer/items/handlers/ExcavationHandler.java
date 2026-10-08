@@ -108,10 +108,11 @@ public class ExcavationHandler implements TerrainToolHandler {
 
             UndoAction undoAction = new UndoAction(
                 UndoAction.ActionType.BREAK,
+                serverWorld.getRegistryKey(),
                 positions,
                 originalStates,
                 newStates,
-                boundaryExtension.getPositions(),
+                UndoAction.orderedBoundarySet(boundaryExtension.getPositions()),
                 boundaryExtension.getOriginalStates(),
                 boundaryExtension.getNewStates()
             );

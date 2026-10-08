@@ -93,6 +93,7 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
             BlockOperation.applyTerrainChanges(serverWorld, affectedPositions, newStates, () -> {
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.SURFACE_CONVERT,
+                    serverWorld.getRegistryKey(),
                     affectedPositions,
                     originalStates,
                     newStates

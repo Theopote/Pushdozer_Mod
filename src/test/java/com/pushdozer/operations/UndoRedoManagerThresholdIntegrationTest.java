@@ -50,6 +50,7 @@ class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
         when(world.setBlockState(any(), any(), anyInt())).thenReturn(true);
         when(world.getBottomY()).thenReturn(-64);
         when(world.getHeight()).thenReturn(384);
+        when(world.getRegistryKey()).thenReturn(World.OVERWORLD);
         when(world.getLightingProvider()).thenReturn(mock(LightingProvider.class));
         when(world.getBlockState(any())).thenReturn(mock(BlockState.class));
         return world;
@@ -66,7 +67,7 @@ class UndoRedoManagerThresholdIntegrationTest extends PushdozerTestBase {
             original.add(state);
             updated.add(state);
         }
-        return new UndoAction(UndoAction.ActionType.BREAK, positions, original, updated);
+        return new UndoAction(UndoAction.ActionType.BREAK, World.OVERWORLD, positions, original, updated);
     }
 
     @Test

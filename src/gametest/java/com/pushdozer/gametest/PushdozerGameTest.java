@@ -17,6 +17,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -76,7 +77,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         context.complete();
     }
 
-    @GameTest
+    @GameTest(maxTicks = 40)
     public void excavationUndoRestoresBrokenBlocks(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
@@ -147,7 +148,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
             updated.add(Blocks.AIR.getDefaultState());
         }
 
-        UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, positions, original, updated);
+        UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
         manager.runUndoRedoAction(action, player, world);
 
         context.runAtTick(context.getTick() + 2, () -> {
@@ -157,7 +158,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
         });
     }
 
-    @GameTest
+    @GameTest(maxTicks = 40)
     public void undoSync_largeOperation_sendsChunkDataTwice(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
@@ -179,14 +180,109 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
             }
         }
 
-        UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, positions, original, updated);
+        UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
         manager.runUndoRedoAction(action, player, world);
 
-        // Needs a few ticks: 4096 blocks are applied across ticks (1024 per tick), then two chunk sync passes.
-        context.runAtTick(context.getTick() + 15, () -> {
+        // Needs several ticks: 4096 blocks apply across ticks, post-process is scheduled, then chunk sync passes.
+        context.runAtTick(context.getTick() + 25, () -> {
             context.assertTrue(manager.chunkDataPackets.get() >= 2, "Expected ChunkData packets (fast + delayed) for large undo");
             // Large sync path should avoid per-block updates.
             context.assertTrue(manager.blockUpdatePackets.get() == 0, "Expected no BlockUpdate packets for large undo");
+            context.complete();
+        });
+    }
+
+    @GameTest
+    public void undoWrongDimension_doesNotModifyWorld(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        BlockPos relative = new BlockPos(1, 1, 1);
+        context.setBlockState(relative, Blocks.AIR);
+
+        BlockPos absolute = context.getAbsolutePos(relative);
+        UndoAction action = new UndoAction(
+            UndoAction.ActionType.BREAK,
+            World.NETHER,
+            List.of(absolute),
+            List.of(Blocks.STONE.getDefaultState()),
+            List.of(Blocks.AIR.getDefaultState())
+        );
+        PushdozerMod.pushUndoAction(player, action);
+        UndoRedoService.getInstance().undoLastAction(player, world);
+
+        context.runAtTick(context.getTick() + 1, () -> {
+            context.assertTrue(context.getBlockState(relative).isOf(Blocks.AIR),
+                "Undo from wrong dimension must not apply overworld changes");
+            context.assertTrue(PushdozerMod.getUndoStackSize(player) == 0,
+                "Overworld undo stack must stay empty when history belongs to another dimension");
+            context.complete();
+        });
+    }
+
+    @GameTest(maxTicks = 40)
+    public void undoReentry_blockedWhileLargeUndoPending(TestContext context) {
+        ServerWorld world = context.getWorld();
+        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+        PacketRecordingUndoRedoManager manager = new PacketRecordingUndoRedoManager();
+
+        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        List<BlockPos> positions = new ArrayList<>(600);
+        List<net.minecraft.block.BlockState> original = new ArrayList<>(600);
+        List<net.minecraft.block.BlockState> updated = new ArrayList<>(600);
+        for (int i = 0; i < 600; i++) {
+            positions.add(base.add(i % 16, 0, i / 16));
+            original.add(Blocks.STONE.getDefaultState());
+            updated.add(Blocks.AIR.getDefaultState());
+        }
+
+        UndoAction action = new UndoAction(UndoAction.ActionType.BREAK, world.getRegistryKey(), positions, original, updated);
+        manager.pushUndoAction(player, action);
+        manager.undoLastAction(player, world);
+        manager.undoLastAction(player, world);
+
+        context.runAtTick(context.getTick() + 10, () -> {
+            context.assertTrue(manager.getUndoStackSize(player) == 0,
+                "Large undo should consume the only stack entry once");
+            context.complete();
+        });
+    }
+
+    @GameTest
+    public void postProcessThreshold_4095_updatesNeighbors(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        List<BlockPos> positions = new ArrayList<>(4095);
+        List<net.minecraft.block.BlockState> states = new ArrayList<>(4095);
+        for (int i = 0; i < 4095; i++) {
+            positions.add(base.add(i % 16, 0, i / 16));
+            states.add(Blocks.STONE.getDefaultState());
+        }
+
+        BlockOperation.batchSetBlockStates(positions, states, world, BlockOperation.BULK_WRITE_FLAGS);
+        BlockOperation.postProcessBlockChanges(world, positions, states);
+
+        context.assertTrue(context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
+            "4095-block post-process should complete without error");
+        context.complete();
+    }
+
+    @GameTest(maxTicks = 40)
+    public void postProcessThreshold_4096_completesWithoutError(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BlockPos base = context.getAbsolutePos(new BlockPos(0, 1, 0));
+        List<BlockPos> positions = new ArrayList<>(4096);
+        List<net.minecraft.block.BlockState> states = new ArrayList<>(4096);
+        for (int i = 0; i < 4096; i++) {
+            positions.add(base.add(i % 16, i / 16 % 16, i / 256));
+            states.add(Blocks.STONE.getDefaultState());
+        }
+
+        BlockOperation.batchSetBlockStates(positions, states, world, BlockOperation.BULK_WRITE_FLAGS);
+        BlockOperation.postProcessBlockChanges(world, positions, states);
+
+        context.runAtTick(context.getTick() + 5, () -> {
+            context.assertTrue(context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
+                "4096-block post-process should complete across scheduled ticks");
             context.complete();
         });
     }

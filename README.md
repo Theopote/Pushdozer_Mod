@@ -2,20 +2,21 @@
 
 让地形编辑像推土机一样简单高效的 Fabric 模组。它提供直观的多模式地形操作、丰富的笔刷几何体、灵活的标高系统，以及服务端权威的多人同步与撤销/重做。
 
-[![Build](https://github.com/Theopote/pushdozer/actions/workflows/build.yml/badge.svg)](https://github.com/Theopote/pushdozer/actions/workflows/build.yml)
+[![Build](https://github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric/actions/workflows/build.yml/badge.svg)](https://github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric/actions/workflows/build.yml)
 
 ## 链接
 
 | | |
 |---|---|
-| 源码 | [github.com/Theopote/pushdozer](https://github.com/Theopote/pushdozer) |
+| 源码 | [github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric](https://github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric) |
 | 文档 | [Pushdozer-Introduction](https://theopote.github.io/Pushdozer-Introduction/) |
 | 下载 | [Modrinth](https://modrinth.com/mod/pushdozer) |
 | 社区 | [Discord](https://discord.gg/jjr8WmPZ) |
 
 ## 功能概览
 
-- **8 种工作模式**（服务端执行）：挖掘、铺设、平滑、表面粗糙、表层转换、骨粉、批量种植、水岸处理
+- **11 种工作模式**（服务端执行）：挖掘、铺设、平滑、平滑提升、平滑降低、自适应平滑、表面粗糙、表层转换、骨粉、批量种植、水岸处理
+- 配置界面通过 **SmoothVariant** 将多种平滑算法归组展示；内部 `WorkMode` 枚举与 UI 分组可能不完全一一对应
 - **8 种笔刷几何体**：球体、长方体、正八面体、圆柱、圆锥、椭球体、正四面体、三棱柱
 - **4 套标高系统**：不限制、跟随玩家、锁定标高、自定义标高
 - **4 种预览模式**：线框、点云、表面（半透明面）、不显示
@@ -37,7 +38,7 @@
 ## 安装
 
 1. 安装 [Fabric Loader](https://fabricmc.net/use/) 与 Fabric API
-2. 从 [Modrinth](https://modrinth.com/mod/pushdozer) 或 [GitHub Releases](https://github.com/Theopote/pushdozer/releases) 下载 JAR
+2. 从 [Modrinth](https://modrinth.com/mod/pushdozer) 或 [GitHub Releases](https://github.com/Theopote/pushdozer-1.21.1-1.0.0-fabric/releases) 下载 JAR
 3. 放入 `.minecraft/mods`，启动游戏
 
 ## 快速上手
@@ -58,6 +59,7 @@
 # 开发运行
 ./gradlew runClient
 ./gradlew runServer
+./gradlew runGametest
 ```
 
 环境要求 JDK 21。贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。

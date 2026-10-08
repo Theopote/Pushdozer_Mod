@@ -85,6 +85,7 @@ public class BatchPlantHandler implements TerrainToolHandler {
             if (!result.isEmpty()) {
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.BATCH_PLANT,
+                    serverWorld.getRegistryKey(),
                     result.getAllPositions(),
                     result.getAllOriginalStates(),
                     result.getAllNewStates()

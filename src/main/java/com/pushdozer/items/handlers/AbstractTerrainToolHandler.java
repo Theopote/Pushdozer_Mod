@@ -6,6 +6,7 @@ import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.PositionRandom;
 import com.pushdozer.util.OperationPermissions;
 import com.pushdozer.util.ShapeUtil;
+import com.pushdozer.util.WorldBounds;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.BlockOperation;
 import com.pushdozer.network.NetworkManager;
@@ -70,6 +71,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         Runnable finalizeOperation = () -> {
             UndoAction undoAction = new UndoAction(
                 actionType,
+                serverWorld.getRegistryKey(),
                 affectedPositions,
                 originalStates,
                 newStates
@@ -215,7 +217,7 @@ public abstract class AbstractTerrainToolHandler implements TerrainToolHandler {
         BlockState fillState = column.getMainBlockState();
 
         // Clamp target height to valid world range
-        int clampedTargetHeight = Math.max(world.getBottomY(), Math.min(world.getHeight() - 1, targetHeight));
+        int clampedTargetHeight = WorldBounds.clampBuildableY(world, targetHeight);
 
         if (clampedTargetHeight > currentHeight) {
             // Raise height

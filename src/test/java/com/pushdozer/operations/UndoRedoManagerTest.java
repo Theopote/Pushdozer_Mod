@@ -5,6 +5,7 @@ import com.pushdozer.test.TestFixtures;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +53,7 @@ class UndoRedoManagerTest extends PushdozerTestBase {
         BlockState state = mock(BlockState.class);
         return new UndoAction(
             UndoAction.ActionType.BREAK,
+            World.OVERWORLD,
             List.of(pos),
             List.of(state),
             List.of(state)

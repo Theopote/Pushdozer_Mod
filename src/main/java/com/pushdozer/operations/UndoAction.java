@@ -1,62 +1,71 @@
 package com.pushdozer.operations;
 
 import net.minecraft.block.BlockState;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.HashSet;
-import java.util.ArrayList;
 
 public class UndoAction {
     public enum ActionType {
-        PLACE,           // 铺设操作
-        BREAK,           // 挖掘操作
-        SMOOTH,          // 自适应平滑操作
-        SMOOTH_RAISE,    // 平滑提升操作
-        SMOOTH_LOWER,    // 平滑降低操作
-        SURFACE_ROUGHEN, // 表面粗糙操作
-        SURFACE_CONVERT, // 表层转换操作
-        BONE_MEAL,       // 骨粉操作
-        BATCH_PLANT,     // 批量种植操作
-        SHORELINE_PROCESS // 水岸处理操作
+        PLACE,
+        BREAK,
+        SMOOTH,
+        SMOOTH_RAISE,
+        SMOOTH_LOWER,
+        SURFACE_ROUGHEN,
+        SURFACE_CONVERT,
+        BONE_MEAL,
+        BATCH_PLANT,
+        SHORELINE_PROCESS
     }
 
     private final ActionType type;
+    private final RegistryKey<World> worldKey;
     private final List<BlockPos> positions;
     private final List<BlockState> originalStates;
     private final List<BlockState> newStates;
-    
-    // 新增：边界扩展信息
-    private final Set<BlockPos> boundaryPositions;
+    private final List<BlockPos> boundaryPositions;
     private final List<BlockState> boundaryOriginalStates;
     private final List<BlockState> boundaryNewStates;
 
-    public UndoAction(ActionType type, List<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates) {
-        this.type = type;
-        this.positions = positions;
-        this.originalStates = originalStates;
-        this.newStates = newStates;
-        
-        // 初始化边界扩展信息
-        this.boundaryPositions = new HashSet<>();
-        this.boundaryOriginalStates = new ArrayList<>();
-        this.boundaryNewStates = new ArrayList<>();
+    public UndoAction(ActionType type, RegistryKey<World> worldKey,
+                      List<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates) {
+        this(type, worldKey, positions, originalStates, newStates,
+            List.of(), List.of(), List.of());
     }
-    
-    /**
-     * 带边界扩展的构造函数
-     */
-    public UndoAction(ActionType type, List<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates,
-                     Set<BlockPos> boundaryPositions, List<BlockState> boundaryOriginalStates, List<BlockState> boundaryNewStates) {
+
+    public UndoAction(ActionType type, RegistryKey<World> worldKey,
+                      List<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates,
+                      Iterable<BlockPos> boundaryPositions, List<BlockState> boundaryOriginalStates,
+                      List<BlockState> boundaryNewStates) {
         this.type = type;
+        this.worldKey = worldKey;
         this.positions = positions;
         this.originalStates = originalStates;
         this.newStates = newStates;
-        this.boundaryPositions = boundaryPositions != null ? boundaryPositions : new HashSet<>();
-        this.boundaryOriginalStates = boundaryOriginalStates != null ? boundaryOriginalStates : new ArrayList<>();
-        this.boundaryNewStates = boundaryNewStates != null ? boundaryNewStates : new ArrayList<>();
+        this.boundaryPositions = boundaryPositions == null
+            ? List.of()
+            : collectBoundaryList(boundaryPositions);
+        this.boundaryOriginalStates = boundaryOriginalStates != null ? boundaryOriginalStates : List.of();
+        this.boundaryNewStates = boundaryNewStates != null ? boundaryNewStates : List.of();
+    }
+
+    public ActionType getType() {
+        return type;
+    }
+
+    public RegistryKey<World> getWorldKey() {
+        return worldKey;
+    }
+
+    public boolean matchesWorld(ServerWorld world) {
+        return world.getRegistryKey().equals(worldKey);
     }
 
     public List<BlockPos> getPositions() {
@@ -70,73 +79,98 @@ public class UndoAction {
     public List<BlockState> getNewStates() {
         return newStates;
     }
-    
-    public ActionType getType() {
-        return type;
-    }
-    
+
     /**
-     * 获取所有位置（包括边界位置）
+     * Ordered positions for undo/redo execution (core changes first, then boundary neighbors).
      */
+    public List<BlockPos> getExecutionPositions() {
+        List<BlockPos> all = new ArrayList<>(positions.size() + boundaryPositions.size());
+        all.addAll(positions);
+        all.addAll(boundaryPositions);
+        return all;
+    }
+
+    /**
+     * Original states aligned with {@link #getExecutionPositions()}.
+     */
+    public List<BlockState> getExecutionOriginalStates() {
+        List<BlockState> all = new ArrayList<>(originalStates.size() + boundaryOriginalStates.size());
+        all.addAll(originalStates);
+        all.addAll(boundaryOriginalStates);
+        return all;
+    }
+
+    /**
+     * New states aligned with {@link #getExecutionPositions()}.
+     */
+    public List<BlockState> getExecutionNewStates() {
+        List<BlockState> all = new ArrayList<>(newStates.size() + boundaryNewStates.size());
+        all.addAll(newStates);
+        all.addAll(boundaryNewStates);
+        return all;
+    }
+
+    /** @deprecated Prefer {@link #getExecutionPositions()} for ordered execution. */
+    @Deprecated
     public List<BlockPos> getAllPositions() {
-        List<BlockPos> allPositions = new ArrayList<>(positions);
-        allPositions.addAll(boundaryPositions);
-        return allPositions;
+        return getExecutionPositions();
     }
-    
-    /**
-     * 获取所有原始状态（包括边界状态）
-     */
+
+    /** @deprecated Prefer {@link #getExecutionOriginalStates()}. */
+    @Deprecated
     public List<BlockState> getAllOriginalStates() {
-        List<BlockState> allOriginalStates = new ArrayList<>(originalStates);
-        allOriginalStates.addAll(boundaryOriginalStates);
-        return allOriginalStates;
+        return getExecutionOriginalStates();
     }
-    
-    /**
-     * 获取所有新状态（包括边界状态）
-     */
+
+    /** @deprecated Prefer {@link #getExecutionNewStates()}. */
+    @Deprecated
     public List<BlockState> getAllNewStates() {
-        List<BlockState> allNewStates = new ArrayList<>(newStates);
-        allNewStates.addAll(boundaryNewStates);
-        return allNewStates;
+        return getExecutionNewStates();
     }
-    
-    /**
-     * 获取边界位置
-     */
-    public Set<BlockPos> getBoundaryPositions() {
+
+    public List<BlockPos> getBoundaryPositions() {
         return boundaryPositions;
     }
-    
-    /**
-     * 获取边界原始状态
-     */
+
     public List<BlockState> getBoundaryOriginalStates() {
         return boundaryOriginalStates;
     }
-    
-    /**
-     * 获取边界新状态
-     */
+
     public List<BlockState> getBoundaryNewStates() {
         return boundaryNewStates;
     }
-    
-    /**
-     * 验证操作数据的完整性（仅核心数据，不强制边界数据）
-     */
+
     public boolean isValid() {
-        if (positions == null || originalStates == null || newStates == null) {
+        if (worldKey == null || positions == null || originalStates == null || newStates == null) {
             return false;
         }
-        return positions.size() == originalStates.size() && positions.size() == newStates.size();
+        if (positions.size() != originalStates.size() || positions.size() != newStates.size()) {
+            return false;
+        }
+        return boundaryPositions.size() == boundaryOriginalStates.size()
+            && boundaryPositions.size() == boundaryNewStates.size();
     }
-    
-    /**
-     * 获取操作的总方块数
-     */
+
     public int getTotalBlockCount() {
         return positions.size() + boundaryPositions.size();
+    }
+
+    /**
+     * Preserves insertion order so boundary states stay aligned with positions.
+     */
+    public static Set<BlockPos> orderedBoundarySet(Iterable<BlockPos> positions) {
+        LinkedHashSet<BlockPos> ordered = new LinkedHashSet<>();
+        for (BlockPos pos : positions) {
+            ordered.add(pos);
+        }
+        return ordered;
+    }
+
+    private static List<BlockPos> collectBoundaryList(Iterable<BlockPos> boundaryPositions) {
+        List<BlockPos> list = new ArrayList<>();
+        for (BlockPos pos : boundaryPositions) {
+            list.add(pos);
+        }
+        return list;
     }
 }

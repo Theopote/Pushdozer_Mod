@@ -137,10 +137,11 @@ public class PlacementHandler implements TerrainToolHandler {
 
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.PLACE,
+                    serverWorld.getRegistryKey(),
                     placedBlocks,
                     originalStates,
                     newStates,
-                    boundaryExtension.getPositions(),
+                    UndoAction.orderedBoundarySet(boundaryExtension.getPositions()),
                     boundaryExtension.getOriginalStates(),
                     boundaryExtension.getNewStates()
                 );

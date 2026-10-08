@@ -30,6 +30,9 @@ public class NetworkManager {
         PayloadTypeRegistry.playC2S().register(UndoRedoPayload.ID, UndoRedoPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ConfigSyncPayload.ID, ConfigSyncPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PermissionCheckPayload.ID, PermissionCheckPayload.CODEC);
+
+        // S2C payload must be registered on the server before ServerPlayNetworking.send()
+        PayloadTypeRegistry.playS2C().register(TerrainOperationPayload.ID, TerrainOperationPayload.CODEC);
         
         // 注册服务器端处理器
         registerServerHandlers();

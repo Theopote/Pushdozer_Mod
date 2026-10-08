@@ -80,15 +80,6 @@ public class PushdozerMod implements ModInitializer {
     }
 
     /**
-     * Get the handler registry.
-     *
-     * @return the handler registry instance
-     */
-    public static HandlerRegistry getHandlerRegistry() {
-        return handlerRegistry;
-    }
-
-    /**
      * Get a handler for a specific work mode.
      * For backward compatibility with existing code.
      *

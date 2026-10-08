@@ -7,6 +7,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import com.pushdozer.test.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -28,8 +29,7 @@ class UndoRedoManagerConcurrencyTest {
     @Mock
     private ServerWorld mockWorld;
 
-    @Mock
-    private ServerPlayerEntity mockPlayer;
+    private PlayerEntity mockPlayer;
 
     private UndoRedoManager manager;
     private UUID playerId;
@@ -40,9 +40,9 @@ class UndoRedoManagerConcurrencyTest {
         manager = new UndoRedoManager();
         playerId = UUID.randomUUID();
 
-        when(mockPlayer.getUuid()).thenReturn(playerId);
-        when(mockPlayer.getName()).thenReturn(net.minecraft.text.Text.literal("TestPlayer"));
+        mockPlayer = TestFixtures.mockPlayer(playerId);
         when(mockWorld.isClient()).thenReturn(false);
+        when(mockWorld.getRegistryKey()).thenReturn(World.OVERWORLD);
     }
 
     @Test
@@ -63,6 +63,7 @@ class UndoRedoManagerConcurrencyTest {
 
         UndoAction action = new UndoAction(
             UndoAction.ActionType.BREAK,
+            World.OVERWORLD,
             positions,
             originalStates,
             newStates
@@ -165,10 +166,8 @@ class UndoRedoManagerConcurrencyTest {
             Thread.currentThread().interrupt();
         }
 
-        // This should not throw - proving state was cleaned
-        assertDoesNotThrow(() -> {
-            testManager.undoLastAction(mockPlayer, mockWorld);
-        });
+        assertEquals(1, testManager.getUndoStackSize(mockPlayer),
+            "Failed undo should restore the action after exception cleanup");
     }
 
     @Test
@@ -214,6 +213,7 @@ class UndoRedoManagerConcurrencyTest {
 
         return new UndoAction(
             UndoAction.ActionType.BREAK,
+            World.OVERWORLD,
             positions,
             originalStates,
             newStates

@@ -84,6 +84,7 @@ public class BoneMealHandler implements TerrainToolHandler {
             if (!affectedPositions.isEmpty()) {
                 UndoAction undoAction = new UndoAction(
                     UndoAction.ActionType.BONE_MEAL,
+                    world.getRegistryKey(),
                     affectedPositions,
                     originalStates,
                     newStates

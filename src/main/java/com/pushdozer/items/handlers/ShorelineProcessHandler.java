@@ -129,7 +129,7 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
                 result.affectedPositions.addAll(vegetationPositions);
                 result.originalStates.addAll(vegetationOriginal);
                 result.newStates.addAll(vegetationNew);
-                createUndoActionAndNotifyPlayer(player, result, vegetationCount);
+                createUndoActionAndNotifyPlayer(player, serverWorld, result, vegetationCount);
             };
 
             if (vegetationPositions.isEmpty()) {
@@ -140,10 +140,11 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
         });
     }
 
-    private void createUndoActionAndNotifyPlayer(PlayerEntity player, ShorelineResult result, int vegetationCount) {
+    private void createUndoActionAndNotifyPlayer(PlayerEntity player, ServerWorld world, ShorelineResult result, int vegetationCount) {
         if (!result.affectedPositions.isEmpty()) {
             UndoAction undoAction = new UndoAction(
                 UndoAction.ActionType.PLACE,
+                world.getRegistryKey(),
                 result.affectedPositions,
                 result.originalStates,
                 result.newStates

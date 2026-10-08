@@ -1,17 +1,24 @@
 package com.pushdozer.operations;
 
+import com.pushdozer.util.ExceptionPolicy;
+import com.pushdozer.util.WorldBounds;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FallingBlock;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import net.minecraft.server.world.ServerWorld;
-import com.pushdozer.util.ExceptionPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * BlockOperation 工具类
@@ -19,68 +26,58 @@ import java.util.*;
  */
 public class BlockOperation {
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
-    
+
     /** 低于此数量时在同一 tick 内同步完成 */
     public static final int SYNC_BLOCK_LIMIT = 512;
     /** 跨 tick 调度时，每个 tick 最多应用的方块数 */
     public static final int BLOCKS_PER_TICK = 1024;
-    
-    /**
-     * 收集边界扩展位置
-     * @param positions 原始位置列表
-     * @param world 世界实例
-     * @return 边界扩展信息
-     */
+    /** 大操作后处理阈值 */
+    public static final int LARGE_POST_PROCESS_THRESHOLD = 4096;
+    /** 大操作后处理每 tick 处理的光照/邻居更新数量 */
+    public static final int POST_PROCESS_PER_TICK = 2048;
+
+    public static final int BULK_WRITE_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
+
+    public record BlockChange(BlockPos pos, BlockState before, BlockState after) {
+    }
+
     public static BoundaryExtension collectBoundaryExtension(List<BlockPos> positions, World world) {
-        Set<BlockPos> boundaryPositions = new HashSet<>();
+        LinkedHashSet<BlockPos> boundaryPositions = new LinkedHashSet<>();
         List<BlockState> boundaryOriginalStates = new ArrayList<>();
         List<BlockState> boundaryNewStates = new ArrayList<>();
-        
-        // 收集所有需要扩展的位置
+
         Set<BlockPos> allPositions = new HashSet<>(positions);
-        
+
         for (BlockPos pos : positions) {
-            // 添加直接邻居（6个方向）
-            BlockPos[] neighbors = {
-                pos.north(), pos.south(), pos.east(), pos.west(), pos.up(), pos.down()
-            };
-            
-            for (BlockPos neighbor : neighbors) {
-                if (!allPositions.contains(neighbor) && isValidBoundaryPosition(neighbor, world)) {
-                    if (boundaryPositions.add(neighbor)) { // 仅在成功加入集合时记录状态
-                        BlockState s = world.getBlockState(neighbor);
-                        boundaryOriginalStates.add(s);
-                        boundaryNewStates.add(s); // 边界位置的新状态保持原样
-                    }
-                }
-            }
-            
-            // 添加对角线邻居（用于更好的边界处理）
-            BlockPos[] diagonalNeighbors = {
+            collectBoundaryNeighbors(pos, allPositions, world, boundaryPositions, boundaryOriginalStates, boundaryNewStates,
+                pos.north(), pos.south(), pos.east(), pos.west(), pos.up(), pos.down());
+
+            collectBoundaryNeighbors(pos, allPositions, world, boundaryPositions, boundaryOriginalStates, boundaryNewStates,
                 pos.north().east(), pos.north().west(), pos.south().east(), pos.south().west(),
                 pos.up().north(), pos.up().south(), pos.up().east(), pos.up().west(),
-                pos.down().north(), pos.down().south(), pos.down().east(), pos.down().west()
-            };
-            
-            for (BlockPos diagonalNeighbor : diagonalNeighbors) {
-                if (!allPositions.contains(diagonalNeighbor) && isValidBoundaryPosition(diagonalNeighbor, world)) {
-                    if (boundaryPositions.add(diagonalNeighbor)) { // 仅在成功加入集合时记录状态
-                        BlockState s = world.getBlockState(diagonalNeighbor);
-                        boundaryOriginalStates.add(s);
-                        boundaryNewStates.add(s);
-                    }
-                }
-            }
+                pos.down().north(), pos.down().south(), pos.down().east(), pos.down().west());
         }
-        
+
         return new BoundaryExtension(boundaryPositions, boundaryOriginalStates, boundaryNewStates);
     }
-    
-    /**
-     * 验证边界位置是否有效
-     */
+
+    private static void collectBoundaryNeighbors(BlockPos source, Set<BlockPos> allPositions, World world,
+                                                 LinkedHashSet<BlockPos> boundaryPositions,
+                                                 List<BlockState> boundaryOriginalStates,
+                                                 List<BlockState> boundaryNewStates,
+                                                 BlockPos... neighbors) {
+        for (BlockPos neighbor : neighbors) {
+            if (!allPositions.contains(neighbor) && isValidBoundaryPosition(neighbor, world)
+                && boundaryPositions.add(neighbor)) {
+                BlockState state = world.getBlockState(neighbor);
+                boundaryOriginalStates.add(state);
+                boundaryNewStates.add(state);
+            }
+        }
+    }
+
     private static boolean isValidBoundaryPosition(BlockPos pos, World world) {
-        if (pos.getY() < world.getBottomY() || pos.getY() > world.getHeight()) {
+        if (!WorldBounds.isBuildablePos(world, pos)) {
             return false;
         }
         if (world instanceof ServerWorld serverWorld) {
@@ -88,23 +85,11 @@ public class BlockOperation {
         }
         return false;
     }
-    
-    /**
-     * 批量设置方块状态（同步完成）。
-     * 超过 {@link #SYNC_BLOCK_LIMIT} 的大操作请使用带 {@code onComplete} 的重载以跨 tick 调度。
-     */
+
     public static void batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world, int flags) {
         batchSetBlockStates(positions, states, world, flags, null);
     }
 
-    /**
-     * 批量设置方块状态。
-     * <p>
-     * 小操作在同一 tick 内完成；大操作通过 {@code server.execute()} 拆到后续 tick，
-     * 全部完成后调用 {@code onComplete}（仍在服务端主线程）。
-     *
-     * @return 若工作已同步完成返回 {@code true}，若已排队跨 tick 执行返回 {@code false}
-     */
     public static boolean batchSetBlockStates(List<BlockPos> positions, List<BlockState> states, World world,
                                               int flags, Runnable onComplete) {
         if (positions.size() != states.size()) {
@@ -165,19 +150,6 @@ public class BlockOperation {
         );
     }
 
-    /** 大操作后处理阈值：超过此数量时使用列顶光照而非逐方块更新 */
-    public static final int LARGE_POST_PROCESS_THRESHOLD = 4096;
-
-    /**
-     * 批量写入 flags：仅同步客户端，跳过逐块邻居更新与光照重算（写入完成后统一 post-process）。
-     * 类似 WorldEdit 的 fast mode 写法。
-     */
-    public static final int BULK_WRITE_FLAGS = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
-
-    /**
-     * 应用地形工具收集的方块变更，大操作自动跨 tick 调度。
-     * 写入阶段使用 {@link #BULK_WRITE_FLAGS}，全部完成后统一 relight / 邻居更新。
-     */
     public static void applyTerrainChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
                                            Runnable onComplete) {
         batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
@@ -188,9 +160,6 @@ public class BlockOperation {
         });
     }
 
-    /**
-     * 应用放置模式收集的方块变更，并在全部写入后执行光照/邻居更新。
-     */
     public static void applyPlacementChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates,
                                              Runnable onComplete) {
         batchSetBlockStates(positions, newStates, world, BULK_WRITE_FLAGS, () -> {
@@ -202,50 +171,91 @@ public class BlockOperation {
         });
     }
 
-    /**
-     * 批量写入后的统一后处理：小操作逐方块 relight + 邻居更新；大操作仅按列顶补光照。
-     */
     public static void postProcessBlockChanges(ServerWorld world, List<BlockPos> positions, List<BlockState> newStates) {
         if (positions.isEmpty()) {
             return;
         }
 
-        var lightProvider = world.getLightingProvider();
-        boolean isLarge = positions.size() >= LARGE_POST_PROCESS_THRESHOLD;
+        Set<BlockPos> changed = new HashSet<>(positions);
+        List<BlockPos> relightTargets = new ArrayList<>(positions);
+        Set<BlockPos> neighborTargets = collectNeighborUpdateTargets(world, changed);
 
-        if (!isLarge) {
-            for (int i = 0; i < positions.size(); i++) {
-                BlockPos pos = positions.get(i);
-                if (!isChunkLoaded(world, pos)) {
-                    continue;
-                }
-                ExceptionPolicy.runPerItem("方块后处理 " + pos, () -> {
-                    lightProvider.checkBlock(pos);
-                    BlockState currentState = world.getBlockState(pos);
-                    world.updateNeighbors(pos, currentState.getBlock());
-                    world.updateNeighbors(pos.down(), currentState.getBlock());
-                    world.updateComparators(pos, currentState.getBlock());
-                }, LOGGER);
-            }
+        if (positions.size() >= LARGE_POST_PROCESS_THRESHOLD) {
+            schedulePostProcessAcrossTicks(world, relightTargets, new ArrayList<>(neighborTargets), 0, 0);
             return;
         }
 
-        Map<Long, Integer> xzToTopY = new HashMap<>();
-        for (BlockPos pos : positions) {
-            long key = (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
-            xzToTopY.merge(key, pos.getY(), Math::max);
-        }
-        for (Map.Entry<Long, Integer> entry : xzToTopY.entrySet()) {
-            int x = (int) (entry.getKey() >> 32);
-            int z = (int) entry.getKey().longValue();
-            int topY = entry.getValue();
-            BlockPos topPos = new BlockPos(x, topY, z);
-            if (!isChunkLoaded(world, topPos)) {
+        applyRelightBatch(world, relightTargets, 0, relightTargets.size());
+        applyNeighborUpdates(world, neighborTargets);
+    }
+
+    private static Set<BlockPos> collectNeighborUpdateTargets(ServerWorld world, Set<BlockPos> changed) {
+        Set<BlockPos> neighborTargets = new LinkedHashSet<>();
+        for (BlockPos pos : changed) {
+            if (!isChunkLoaded(world, pos)) {
                 continue;
             }
-            ExceptionPolicy.runPerItem("列顶光照 " + topPos, () -> {
-                lightProvider.checkBlock(topPos);
-                lightProvider.checkBlock(topPos.up());
+            neighborTargets.add(pos);
+            for (Direction direction : Direction.values()) {
+                BlockPos neighbor = pos.offset(direction);
+                if (!changed.contains(neighbor) && isValidBoundaryPosition(neighbor, world)) {
+                    neighborTargets.add(neighbor);
+                }
+            }
+            BlockPos below = pos.down();
+            if (WorldBounds.isBuildablePos(world, below) && isChunkLoaded(world, below)) {
+                neighborTargets.add(below);
+            }
+        }
+        return neighborTargets;
+    }
+
+    private static void schedulePostProcessAcrossTicks(ServerWorld world, List<BlockPos> relightTargets,
+                                                       List<BlockPos> neighborTargets, int relightIndex,
+                                                       int neighborIndex) {
+        relightIndex = applyRelightBatch(world, relightTargets, relightIndex,
+            Math.min(relightIndex + POST_PROCESS_PER_TICK, relightTargets.size()));
+
+        if (relightIndex < relightTargets.size()) {
+            int nextRelightIndex = relightIndex;
+            Objects.requireNonNull(world.getServer()).execute(() ->
+                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, nextRelightIndex, neighborIndex)
+            );
+            return;
+        }
+
+        int endNeighborIndex = Math.min(neighborIndex + POST_PROCESS_PER_TICK, neighborTargets.size());
+        applyNeighborUpdates(world, new LinkedHashSet<>(neighborTargets.subList(neighborIndex, endNeighborIndex)));
+
+        if (endNeighborIndex < neighborTargets.size()) {
+            int nextNeighborIndex = endNeighborIndex;
+            Objects.requireNonNull(world.getServer()).execute(() ->
+                schedulePostProcessAcrossTicks(world, relightTargets, neighborTargets, relightTargets.size(), nextNeighborIndex)
+            );
+        }
+    }
+
+    private static int applyRelightBatch(ServerWorld world, List<BlockPos> relightTargets, int start, int end) {
+        var lightProvider = world.getLightingProvider();
+        for (int i = start; i < end; i++) {
+            BlockPos pos = relightTargets.get(i);
+            if (!isChunkLoaded(world, pos)) {
+                continue;
+            }
+            ExceptionPolicy.runPerItem("relight " + pos, () -> lightProvider.checkBlock(pos), LOGGER);
+        }
+        return end;
+    }
+
+    private static void applyNeighborUpdates(ServerWorld world, Set<BlockPos> neighborTargets) {
+        for (BlockPos pos : neighborTargets) {
+            if (!isChunkLoaded(world, pos)) {
+                continue;
+            }
+            ExceptionPolicy.runPerItem("neighbor update " + pos, () -> {
+                BlockState currentState = world.getBlockState(pos);
+                world.updateNeighbors(pos, currentState.getBlock());
+                world.updateComparators(pos, currentState.getBlock());
             }, LOGGER);
         }
     }
@@ -266,32 +276,29 @@ public class BlockOperation {
         }
     }
 
-    /**
-     * 边界扩展信息类
-     */
     public static class BoundaryExtension {
-        private final Set<BlockPos> positions;
+        private final LinkedHashSet<BlockPos> positions;
         private final List<BlockState> originalStates;
         private final List<BlockState> newStates;
-        
-        public BoundaryExtension(Set<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates) {
+
+        public BoundaryExtension(LinkedHashSet<BlockPos> positions, List<BlockState> originalStates, List<BlockState> newStates) {
             this.positions = positions;
             this.originalStates = originalStates;
             this.newStates = newStates;
         }
-        
-        public Set<BlockPos> getPositions() {
+
+        public LinkedHashSet<BlockPos> getPositions() {
             return positions;
         }
-        
+
         public List<BlockState> getOriginalStates() {
             return originalStates;
         }
-        
+
         public List<BlockState> getNewStates() {
             return newStates;
         }
-        
+
         public int getSize() {
             return positions.size();
         }
