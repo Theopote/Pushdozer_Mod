@@ -3,7 +3,6 @@ package com.pushdozer.network;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.util.ExceptionPolicy;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
@@ -21,8 +20,8 @@ public class ClientNetworkHandler {
      * 注册客户端网络处理器
      */
     public static void registerClientNetworking() {
-        // 注册从服务器到客户端的网络包类型
-        PayloadTypeRegistry.playS2C().register(TerrainOperationPayload.ID, TerrainOperationPayload.CODEC);
+        PushdozerPayloads.registerC2S();
+        PushdozerPayloads.registerS2C();
         
         // 注册客户端处理器
         registerClientHandlers();

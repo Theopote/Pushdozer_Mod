@@ -2,7 +2,6 @@ package com.pushdozer.network;
 
 import com.pushdozer.services.ConfigService;
 import com.pushdozer.services.UndoRedoService;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.BlockState;
@@ -26,13 +25,8 @@ public class NetworkManager {
      * 注册服务器端网络包类型和处理器
      */
     public static void registerNetworking() {
-        // 注册客户端到服务器的网络包
-        PayloadTypeRegistry.playC2S().register(UndoRedoPayload.ID, UndoRedoPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(ConfigSyncPayload.ID, ConfigSyncPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(PermissionCheckPayload.ID, PermissionCheckPayload.CODEC);
-
-        // S2C payload must be registered on the server before ServerPlayNetworking.send()
-        PayloadTypeRegistry.playS2C().register(TerrainOperationPayload.ID, TerrainOperationPayload.CODEC);
+        PushdozerPayloads.registerC2S();
+        PushdozerPayloads.registerS2C();
         
         // 注册服务器端处理器
         registerServerHandlers();
