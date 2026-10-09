@@ -13,11 +13,13 @@ import net.minecraft.util.math.Vec3d;
 
 public class SphereShape implements GeometryShape {
     private final double radius;
+    private final double radiusSquared;
     private Vec3d sphereCenter;
     private BlockPos center;
 
     public SphereShape(double radius, Vec3d center) {
         this.radius = radius;
+        this.radiusSquared = radius * radius;
         this.sphereCenter = center;
         this.center = new BlockPos((int) Math.floor(center.x), (int) Math.floor(center.y), (int) Math.floor(center.z));
     }
@@ -41,19 +43,23 @@ public class SphereShape implements GeometryShape {
         matrices.push();
         matrices.translate(center.x, center.y, center.z);
 
-        int segments = 64; // 增加分段数以获得更平滑的圆
+        int segments = 64;
         float r = (float) radius;
 
-        // 绘制 XY 平面的圆
+        // XZ plane
         drawCircle(matrices, vertexConsumer, segments, r, 0, red, green, blue, alpha);
 
-        // 绘制 XZ 平面的圆
+        // XY plane
+        matrices.push();
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90));
         drawCircle(matrices, vertexConsumer, segments, r, 0, red, green, blue, alpha);
+        matrices.pop();
 
-        // 绘制 YZ 平面的圆
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90));
+        // YZ plane
+        matrices.push();
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90));
         drawCircle(matrices, vertexConsumer, segments, r, 0, red, green, blue, alpha);
+        matrices.pop();
 
         matrices.pop();
     }
@@ -81,22 +87,22 @@ public class SphereShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        return pos.squaredDistanceTo(sphereCenter) <= radius * radius;
+        return pos.squaredDistanceTo(sphereCenter) <= radiusSquared;
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        return new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5).squaredDistanceTo(sphereCenter) <= radius * radius;
+        return Vec3d.ofCenter(pos).squaredDistanceTo(sphereCenter) <= radiusSquared;
     }
-    
+
     @Override
     public int getMinY(BlockPos basePos) {
-        return (int) (basePos.getY() - radius);
+        return (int) Math.floor(getBoundingBox(basePos).minY);
     }
 
     @Override
     public int getMaxY(BlockPos basePos) {
-        return (int) (basePos.getY() + radius);
+        return (int) Math.floor(getBoundingBox(basePos).maxY);
     }
 
     @Override
@@ -104,33 +110,44 @@ public class SphereShape implements GeometryShape {
         List<BlockPos> blocks = new ArrayList<>();
         int layerY = y - basePos.getY();
         if (Math.abs(layerY) > radius) {
-            return blocks; // 该层没有方块
+            return blocks;
         }
-        int layerRadius = (int) Math.sqrt(radius * radius - layerY * layerY);
-        for (int x = -layerRadius; x <= layerRadius; x++) {
-            int zLimit = (int) Math.sqrt(layerRadius * layerRadius - x * x);
-            for (int z = -zLimit; z <= zLimit; z++) {
-                blocks.add(new BlockPos(basePos.getX() + x, y, basePos.getZ() + z));
+
+        double horizontalRadiusSquared = radiusSquared - (double) layerY * layerY;
+        if (horizontalRadiusSquared < 0) {
+            return blocks;
+        }
+
+        int xRadius = (int) Math.ceil(Math.sqrt(horizontalRadiusSquared));
+        for (int x = -xRadius; x <= xRadius; x++) {
+            for (int z = -xRadius; z <= xRadius; z++) {
+                BlockPos pos = new BlockPos(basePos.getX() + x, y, basePos.getZ() + z);
+                if (isInside(pos)) {
+                    blocks.add(pos);
+                }
             }
         }
         return blocks;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> blocks = new ArrayList<>();
-        int minX = (int) Math.floor(sphereCenter.x - radius);
-        int maxX = (int) Math.ceil(sphereCenter.x + radius);
-        int minY = (int) Math.floor(sphereCenter.y - radius);
-        int maxY = (int) Math.ceil(sphereCenter.y + radius);
-        int minZ = (int) Math.floor(sphereCenter.z - radius);
-        int maxZ = (int) Math.ceil(sphereCenter.z + radius);
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(sphereCenter.x - radius));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(sphereCenter.x + radius));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(sphereCenter.y - radius));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(sphereCenter.y + radius));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(sphereCenter.z - radius));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(sphereCenter.z + radius));
 
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (sphereCenter.squaredDistanceTo(Vec3d.ofCenter(pos)) <= radius * radius) {
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
                         blocks.add(pos);
                     }
                 }
@@ -142,7 +159,7 @@ public class SphereShape implements GeometryShape {
 
     @Override
     public Box getBoundingBox(BlockPos basePos) {
-        Vec3d worldCenter = sphereCenter.add(Vec3d.ofCenter(basePos));
+        Vec3d worldCenter = resolveWorldCenter(basePos);
         return new Box(
             worldCenter.x - radius, worldCenter.y - radius, worldCenter.z - radius,
             worldCenter.x + radius, worldCenter.y + radius, worldCenter.z + radius
@@ -150,39 +167,27 @@ public class SphereShape implements GeometryShape {
     }
 
     @Override
-    public boolean isWithinBounds(BlockPos pos, BlockPos centerPos) {
-        return pos.getSquaredDistance(centerPos) <= radius * radius;
+    public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
+        return isInside(pos);
     }
 
     @Override
     public List<BlockPos> getBlocks() {
-        return getBlocksInRadius(sphereCenter, (int) Math.ceil(radius));
+        return getBlockPositions();
     }
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlocks().iterator();
+        return getBlockPositions().iterator();
     }
 
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> blocks = new ArrayList<>();
-        int minX = (int) Math.floor(sphereCenter.x - radius);
-        int maxX = (int) Math.ceil(sphereCenter.x + radius);
-        int minY = (int) Math.floor(sphereCenter.y - radius);
-        int maxY = (int) Math.ceil(sphereCenter.y + radius);
-        int minZ = (int) Math.floor(sphereCenter.z - radius);
-        int maxZ = (int) Math.ceil(sphereCenter.z + radius);
-
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (isInside(pos)) {
-                        blocks.add(pos);
-                    }
-                }
-            }
+        int minY = getMinY(center);
+        int maxY = getMaxY(center);
+        for (int y = minY; y <= maxY; y++) {
+            blocks.addAll(getBlocksInLayer(center, y));
         }
         return blocks;
     }
@@ -193,6 +198,14 @@ public class SphereShape implements GeometryShape {
 
     public double getRadius() {
         return radius;
+    }
+
+    private Vec3d resolveWorldCenter(BlockPos basePos) {
+        return sphereCenter.add(
+            basePos.getX() - center.getX(),
+            basePos.getY() - center.getY(),
+            basePos.getZ() - center.getZ()
+        );
     }
 
     private void drawCircle(MatrixStack matrices, VertexConsumer vertexConsumer, int segments, float radius, float y, float red, float green, float blue, float alpha) {
