@@ -3,10 +3,14 @@ package com.pushdozer.gametest;
 import com.mojang.authlib.GameProfile;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.config.domain.SurfaceConfig;
+import com.pushdozer.items.handlers.SurfaceConvertHandler;
+import com.pushdozer.items.handlers.surface.SurfaceConvertMaterialSelector;
+import com.pushdozer.shapes.GeometryShape;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.TestContext;
 
@@ -110,5 +114,43 @@ final class PushdozerGameTestSupport {
         } catch (ReflectiveOperationException ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Verifies brush footprint, surface resolution, and material selection before apply.
+     */
+    static void assertSurfaceConvertPreconditions(TestContext context, GeometryShape shape,
+                                                  BlockPos relativeCenter, PushdozerConfig config,
+                                                  BlockPos relativeSurface, Block expectedTarget) {
+        BlockPos absoluteCenter = context.getAbsolutePos(relativeCenter);
+        BlockPos absoluteSurface = context.getAbsolutePos(relativeSurface);
+        BlockPos columnKey = new BlockPos(absoluteCenter.getX(), 0, absoluteCenter.getZ());
+
+        context.assertTrue(
+            SurfaceConvertHandler.collectBrushColumns(shape).contains(columnKey),
+            "Surface convert brush must include target XZ column " + columnKey);
+
+        boolean shapeCoversColumn = shape.getBlockPositions().stream()
+            .anyMatch(pos -> pos.getX() == absoluteCenter.getX() && pos.getZ() == absoluteCenter.getZ());
+        context.assertTrue(shapeCoversColumn,
+            "Shape block positions must cover target column at " + absoluteCenter);
+
+        BlockPos resolved = SurfaceConvertHandler.resolveConvertibleSurface(
+            context.getWorld(),
+            columnKey,
+            shape.getMaxY(absoluteCenter),
+            config.getSurfaceConvertMaxBelowSurfaceDepth(),
+            config.isConvertArtificialSurfaces());
+        context.assertTrue(resolved != null && resolved.equals(absoluteSurface),
+            "resolveConvertibleSurface should resolve surface at " + absoluteSurface + " but got " + resolved);
+
+        SurfaceConvertMaterialSelector.SelectionContext materials = SurfaceConvertMaterialSelector.prepare(config);
+        context.assertFalse(materials.isEmpty(), "SurfaceConvertMaterialSelector must resolve configured materials");
+        Block selectedTarget = SurfaceConvertMaterialSelector.selectBlock(materials, columnKey);
+        context.assertTrue(selectedTarget == expectedTarget,
+            "SurfaceConvertMaterialSelector should return " + expectedTarget + " but got " + selectedTarget);
+
+        context.assertFalse(context.getBlockState(relativeSurface).isOf(expectedTarget),
+            "Surface should differ from target block before convert");
     }
 }

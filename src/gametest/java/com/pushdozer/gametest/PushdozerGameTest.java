@@ -10,9 +10,13 @@ import com.pushdozer.items.handlers.ExcavationHandler;
 
 import com.pushdozer.items.handlers.PlacementHandler;
 
+import com.pushdozer.items.handlers.SurfaceConvertApplyResult;
+
 import com.pushdozer.items.handlers.SurfaceConvertHandler;
 
 import com.pushdozer.shapes.GeometryShape;
+
+import net.minecraft.block.Block;
 
 import com.pushdozer.shapes.GeometryShapeFactory;
 
@@ -628,7 +632,35 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 2500, setupTicks = 1150)
+    @GameTest(maxTicks = 120, setupTicks = 55)
+
+    public void surfaceConvertGrassToDirt_singleApply(TestContext context) {
+
+        runWhenSchedulerIdle(context, 0, () -> {
+
+            ServerWorld world = context.getWorld();
+
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+
+            BlockPos grassToDirt = new BlockPos(2, 1, 2);
+
+            context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
+
+            context.setBlockState(grassToDirt, Blocks.GRASS_BLOCK);
+
+            PushdozerConfig dirtConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
+
+            applySurfaceConvertOnce(context, world, player, grassToDirt, grassToDirt, dirtConfig, Blocks.DIRT,
+
+                state -> state.isOf(Blocks.DIRT), "Grass surface should become dirt on single apply", context::complete);
+
+        });
+
+    }
+
+
+
+    @GameTest(maxTicks = 1800, setupTicks = 1150)
 
     public void surfaceConvertScenarios(TestContext context) {
 
@@ -646,7 +678,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             PushdozerConfig dirtConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
 
-            applyUntilSurfaceState(context, world, player, grassToDirt, dirtConfig,
+            applySurfaceConvertOnce(context, world, player, grassToDirt, grassToDirt, dirtConfig, Blocks.DIRT,
 
                 state -> state.isOf(Blocks.DIRT), "Grass surface should become dirt", () -> {
 
@@ -662,7 +694,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                     PushdozerConfig sandConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:sand");
 
-                    applyUntilSurfaceState(context, world, player, roofGround, sandConfig,
+                    applySurfaceConvertOnce(context, world, player, roofGround, roofGround, sandConfig, Blocks.SAND,
 
                         state -> state.isOf(Blocks.SAND), "Natural ground below roof should convert", () -> {
 
@@ -680,9 +712,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                             context.setBlockState(retainPlant, Blocks.SHORT_GRASS);
 
-                            applyUntilSurfaceState(context, world, player, retainGround, dirtConfig,
+                            applySurfaceConvertOnce(context, world, player, retainGround, retainGround, dirtConfig,
 
-                                state -> state.isOf(Blocks.DIRT), "Surface should convert to dirt", () -> {
+                                Blocks.DIRT, state -> state.isOf(Blocks.DIRT), "Surface should convert to dirt", () -> {
 
                                     context.assertTrue(context.getBlockState(retainPlant).isOf(Blocks.SHORT_GRASS),
 
@@ -702,7 +734,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                         PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
 
-                                    applyUntilSurfaceState(context, world, player, removeGround, stoneConfig,
+                                    applySurfaceConvertOnce(context, world, player, removeGround, removeGround,
+
+                                        stoneConfig, Blocks.STONE,
 
                                         state -> state.isOf(Blocks.STONE), "Surface should convert to stone", () -> {
 
@@ -728,9 +762,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                 PushdozerGameTestSupport.createMockServerPlayer(context);
 
-                                            applyUntilSurfaceState(context, world, undoPlayer, undoGround, undoPlant,
+                                            applySurfaceConvertOnce(context, world, undoPlayer, undoGround, undoPlant,
 
-                                                stoneConfig, BlockState::isAir,
+                                                stoneConfig, Blocks.STONE, BlockState::isAir,
 
                                                 "Plant should be removed after convert", () -> {
 
@@ -764,11 +798,17 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                                 invalidConfig.getGeometryType(), invalidConfig, absoluteInvalid);
 
-                                                            context.assertFalse(
+                                                            SurfaceConvertApplyResult invalidResult =
 
-                                                                new SurfaceConvertHandler().applySurfaceConvert(
+                                                                new SurfaceConvertHandler().applySurfaceConvertWithResult(
 
-                                                                    world, player, invalidShape, absoluteInvalid, invalidConfig),
+                                                                    world, player, invalidShape, absoluteInvalid, invalidConfig);
+
+                                                            context.assertTrue(
+
+                                                                invalidResult.stage()
+
+                                                                    == SurfaceConvertApplyResult.Stage.INVALID_MATERIAL,
 
                                                                 "Invalid target config must be rejected before terrain apply");
 
@@ -856,43 +896,33 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    private static final int SURFACE_CONVERT_APPLY_ATTEMPTS = 120;
+    private static final int SURFACE_CONVERT_REGION_BUSY_RETRIES = 8;
 
 
 
-    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
+    private static void applySurfaceConvertOnce(TestContext context, ServerWorld world, ServerPlayerEntity player,
 
-                                                 BlockPos applyCenter, PushdozerConfig config,
+                                                BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
 
-                                                 Predicate<BlockState> expected, String message, Runnable onSuccess) {
+                                                Block expectedTarget, Predicate<BlockState> expected, String message,
 
-        applyUntilSurfaceState(context, world, player, applyCenter, applyCenter, config, expected, message, onSuccess);
+                                                Runnable onSuccess) {
 
-    }
+        applySurfaceConvertOnce(context, world, player, applyCenter, checkPos, config, expectedTarget, expected,
 
-
-
-    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
-
-                                                 BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
-
-                                                 Predicate<BlockState> expected, String message, Runnable onSuccess) {
-
-        applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
-
-            SURFACE_CONVERT_APPLY_ATTEMPTS, onSuccess);
+            message, SURFACE_CONVERT_REGION_BUSY_RETRIES, onSuccess);
 
     }
 
 
 
-    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
+    private static void applySurfaceConvertOnce(TestContext context, ServerWorld world, ServerPlayerEntity player,
 
-                                                 BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
+                                                BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
 
-                                                 Predicate<BlockState> expected, String message, int attemptsLeft,
+                                                Block expectedTarget, Predicate<BlockState> expected, String message,
 
-                                                 Runnable onSuccess) {
+                                                int regionBusyRetriesLeft, Runnable onSuccess) {
 
         if (expected.test(context.getBlockState(checkPos))) {
 
@@ -902,21 +932,21 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         }
 
-        if (attemptsLeft <= 0) {
-
-            context.assertTrue(expected.test(context.getBlockState(checkPos)), message);
-
-            return;
-
-        }
-
         context.runAtTick(context.getTick() + 1, () -> {
 
             if (!TerrainOperationScheduler.getInstance().isIdle()) {
 
-                applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
+                if (regionBusyRetriesLeft <= 0) {
 
-                    attemptsLeft, onSuccess);
+                    context.assertTrue(false, message + " [terrain scheduler stayed busy]");
+
+                    return;
+
+                }
+
+                applySurfaceConvertOnce(context, world, player, applyCenter, checkPos, config, expectedTarget,
+
+                    expected, message, regionBusyRetriesLeft - 1, onSuccess);
 
                 return;
 
@@ -924,11 +954,17 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             BlockPos absoluteCenter = context.getAbsolutePos(applyCenter);
 
+            BlockPos absoluteCheck = context.getAbsolutePos(checkPos);
+
             world.getChunk(absoluteCenter);
 
             GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, absoluteCenter);
 
-            boolean applied = new SurfaceConvertHandler().applySurfaceConvert(
+            PushdozerGameTestSupport.assertSurfaceConvertPreconditions(
+
+                context, shape, applyCenter, config, applyCenter, expectedTarget);
+
+            SurfaceConvertApplyResult result = new SurfaceConvertHandler().applySurfaceConvertWithResult(
 
                 world, player, shape, absoluteCenter, config);
 
@@ -940,17 +976,25 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             }
 
-            int nextAttempts = attemptsLeft - 1;
+            if (result.stage() == SurfaceConvertApplyResult.Stage.REGION_BUSY && regionBusyRetriesLeft > 0) {
 
-            if (!applied && !TerrainOperationScheduler.getInstance().isIdle()) {
+                applySurfaceConvertOnce(context, world, player, applyCenter, checkPos, config, expectedTarget,
 
-                nextAttempts = attemptsLeft;
+                    expected, message, regionBusyRetriesLeft - 1, onSuccess);
+
+                return;
 
             }
 
-            applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
+            context.assertTrue(result.success(), message + " [" + result.describeFailure()
 
-                nextAttempts, onSuccess);
+                + ", checkRelative=" + checkPos
+
+                + ", checkAbsolute=" + absoluteCheck
+
+                + ", blockAtCheck=" + world.getBlockState(absoluteCheck).getBlock()
+
+                + ", planned=" + result.plannedPositions() + "]");
 
         });
 
