@@ -187,6 +187,17 @@ class SphereShapeTest extends PushdozerTestBase {
     }
 
     @Test
+    void isWithinBoundsUsesBasePosAsQueryCenter() {
+        BlockPos storedCenter = new BlockPos(0, 64, 0);
+        BlockPos queryCenter = new BlockPos(100, 64, 100);
+        SphereShape sphere = new SphereShape(3, Vec3d.ofCenter(storedCenter));
+
+        assertTrue(sphere.isWithinBounds(queryCenter, queryCenter));
+        assertFalse(sphere.isWithinBounds(storedCenter, queryCenter));
+        assertTrue(sphere.isWithinBounds(storedCenter, storedCenter));
+    }
+
+    @Test
     void rejectsNullCenterUpdate() {
         SphereShape sphere = new SphereShape(2, Vec3d.ofCenter(BlockPos.ORIGIN));
         org.junit.jupiter.api.Assertions.assertThrows(

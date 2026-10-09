@@ -168,7 +168,7 @@ public class SphereShape implements GeometryShape {
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return Vec3d.ofCenter(pos).squaredDistanceTo(resolveWorldCenter(basePos)) <= radiusSquared;
     }
 
     @Override

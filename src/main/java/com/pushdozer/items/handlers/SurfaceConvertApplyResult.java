@@ -1,7 +1,6 @@
 package com.pushdozer.items.handlers;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;

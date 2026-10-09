@@ -9,6 +9,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 椭球体形状类
@@ -17,24 +18,29 @@ public class EllipsoidShape implements GeometryShape {
     private final int radiusX;
     private final int radiusY;
     private final int radiusZ;
+    private final double invRadiusXSquared;
+    private final double invRadiusYSquared;
+    private final double invRadiusZSquared;
+    private Vec3d ellipsoidCenter;
     private BlockPos center;
 
     public EllipsoidShape(int radiusX, int radiusY, int radiusZ, BlockPos center) {
         this.radiusX = radiusX;
         this.radiusY = radiusY;
         this.radiusZ = radiusZ;
+        this.invRadiusXSquared = 1.0 / (radiusX * radiusX);
+        this.invRadiusYSquared = 1.0 / (radiusY * radiusY);
+        this.invRadiusZSquared = 1.0 / (radiusZ * radiusZ);
         this.center = center;
+        this.ellipsoidCenter = Vec3d.ofCenter(center);
     }
 
     @Override
     public Box getBoundingBox(BlockPos basePos) {
+        Vec3d worldCenter = resolveWorldCenter(basePos);
         return new Box(
-            basePos.getX() - radiusX,
-            basePos.getY() - radiusY,
-            basePos.getZ() - radiusZ,
-            basePos.getX() + radiusX + 1,
-            basePos.getY() + radiusY + 1,
-            basePos.getZ() + radiusZ + 1
+            worldCenter.x - radiusX, worldCenter.y - radiusY, worldCenter.z - radiusZ,
+            worldCenter.x + radiusX, worldCenter.y + radiusY, worldCenter.z + radiusZ
         );
     }
 
@@ -50,108 +56,87 @@ public class EllipsoidShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        double dx = pos.x - center.getX();
-        double dy = pos.y - center.getY();
-        double dz = pos.z - center.getZ();
-        
-        // 椭球体方程: (x/a)² + (y/b)² + (z/c)² <= 1
-        double equation = (dx * dx) / (radiusX * radiusX) + 
-                         (dy * dy) / (radiusY * radiusY) + 
-                         (dz * dz) / (radiusZ * radiusZ);
-        
-        return equation <= 1.0;
+        return ellipsoidEquation(pos, ellipsoidCenter) <= 1.0;
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        double dx = pos.getX() - center.getX();
-        double dy = pos.getY() - center.getY();
-        double dz = pos.getZ() - center.getZ();
-        
-        // 椭球体方程: (x/a)² + (y/b)² + (z/c)² <= 1
-        double equation = (dx * dx) / (radiusX * radiusX) + 
-                         (dy * dy) / (radiusY * radiusY) + 
-                         (dz * dz) / (radiusZ * radiusZ);
-        
-        return equation <= 1.0;
+        return ellipsoidEquation(Vec3d.ofCenter(pos), ellipsoidCenter) <= 1.0;
     }
 
     @Override
     public int getMinY(BlockPos basePos) {
-        return basePos.getY() - radiusY;
+        return (int) Math.floor(getBoundingBox(basePos).minY);
     }
 
     @Override
     public int getMaxY(BlockPos basePos) {
-        return basePos.getY() + radiusY;
+        return (int) Math.floor(getBoundingBox(basePos).maxY);
     }
 
     @Override
     public List<BlockPos> getBlocksInLayer(BlockPos basePos, int y) {
         List<BlockPos> positions = new ArrayList<>();
-        
-        double dy = y - basePos.getY();
-        if (Math.abs(dy) <= radiusY) {
-            // 计算在当前Y层的椭圆半径
-            double yFactor = 1.0 - (dy * dy) / (radiusY * radiusY);
-            if (yFactor > 0) {
-                int maxX = (int) Math.ceil(radiusX * Math.sqrt(yFactor));
-                int maxZ = (int) Math.ceil(radiusZ * Math.sqrt(yFactor));
-                
-                for (int x = basePos.getX() - maxX; x <= basePos.getX() + maxX; x++) {
-                    for (int z = basePos.getZ() - maxZ; z <= basePos.getZ() + maxZ; z++) {
-                        if (isInside(new BlockPos(x, y, z))) {
-                            positions.add(new BlockPos(x, y, z));
-                        }
-                    }
+        double dy = y + 0.5 - resolveWorldCenter(basePos).y;
+        if (Math.abs(dy) > radiusY) {
+            return positions;
+        }
+
+        double yFactor = 1.0 - (dy * dy) * invRadiusYSquared;
+        if (yFactor < 0) {
+            return positions;
+        }
+
+        int maxX = (int) Math.ceil(radiusX * Math.sqrt(yFactor));
+        int maxZ = (int) Math.ceil(radiusZ * Math.sqrt(yFactor));
+        for (int x = basePos.getX() - maxX; x <= basePos.getX() + maxX; x++) {
+            for (int z = basePos.getZ() - maxZ; z <= basePos.getZ() + maxZ; z++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                if (isInside(pos)) {
+                    positions.add(pos);
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> positions = new ArrayList<>();
-        BlockPos centerPos = BlockPos.ofFloored(center);
-        
-        int minX = Math.max(centerPos.getX() - maxDistance, this.center.getX() - radiusX);
-        int maxX = Math.min(centerPos.getX() + maxDistance, this.center.getX() + radiusX);
-        int minY = Math.max(centerPos.getY() - maxDistance, this.center.getY() - radiusY);
-        int maxY = Math.min(centerPos.getY() + maxDistance, this.center.getY() + radiusY);
-        int minZ = Math.max(centerPos.getZ() - maxDistance, this.center.getZ() - radiusZ);
-        int maxZ = Math.min(centerPos.getZ() + maxDistance, this.center.getZ() + radiusZ);
-        
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(ellipsoidCenter.x - radiusX));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(ellipsoidCenter.x + radiusX));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(ellipsoidCenter.y - radiusY));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(ellipsoidCenter.y + radiusY));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(ellipsoidCenter.z - radiusZ));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(ellipsoidCenter.z + radiusZ));
+
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (isInside(pos)) {
-                        double distance = Math.sqrt(
-                            Math.pow(x - centerPos.getX(), 2) +
-                            Math.pow(y - centerPos.getY(), 2) +
-                            Math.pow(z - centerPos.getZ(), 2)
-                        );
-                        if (distance <= maxDistance) {
-                            positions.add(pos);
-                        }
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
+                        positions.add(pos);
                     }
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return ellipsoidEquation(Vec3d.ofCenter(pos), resolveWorldCenter(basePos)) <= 1.0;
     }
 
     @Override
-    public void setCenter(BlockPos center) {
-        this.center = center;
+    public void setCenter(BlockPos newCenter) {
+        this.center = newCenter;
+        this.ellipsoidCenter = Vec3d.ofCenter(newCenter);
     }
 
     @Override
@@ -161,7 +146,7 @@ public class EllipsoidShape implements GeometryShape {
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlockPositions().iterator();
+        return new LayerBlockIterator(center, getMinY(center), getMaxY(center));
     }
 
     @Override
@@ -172,31 +157,11 @@ public class EllipsoidShape implements GeometryShape {
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> positions = new ArrayList<>();
-        
-        int centerX = center.getX();
-        int centerY = center.getY();
-        int centerZ = center.getZ();
-        
-        // 椭球体：三个轴的半径可以不同
-        for (int x = centerX - radiusX; x <= centerX + radiusX; x++) {
-            for (int y = centerY - radiusY; y <= centerY + radiusY; y++) {
-                for (int z = centerZ - radiusZ; z <= centerZ + radiusZ; z++) {
-                    double dx = x - centerX;
-                    double dy = y - centerY;
-                    double dz = z - centerZ;
-                    
-                    // 椭球体方程: (x/a)² + (y/b)² + (z/c)² <= 1
-                    double equation = (dx * dx) / (radiusX * radiusX) + 
-                                     (dy * dy) / (radiusY * radiusY) + 
-                                     (dz * dz) / (radiusZ * radiusZ);
-                    
-                    if (equation <= 1.0) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+        int minY = getMinY(center);
+        int maxY = getMaxY(center);
+        for (int y = minY; y <= maxY; y++) {
+            positions.addAll(getBlocksInLayer(center, y));
         }
-        
         return positions;
     }
 
@@ -211,4 +176,56 @@ public class EllipsoidShape implements GeometryShape {
     public int getRadiusZ() {
         return radiusZ;
     }
-} 
+
+    private double ellipsoidEquation(Vec3d point, Vec3d referenceCenter) {
+        double dx = point.x - referenceCenter.x;
+        double dy = point.y - referenceCenter.y;
+        double dz = point.z - referenceCenter.z;
+        return dx * dx * invRadiusXSquared + dy * dy * invRadiusYSquared + dz * dz * invRadiusZSquared;
+    }
+
+    private Vec3d resolveWorldCenter(BlockPos basePos) {
+        return ellipsoidCenter.add(
+            basePos.getX() - center.getX(),
+            basePos.getY() - center.getY(),
+            basePos.getZ() - center.getZ()
+        );
+    }
+
+    private final class LayerBlockIterator implements Iterator<BlockPos> {
+        private final BlockPos basePos;
+        private final int maxY;
+        private int currentY;
+        private Iterator<BlockPos> currentLayer = List.<BlockPos>of().iterator();
+
+        private LayerBlockIterator(BlockPos basePos, int minY, int maxY) {
+            this.basePos = basePos;
+            this.maxY = maxY;
+            this.currentY = minY - 1;
+            advanceLayer();
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (!currentLayer.hasNext() && currentY < maxY) {
+                advanceLayer();
+            }
+            return currentLayer.hasNext();
+        }
+
+        @Override
+        public BlockPos next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return currentLayer.next();
+        }
+
+        private void advanceLayer() {
+            currentY++;
+            if (currentY <= maxY) {
+                currentLayer = getBlocksInLayer(basePos, currentY).iterator();
+            }
+        }
+    }
+}
