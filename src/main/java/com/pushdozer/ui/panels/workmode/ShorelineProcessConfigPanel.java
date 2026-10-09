@@ -123,47 +123,58 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
             contentTop += WIDGET_HEIGHT + WIDGET_MARGIN;
         }
 
-        // 标高限制选项（倒数第二行，确定按钮的上面一行）
+        // 标高限制选项（标高不限时不可用）
         int halfWidthForChecks = (contentWidth - WIDGET_MARGIN) / 2;
+        boolean heightRestrictionsAvailable = config.getHeightMode() != PushdozerConfig.HeightMode.NO_LIMIT;
 
-        // 标高上操作复选框（左侧）
         heightAboveCheckbox = CheckboxWidget.builder(
                 Text.translatable("pushdozer.config.shoreline_height_above"),
                 parent.getTextRenderer()
         )
                 .pos(contentLeft, contentTop)
-                .checked(config.isShorelineHeightAboveEnabled())
+                .checked(heightRestrictionsAvailable && config.isShorelineHeightAboveEnabled())
                 .callback((widget, checked) -> {
+                    if (!heightRestrictionsAvailable) {
+                        return;
+                    }
                     if (checked) {
-                        // 如果启用标高上操作，则禁用标高下操作
                         config.setShorelineHeightBelowEnabled(false);
                     }
                     config.setShorelineHeightAboveEnabled(checked);
-                    // 重新初始化面板以更新复选框状态
                     this.show();
                 })
                 .build();
-        heightAboveCheckbox.setTooltip(Tooltip.of(Text.translatable("pushdozer.config.shoreline_height_above.tooltip")));
+        heightAboveCheckbox.active = heightRestrictionsAvailable;
+        heightAboveCheckbox.setTooltip(Tooltip.of(Text.translatable(
+            heightRestrictionsAvailable
+                ? "pushdozer.config.shoreline_height_above.tooltip"
+                : "pushdozer.config.shoreline_height_requires_reference.tooltip"
+        )));
         widgets.add(heightAboveCheckbox);
 
-        // 标高下操作复选框（右侧，与上一个在同一行）
         heightBelowCheckbox = CheckboxWidget.builder(
                 Text.translatable("pushdozer.config.shoreline_height_below"),
                 parent.getTextRenderer()
         )
                 .pos(contentLeft + halfWidthForChecks + WIDGET_MARGIN, contentTop)
-                .checked(config.isShorelineHeightBelowEnabled())
+                .checked(heightRestrictionsAvailable && config.isShorelineHeightBelowEnabled())
                 .callback((widget, checked) -> {
+                    if (!heightRestrictionsAvailable) {
+                        return;
+                    }
                     if (checked) {
-                        // 如果启用标高下操作，则禁用标高上操作
                         config.setShorelineHeightAboveEnabled(false);
                     }
                     config.setShorelineHeightBelowEnabled(checked);
-                    // 重新初始化面板以更新复选框状态
                     this.show();
                 })
                 .build();
-        heightBelowCheckbox.setTooltip(Tooltip.of(Text.translatable("pushdozer.config.shoreline_height_below.tooltip")));
+        heightBelowCheckbox.active = heightRestrictionsAvailable;
+        heightBelowCheckbox.setTooltip(Tooltip.of(Text.translatable(
+            heightRestrictionsAvailable
+                ? "pushdozer.config.shoreline_height_below.tooltip"
+                : "pushdozer.config.shoreline_height_requires_reference.tooltip"
+        )));
         widgets.add(heightBelowCheckbox);
         
         // 注意：确认按钮会在基类的initializeConfirmButton()中添加，距离最后一个控件5像素
@@ -332,9 +343,10 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
             config,
             initial,
             selectedSet -> {
-                Set<String> ids = selectedSet.stream()
+                java.util.List<String> ids = selectedSet.stream()
                     .map(b -> Registries.BLOCK.getId(b).toString())
-                    .collect(java.util.stream.Collectors.toSet());
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
                 config.setCustomShorelineBlocks(ids);
                 config.save();
             }

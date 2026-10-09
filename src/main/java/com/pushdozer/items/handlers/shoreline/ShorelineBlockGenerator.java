@@ -3,6 +3,8 @@ package com.pushdozer.items.handlers.shoreline;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.tags.PushdozerBiomeTags;
+import com.pushdozer.util.PositionRandom;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -28,6 +30,15 @@ public class ShorelineBlockGenerator {
     private static final float BASE_KEEP_PROBABILITY = 0.1f;
     private static final float DISTANCE_PROBABILITY_INCREMENT = 0.075f;
     private static final float MAX_KEEP_PROBABILITY = 0.9f;
+    private static final long MATERIAL_RANDOM_SALT = 0x5348524C434E45L;
+
+    private Random randomFor(World world, BlockPos pos) {
+        long operationSalt = config.getNoiseSeed() ^ MATERIAL_RANDOM_SALT;
+        if (world instanceof ServerWorld serverWorld) {
+            return PositionRandom.forOperation(pos, serverWorld.getSeed(), operationSalt);
+        }
+        return PositionRandom.at(pos, operationSalt);
+    }
 
     // 生物群系方块生成器映射表
     private static final Map<TagKey<Biome>, BiFunction<Integer, Random, BlockState>> BIOME_BLOCK_GENERATORS = new HashMap<>();
@@ -104,7 +115,7 @@ public class ShorelineBlockGenerator {
         }
 
         // 优化：沙滩类型使用更保守的概率分布，保持更多沙子
-        return applyBeachTransitionProbability(distance, primary, secondary, world.getRandom(), world.getBiome(pos));
+        return applyBeachTransitionProbability(distance, primary, secondary, randomFor(world, pos), world.getBiome(pos));
     }
 
     /**
@@ -139,7 +150,7 @@ public class ShorelineBlockGenerator {
             secondary = Blocks.GRAVEL.getDefaultState();
         }
 
-        return applyTransitionProbability(distance, primary, secondary, world.getRandom());
+        return applyTransitionProbability(distance, primary, secondary, randomFor(world, pos));
     }
 
     /**
@@ -164,7 +175,7 @@ public class ShorelineBlockGenerator {
             TagKey<Biome> tagKey = entry.getKey();
             if (biomeEntry.isIn(tagKey)) {
                 PushdozerMod.LOGGER.debug("Matched biome tag {} for adaptive shoreline at pos {}", tagKey.id(), pos);
-                return entry.getValue().apply(distance, world.getRandom());
+                return entry.getValue().apply(distance, randomFor(world, pos));
             }
         }
         
@@ -188,7 +199,7 @@ public class ShorelineBlockGenerator {
         
         // 如果智能选择失败，使用固定的默认回退类型（沙滩）
         // 简化：移除用户配置依赖，提供更一致的用户体验
-        return applyTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+        return applyTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
     }
     
     /**
@@ -200,39 +211,39 @@ public class ShorelineBlockGenerator {
         // 优先检查最明确的标签
         if (biomeEntry.isIn(BiomeTags.IS_OVERWORLD) &&
             biomeEntry.value().toString().toLowerCase().contains("snowy")) {
-            return applyTransitionProbability(distance, Blocks.SNOW_BLOCK.getDefaultState(), Blocks.ICE.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.SNOW_BLOCK.getDefaultState(), Blocks.ICE.getDefaultState(), randomFor(world, pos));
         }
         
         // 沙漠生物群系：使用普通沙滩，而不是红沙
         if (biomeEntry.value().toString().toLowerCase().contains("desert")) {
-            return applyBeachTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom(), world.getBiome(pos));
+            return applyBeachTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos), world.getBiome(pos));
         }
         
         if (biomeEntry.isIn(BiomeTags.IS_BADLANDS)) {
-            return applyTransitionProbability(distance, Blocks.RED_SAND.getDefaultState(), Blocks.RED_SANDSTONE.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.RED_SAND.getDefaultState(), Blocks.RED_SANDSTONE.getDefaultState(), randomFor(world, pos));
         }
         
         // 沼泽：使用字符串检查，因为可能没有专门的标签
         if (biomeEntry.value().toString().toLowerCase().contains("swamp")) {
-            return applyTransitionProbability(distance, Blocks.MUD.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.MUD.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
         }
         
         if (biomeEntry.isIn(BiomeTags.IS_RIVER)) {
-            return applyTransitionProbability(distance, Blocks.GRAVEL.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.GRAVEL.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
         }
         
         if (biomeEntry.isIn(BiomeTags.IS_MOUNTAIN)) {
-            return applyTransitionProbability(distance, Blocks.STONE.getDefaultState(), Blocks.COBBLESTONE.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.STONE.getDefaultState(), Blocks.COBBLESTONE.getDefaultState(), randomFor(world, pos));
         }
         
         if (biomeEntry.isIn(BiomeTags.IS_BEACH)) {
-            return applyTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.SAND.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
         }
         
         // 对于植被茂盛的岸边，可以组合使用森林和丛林标签
         if (biomeEntry.isIn(BiomeTags.IS_JUNGLE) ||
             biomeEntry.isIn(BiomeTags.IS_FOREST)) {
-            return applyTransitionProbability(distance, Blocks.GRASS_BLOCK.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+            return applyTransitionProbability(distance, Blocks.GRASS_BLOCK.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
         }
         
         // 如果没有任何特定标签匹配，返回null，让上层逻辑去使用默认的回退选项
@@ -508,14 +519,14 @@ public class ShorelineBlockGenerator {
      * 生成泥泞方块
      */
     private BlockState generateMuddyBlock(World world, BlockPos pos, int distance) {
-        return applyTransitionProbability(distance, Blocks.MUD.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+        return applyTransitionProbability(distance, Blocks.MUD.getDefaultState(), Blocks.DIRT.getDefaultState(), randomFor(world, pos));
     }
 
     /**
      * 生成岩石方块
      */
     private BlockState generateRockyBlock(World world, BlockPos pos, int distance) {
-        return applyTransitionProbability(distance, Blocks.STONE.getDefaultState(), Blocks.COBBLESTONE.getDefaultState(), world.getRandom());
+        return applyTransitionProbability(distance, Blocks.STONE.getDefaultState(), Blocks.COBBLESTONE.getDefaultState(), randomFor(world, pos));
     }
 
     /**
@@ -530,37 +541,23 @@ public class ShorelineBlockGenerator {
      */
     private BlockState generateCustomShorelineBlock(World world, BlockPos pos, int distance) {
         List<Block> customBlocks = config.getCustomShorelineBlockList();
-        
+
         if (customBlocks.isEmpty()) {
-            // 如果没有自定义方块，使用默认的沙滩方块
             return generateBeachBlock(world, pos, distance);
         }
-        
-        // 修复：使用过渡概率，而不是简单根据距离选择
-        // 根据距离计算保持原样的概率
-        float keepOriginalProbability = calculateKeepOriginalProbability(distance);
-        
-        // 首先决定是否保持原样
-        if (world.getRandom().nextFloat() < keepOriginalProbability) {
-            return null; // 保持原样
-        }
-        
-        // 根据距离选择不同的自定义方块，并应用过渡概率
-        int blockIndex = Math.min(distance - 1, customBlocks.size() - 1);
 
-        // 如果有多个自定义方块，可以创建过渡效果
-        Block primaryBlock = customBlocks.getFirst(); // 第一个方块作为主要方块
-        if (customBlocks.size() > 1 && distance > 1) {
-            // 在多个自定义方块之间创建过渡
-            Block secondaryBlock = customBlocks.get(Math.min(1, customBlocks.size() - 1)); // 第二个方块作为次要方块
-            
-            return applyTransitionProbability(distance, primaryBlock.getDefaultState(), secondaryBlock.getDefaultState(), world.getRandom());
+        Random random = randomFor(world, pos);
+        int primaryIndex = Math.min(Math.max(distance - 1, 0), customBlocks.size() - 1);
+        BlockState primary = customBlocks.get(primaryIndex).getDefaultState();
+        BlockState secondary;
+        if (customBlocks.size() > 1) {
+            int secondaryIndex = Math.min(primaryIndex + 1, customBlocks.size() - 1);
+            secondary = customBlocks.get(secondaryIndex).getDefaultState();
         } else {
-            // 修复：即使只有一个自定义方块，也要应用过渡概率
-            // 这样可以确保自定义方块能够被再次替换
-            // 使用泥土作为次要方块，创造从自定义方块到泥土的过渡
-            return applyTransitionProbability(distance, primaryBlock.getDefaultState(), Blocks.DIRT.getDefaultState(), world.getRandom());
+            secondary = Blocks.DIRT.getDefaultState();
         }
+
+        return applyTransitionProbability(distance, primary, secondary, random);
     }
 }
 

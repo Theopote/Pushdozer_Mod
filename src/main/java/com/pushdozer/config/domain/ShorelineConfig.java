@@ -6,13 +6,18 @@ import net.minecraft.block.Block;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ShorelineConfig {
+    public static final int MAX_SHORELINE_WIDTH = 10;
+
     @Expose
     private PushdozerConfig.ShorelineType shorelineType = PushdozerConfig.ShorelineType.ADAPTIVE;
     @Expose
@@ -22,7 +27,7 @@ public class ShorelineConfig {
     @Expose
     private float vegetationDensity = 0.1f;
     @Expose
-    private Set<String> customShorelineBlocks = new HashSet<>();
+    private List<String> customShorelineBlocks = new ArrayList<>();
     @Expose
     private Set<String> customShorelinePlants = new HashSet<>();
     @Expose
@@ -34,6 +39,21 @@ public class ShorelineConfig {
 
     public void setOnChange(ConfigChangeNotifier onChange) {
         this.onChange = onChange != null ? onChange : () -> {};
+    }
+
+    public void normalize() {
+        shorelineWidth = Math.max(1, Math.min(MAX_SHORELINE_WIDTH, shorelineWidth));
+        if (customShorelineBlocks == null) {
+            customShorelineBlocks = new ArrayList<>();
+        } else {
+            customShorelineBlocks = customShorelineBlocks.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+        }
+        if (customShorelinePlants == null) {
+            customShorelinePlants = new HashSet<>();
+        }
     }
 
     public PushdozerConfig.ShorelineType getShorelineType() {
@@ -50,7 +70,7 @@ public class ShorelineConfig {
     }
 
     public void setShorelineWidth(int shorelineWidth) {
-        this.shorelineWidth = Math.max(1, Math.min(10, shorelineWidth));
+        this.shorelineWidth = Math.max(1, Math.min(MAX_SHORELINE_WIDTH, shorelineWidth));
         onChange.onConfigChanged();
     }
 
@@ -72,13 +92,20 @@ public class ShorelineConfig {
         onChange.onConfigChanged();
     }
 
-    public void setCustomShorelineBlocks(Set<String> blockIds) {
-        this.customShorelineBlocks = blockIds;
+    public void setCustomShorelineBlocks(Collection<String> blockIds) {
+        if (blockIds == null) {
+            this.customShorelineBlocks = new ArrayList<>();
+        } else {
+            this.customShorelineBlocks = blockIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+        }
         onChange.onConfigChanged();
     }
 
     public void setCustomShorelinePlants(Set<String> plantIds) {
-        this.customShorelinePlants = plantIds;
+        this.customShorelinePlants = plantIds != null ? plantIds : new HashSet<>();
         onChange.onConfigChanged();
     }
 

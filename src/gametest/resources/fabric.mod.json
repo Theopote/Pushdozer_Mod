@@ -7,7 +7,8 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "com.pushdozer.gametest.PushdozerGameTest"
+      "com.pushdozer.gametest.PushdozerGameTest",
+      "com.pushdozer.gametest.PushdozerShorelineGameTest"
     ],
     "fabric-client-gametest": [
       "com.pushdozer.gametest.PushdozerClientGameTest"

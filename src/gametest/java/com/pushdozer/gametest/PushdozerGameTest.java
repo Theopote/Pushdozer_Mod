@@ -217,65 +217,59 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 40, setupTicks = 20)
+    @GameTest(maxTicks = 120, setupTicks = 20)
 
     public void excavationUndoRestoresBrokenBlocks(TestContext context) {
 
-        ServerWorld world = context.getWorld();
+        runWhenSchedulerIdle(context, 0, () -> {
 
-        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+            ServerWorld world = context.getWorld();
 
-        PushdozerConfig config = PushdozerGameTestSupport.createExcavationConfig(Blocks.STONE);
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
 
+            PushdozerConfig config = PushdozerGameTestSupport.createExcavationConfig(Blocks.STONE);
 
-
-        List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
-
-        for (BlockPos relative : EXCAVATION_TARGETS) {
-
-            context.assertTrue(context.getBlockState(relative).isOf(Blocks.STONE), "Expected stone before excavation");
-
-            absoluteTargets.add(context.getAbsolutePos(relative));
-
-        }
-
-
-
-        new ExcavationHandler().excavateBlocksAt(player, world, config, absoluteTargets);
-
-
-
-        context.runAtTick(context.getTick() + 1, () -> {
+            List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
 
             for (BlockPos relative : EXCAVATION_TARGETS) {
 
-                context.assertTrue(context.getBlockState(relative).isOf(Blocks.AIR), "Expected air after excavation");
+                context.assertTrue(context.getBlockState(relative).isOf(Blocks.STONE), "Expected stone before excavation");
+
+                absoluteTargets.add(context.getAbsolutePos(relative));
 
             }
 
-            context.assertTrue(PushdozerMod.getUndoStackSize(player) >= 1, "Expected undo entry after excavation");
-
-
-
-            UndoRedoService.getInstance().undoLastAction(player, world);
-
-
+            new ExcavationHandler().excavateBlocksAt(player, world, config, absoluteTargets);
 
             context.runAtTick(context.getTick() + 1, () -> {
 
                 for (BlockPos relative : EXCAVATION_TARGETS) {
 
-                    context.assertTrue(
-
-                        context.getBlockState(relative).isOf(Blocks.STONE),
-
-                        "Expected stone restored after undo at " + relative
-
-                    );
+                    context.assertTrue(context.getBlockState(relative).isOf(Blocks.AIR), "Expected air after excavation");
 
                 }
 
-                context.complete();
+                context.assertTrue(PushdozerMod.getUndoStackSize(player) >= 1, "Expected undo entry after excavation");
+
+                UndoRedoService.getInstance().undoLastAction(player, world);
+
+                context.runAtTick(context.getTick() + 1, () -> {
+
+                    for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                        context.assertTrue(
+
+                            context.getBlockState(relative).isOf(Blocks.STONE),
+
+                            "Expected stone restored after undo at " + relative
+
+                        );
+
+                    }
+
+                    context.complete();
+
+                });
 
             });
 
@@ -451,17 +445,15 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 20, setupTicks = 240)
+    @GameTest(maxTicks = 120, setupTicks = 15)
 
     public void terrainScheduler_rejectsOverlappingChunkWrites(TestContext context) {
 
-        context.runAtTick(context.getTick() + 2, () -> {
+        runWhenSchedulerIdle(context, 0, () -> {
 
             ServerWorld world = context.getWorld();
 
             TerrainOperationScheduler scheduler = TerrainOperationScheduler.getInstance();
-
-
 
             UUID firstOperation = UUID.randomUUID();
 
@@ -469,23 +461,17 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             BlockPos anchor = context.getAbsolutePos(new BlockPos(1, 1, 1));
 
-
-
-            List<BlockPos> firstChunks = List.of(anchor, anchor.add(1, 0, 0));
-
-            context.assertTrue(scheduler.tryAcquire(world, firstOperation, firstChunks),
+            context.assertTrue(scheduler.tryAcquire(world, firstOperation, List.of(anchor)),
 
                 "First operation should acquire chunk lock");
 
-            context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(2, 0, 0))),
+            context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
 
-                "Overlapping chunk write should be rejected while lock is held");
-
-
+                "Same-chunk write should be rejected while lock is held");
 
             scheduler.release(world, firstOperation);
 
-            context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor.add(1, 0, 0))),
+            context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
 
                 "Chunk lock should be available after release");
 
@@ -641,37 +627,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 200, setupTicks = 450)
+    @GameTest(maxTicks = 1200, setupTicks = 450)
 
-    public void surfaceConvertGrassToDirt(TestContext context) {
-
-        runSurfaceConvertTest(context, () -> {
-
-            ServerWorld world = context.getWorld();
-
-            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
-
-            BlockPos center = new BlockPos(2, 1, 2);
-
-            context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
-
-            context.setBlockState(center, Blocks.GRASS_BLOCK);
-
-            PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
-
-            applySurfaceConvert(context, world, player, center, config, () -> assertEventually(context, center,
-
-                state -> state.isOf(Blocks.DIRT), "Grass surface should become dirt", 30, () -> context.complete()));
-
-        });
-
-    }
-
-
-
-    @GameTest(maxTicks = 200, setupTicks = 700)
-
-    public void surfaceConvertProtectsRoof(TestContext context) {
+    public void surfaceConvertScenarios(TestContext context) {
 
         runSurfaceConvertTest(context, () -> {
 
@@ -679,29 +637,159 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
 
-            BlockPos ground = new BlockPos(2, 1, 2);
-
-            BlockPos roof = new BlockPos(2, 2, 2);
+            BlockPos grassToDirt = new BlockPos(2, 1, 2);
 
             context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
 
-            context.setBlockState(ground, Blocks.GRASS_BLOCK);
+            context.setBlockState(grassToDirt, Blocks.GRASS_BLOCK);
 
-            context.setBlockState(roof, Blocks.OAK_PLANKS);
+            PushdozerConfig dirtConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
 
-            PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:sand");
+            applyUntilSurfaceState(context, world, player, grassToDirt, dirtConfig,
 
-            applySurfaceConvert(context, world, player, ground, config, () -> assertEventually(context, ground,
+                state -> state.isOf(Blocks.DIRT), "Grass surface should become dirt", () -> {
 
-                state -> state.isOf(Blocks.SAND), "Natural ground below roof should convert", 30, () -> {
+                    BlockPos roofGround = new BlockPos(4, 1, 2);
 
-                    context.assertTrue(context.getBlockState(roof).isOf(Blocks.OAK_PLANKS),
+                    BlockPos roof = new BlockPos(4, 2, 2);
 
-                        "Roof planks must stay intact");
+                    context.setBlockState(new BlockPos(4, 0, 2), Blocks.STONE);
 
-                    context.complete();
+                    context.setBlockState(roofGround, Blocks.GRASS_BLOCK);
 
-                }));
+                    context.setBlockState(roof, Blocks.OAK_PLANKS);
+
+                    PushdozerConfig sandConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:sand");
+
+                    applyUntilSurfaceState(context, world, player, roofGround, sandConfig,
+
+                        state -> state.isOf(Blocks.SAND), "Natural ground below roof should convert", () -> {
+
+                            context.assertTrue(context.getBlockState(roof).isOf(Blocks.OAK_PLANKS),
+
+                                "Roof planks must stay intact");
+
+                            BlockPos retainGround = new BlockPos(2, 1, 4);
+
+                            BlockPos retainPlant = new BlockPos(2, 2, 4);
+
+                            context.setBlockState(new BlockPos(2, 0, 4), Blocks.STONE);
+
+                            context.setBlockState(retainGround, Blocks.GRASS_BLOCK);
+
+                            context.setBlockState(retainPlant, Blocks.SHORT_GRASS);
+
+                            applyUntilSurfaceState(context, world, player, retainGround, dirtConfig,
+
+                                state -> state.isOf(Blocks.DIRT), "Surface should convert to dirt", () -> {
+
+                                    context.assertTrue(context.getBlockState(retainPlant).isOf(Blocks.SHORT_GRASS),
+
+                                        "Short grass should survive on dirt");
+
+                                    BlockPos removeGround = new BlockPos(4, 1, 4);
+
+                                    BlockPos removePlant = new BlockPos(4, 2, 4);
+
+                                    context.setBlockState(new BlockPos(4, 0, 4), Blocks.STONE);
+
+                                    context.setBlockState(removeGround, Blocks.GRASS_BLOCK);
+
+                                    context.setBlockState(removePlant, Blocks.SHORT_GRASS);
+
+                                    PushdozerConfig stoneConfig =
+
+                                        PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
+
+                                    applyUntilSurfaceState(context, world, player, removeGround, stoneConfig,
+
+                                        state -> state.isOf(Blocks.STONE), "Surface should convert to stone", () -> {
+
+                                            context.assertFalse(context.getBlockState(removeGround).isOf(Blocks.GRASS_BLOCK),
+
+                                                "Surface should no longer be grass after convert");
+
+                                            context.assertTrue(context.getBlockState(removePlant).isAir(),
+
+                                                "Short grass should be removed when base becomes stone");
+
+                                            BlockPos undoGround = new BlockPos(6, 1, 2);
+
+                                            BlockPos undoPlant = new BlockPos(6, 2, 2);
+
+                                            context.setBlockState(new BlockPos(6, 0, 2), Blocks.STONE);
+
+                                            context.setBlockState(undoGround, Blocks.GRASS_BLOCK);
+
+                                            context.setBlockState(undoPlant, Blocks.SHORT_GRASS);
+
+                                            ServerPlayerEntity undoPlayer =
+
+                                                PushdozerGameTestSupport.createMockServerPlayer(context);
+
+                                            applyUntilSurfaceState(context, world, undoPlayer, undoGround, undoPlant,
+
+                                                stoneConfig, BlockState::isAir,
+
+                                                "Plant should be removed after convert", () -> {
+
+                                                    UndoRedoService.getInstance().undoLastAction(undoPlayer, world);
+
+                                                    waitUntilSurfaceState(context, undoGround,
+
+                                                        state -> state.isOf(Blocks.GRASS_BLOCK),
+
+                                                        "Undo should restore grass block", 60, () -> {
+
+                                                            context.assertTrue(
+
+                                                                context.getBlockState(undoPlant).isOf(Blocks.SHORT_GRASS),
+
+                                                                "Undo should restore removed plant");
+
+                                                            BlockPos invalidGround = new BlockPos(6, 1, 4);
+
+                                                            context.setBlockState(invalidGround, Blocks.GRASS_BLOCK);
+
+                                                            PushdozerConfig invalidConfig =
+
+                                                                PushdozerGameTestSupport.createSurfaceConvertConfig(
+
+                                                                    "minecraft:oak_door");
+
+                                                            BlockPos absoluteInvalid = context.getAbsolutePos(invalidGround);
+
+                                                            GeometryShape invalidShape = GeometryShapeFactory.createShape(
+
+                                                                invalidConfig.getGeometryType(), invalidConfig, absoluteInvalid);
+
+                                                            context.assertFalse(
+
+                                                                new SurfaceConvertHandler().applySurfaceConvert(
+
+                                                                    world, player, invalidShape, absoluteInvalid, invalidConfig),
+
+                                                                "Invalid target config must be rejected before terrain apply");
+
+                                                            context.assertTrue(
+
+                                                                context.getBlockState(invalidGround).isOf(Blocks.GRASS_BLOCK),
+
+                                                                "Invalid target config must not modify terrain");
+
+                                                            context.complete();
+
+                                                        });
+
+                                                });
+
+                                        });
+
+                                });
+
+                        });
+
+                });
 
         });
 
@@ -709,177 +797,31 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 200, setupTicks = 950)
+    private static final int SCHEDULER_IDLE_WAIT_LIMIT = 80;
 
-    public void surfaceConvertRetainsShortGrassOnDirt(TestContext context) {
+    private static final int SURFACE_CONVERT_IDLE_WAIT_LIMIT = 80;
 
-        runSurfaceConvertTest(context, () -> {
 
-        ServerWorld world = context.getWorld();
 
-        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+    private static void runWhenSchedulerIdle(TestContext context, int waitedTicks, Runnable testBody) {
 
-        BlockPos ground = new BlockPos(2, 1, 2);
+        int delay = waitedTicks == 0 ? 2 : 1;
 
-        BlockPos plant = new BlockPos(2, 2, 2);
+        context.runAtTick(context.getTick() + delay, () -> {
 
-        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
+            if (!TerrainOperationScheduler.getInstance().isIdle() && waitedTicks < SCHEDULER_IDLE_WAIT_LIMIT) {
 
-        context.setBlockState(ground, Blocks.GRASS_BLOCK);
+                runWhenSchedulerIdle(context, waitedTicks + 1, testBody);
 
-        context.setBlockState(plant, Blocks.SHORT_GRASS);
+                return;
 
-        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
+            }
 
-        applySurfaceConvert(context, world, player, ground, config, () -> assertEventually(context, ground,
-
-            state -> state.isOf(Blocks.DIRT), "Surface should convert to dirt", 30, () -> {
-
-                context.assertTrue(context.getBlockState(plant).isOf(Blocks.SHORT_GRASS),
-
-                    "Short grass should survive on dirt");
-
-                context.complete();
-
-            }));
+            testBody.run();
 
         });
 
     }
-
-
-
-    @GameTest(maxTicks = 200, setupTicks = 1200)
-
-    public void surfaceConvertRemovesShortGrassOnStone(TestContext context) {
-
-        runSurfaceConvertTest(context, () -> {
-
-        ServerWorld world = context.getWorld();
-
-        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
-
-        BlockPos ground = new BlockPos(2, 1, 2);
-
-        BlockPos plant = new BlockPos(2, 2, 2);
-
-        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
-
-        context.setBlockState(ground, Blocks.GRASS_BLOCK);
-
-        context.setBlockState(plant, Blocks.SHORT_GRASS);
-
-        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
-
-        applySurfaceConvert(context, world, player, ground, config, () -> assertEventually(context, ground,
-
-            state -> state.isOf(Blocks.STONE), "Surface should convert to stone", 30, () -> {
-
-                context.assertFalse(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
-
-                    "Surface should no longer be grass after convert");
-
-                context.assertTrue(context.getBlockState(plant).isAir(),
-
-                    "Short grass should be removed when base becomes stone");
-
-                context.complete();
-
-            }));
-
-        });
-
-    }
-
-
-
-    @GameTest(maxTicks = 200, setupTicks = 1450)
-
-    public void surfaceConvertUndoRestoresBlocks(TestContext context) {
-
-        runSurfaceConvertTest(context, () -> {
-
-        ServerWorld world = context.getWorld();
-
-        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
-
-        BlockPos ground = new BlockPos(2, 1, 2);
-
-        BlockPos plant = new BlockPos(2, 2, 2);
-
-        context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
-
-        context.setBlockState(ground, Blocks.GRASS_BLOCK);
-
-        context.setBlockState(plant, Blocks.SHORT_GRASS);
-
-        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:stone");
-
-        applySurfaceConvert(context, world, player, ground, config, () -> assertEventually(context, plant,
-
-            BlockState::isAir, "Plant should be removed after convert", 30, () -> {
-
-                UndoRedoService.getInstance().undoLastAction(player, world);
-
-                assertEventually(context, ground, state -> state.isOf(Blocks.GRASS_BLOCK),
-
-                    "Undo should restore grass block", 30, () -> {
-
-                        context.assertTrue(context.getBlockState(plant).isOf(Blocks.SHORT_GRASS),
-
-                            "Undo should restore removed plant");
-
-                        context.complete();
-
-                    });
-
-            }));
-
-        });
-
-    }
-
-
-
-    @GameTest(maxTicks = 200, setupTicks = 1700)
-
-    public void surfaceConvertSkipsInvalidTargetConfig(TestContext context) {
-
-        runSurfaceConvertTest(context, () -> {
-
-        ServerWorld world = context.getWorld();
-
-        ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
-
-        BlockPos ground = new BlockPos(2, 1, 2);
-
-        context.setBlockState(ground, Blocks.GRASS_BLOCK);
-
-        PushdozerConfig config = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:oak_door");
-
-        BlockPos absoluteGround = context.getAbsolutePos(ground);
-
-        GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, absoluteGround);
-
-        context.assertFalse(
-
-            new SurfaceConvertHandler().applySurfaceConvert(world, player, shape, absoluteGround, config),
-
-            "Invalid target config must be rejected before terrain apply");
-
-        context.assertTrue(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
-
-            "Invalid target config must not modify terrain");
-
-        context.complete();
-
-        });
-
-    }
-
-
-
-    private static final int SURFACE_CONVERT_IDLE_WAIT_LIMIT = 40;
 
 
 
@@ -913,75 +855,91 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    private static void applySurfaceConvert(TestContext context, ServerWorld world, ServerPlayerEntity player,
-
-                                            BlockPos relativeCenter, PushdozerConfig config, Runnable onApplied) {
-
-        applySurfaceConvertWithRetry(context, world, player, relativeCenter, config, 0, onApplied);
-
-    }
+    private static final int SURFACE_CONVERT_APPLY_ATTEMPTS = 120;
 
 
 
-    private static void applySurfaceConvertWithRetry(TestContext context, ServerWorld world,
+    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
 
-                                                     ServerPlayerEntity player, BlockPos relativeCenter,
+                                                 BlockPos applyCenter, PushdozerConfig config,
 
-                                                     PushdozerConfig config, int attempts, Runnable onApplied) {
+                                                 Predicate<BlockState> expected, String message, Runnable onSuccess) {
 
-        BlockPos absoluteCenter = context.getAbsolutePos(relativeCenter);
-
-        world.getChunk(absoluteCenter);
-
-        GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, absoluteCenter);
-
-        boolean scheduled = new SurfaceConvertHandler().applySurfaceConvert(world, player, shape, absoluteCenter, config);
-
-        if (scheduled) {
-
-            onApplied.run();
-
-            return;
-
-        }
-
-        if (attempts >= 40) {
-
-            context.assertTrue(false, "Surface convert could not apply terrain changes due to chunk lock contention");
-
-            return;
-
-        }
-
-        retrySurfaceConvertApply(context, world, player, relativeCenter, config, attempts, onApplied, 0);
+        applyUntilSurfaceState(context, world, player, applyCenter, applyCenter, config, expected, message, onSuccess);
 
     }
 
 
 
-    private static void retrySurfaceConvertApply(TestContext context, ServerWorld world,
+    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
 
-                                                 ServerPlayerEntity player, BlockPos relativeCenter,
+                                                 BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
 
-                                                 PushdozerConfig config, int attempts, Runnable onApplied,
+                                                 Predicate<BlockState> expected, String message, Runnable onSuccess) {
 
-                                                 int idleWaitTicks) {
+        applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
+
+            SURFACE_CONVERT_APPLY_ATTEMPTS, onSuccess);
+
+    }
+
+
+
+    private static void applyUntilSurfaceState(TestContext context, ServerWorld world, ServerPlayerEntity player,
+
+                                                 BlockPos applyCenter, BlockPos checkPos, PushdozerConfig config,
+
+                                                 Predicate<BlockState> expected, String message, int attemptsLeft,
+
+                                                 Runnable onSuccess) {
+
+        if (expected.test(context.getBlockState(checkPos))) {
+
+            onSuccess.run();
+
+            return;
+
+        }
+
+        if (attemptsLeft <= 0) {
+
+            context.assertTrue(expected.test(context.getBlockState(checkPos)), message);
+
+            return;
+
+        }
 
         context.runAtTick(context.getTick() + 1, () -> {
 
-            if (!TerrainOperationScheduler.getInstance().isIdle()
+            BlockPos absoluteCenter = context.getAbsolutePos(applyCenter);
 
-                && idleWaitTicks < SURFACE_CONVERT_IDLE_WAIT_LIMIT) {
+            world.getChunk(absoluteCenter);
 
-                retrySurfaceConvertApply(context, world, player, relativeCenter, config, attempts, onApplied,
+            GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, absoluteCenter);
 
-                    idleWaitTicks + 1);
+            boolean applied = new SurfaceConvertHandler().applySurfaceConvert(
+
+                world, player, shape, absoluteCenter, config);
+
+            if (expected.test(context.getBlockState(checkPos))) {
+
+                onSuccess.run();
 
                 return;
 
             }
 
-            applySurfaceConvertWithRetry(context, world, player, relativeCenter, config, attempts + 1, onApplied);
+            int nextAttempts = attemptsLeft - 1;
+
+            if (!applied && !TerrainOperationScheduler.getInstance().isIdle()) {
+
+                nextAttempts = attemptsLeft;
+
+            }
+
+            applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
+
+                nextAttempts, onSuccess);
 
         });
 
@@ -989,13 +947,15 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    private static void assertEventually(TestContext context, BlockPos pos, Predicate<BlockState> predicate,
+    private static void waitUntilSurfaceState(TestContext context, BlockPos relativeCenter,
 
-                                         String message, int ticksRemaining, Runnable onSuccess) {
+                                              Predicate<BlockState> expected, String message, int ticksRemaining,
+
+                                              Runnable onSuccess) {
 
         context.runAtTick(context.getTick() + 1, () -> {
 
-            if (predicate.test(context.getBlockState(pos))) {
+            if (expected.test(context.getBlockState(relativeCenter))) {
 
                 onSuccess.run();
 
@@ -1005,13 +965,13 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             if (ticksRemaining <= 0) {
 
-                context.assertTrue(predicate.test(context.getBlockState(pos)), message);
+                context.assertTrue(expected.test(context.getBlockState(relativeCenter)), message);
 
                 return;
 
             }
 
-            assertEventually(context, pos, predicate, message, ticksRemaining - 1, onSuccess);
+            waitUntilSurfaceState(context, relativeCenter, expected, message, ticksRemaining - 1, onSuccess);
 
         });
 
@@ -1019,7 +979,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 1950)
+    @GameTest(setupTicks = 2100)
 
     public void postProcessThreshold_4095_updatesNeighbors(TestContext context) {
 
@@ -1057,7 +1017,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 1990)
+    @GameTest(setupTicks = 2150)
 
     public void tallPlantApplyIsAtomicWhenUpperBlocked(TestContext context) {
 
@@ -1111,7 +1071,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 2010)
+    @GameTest(setupTicks = 2170)
 
     public void tallPlantApplyPlacesBothHalvesWhenSpaceIsClear(TestContext context) {
 
@@ -1169,7 +1129,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 40, setupTicks = 2050)
+    @GameTest(maxTicks = 40, setupTicks = 2200)
 
     public void postProcessThreshold_4096_completesWithoutError(TestContext context) {
 

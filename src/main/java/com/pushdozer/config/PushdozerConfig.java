@@ -644,7 +644,7 @@ public class PushdozerConfig {
         shoreline.setVegetationDensity(density);
     }
 
-    public void setCustomShorelineBlocks(Set<String> blockIds) {
+    public void setCustomShorelineBlocks(java.util.Collection<String> blockIds) {
         shoreline.setCustomShorelineBlocks(blockIds);
     }
 

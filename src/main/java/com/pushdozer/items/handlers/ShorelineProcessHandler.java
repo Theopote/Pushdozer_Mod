@@ -2,6 +2,7 @@ package com.pushdozer.items.handlers;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.config.domain.ShorelineConfig;
 import com.pushdozer.items.handlers.shoreline.ShorelineBlockGenerator;
 import com.pushdozer.items.handlers.shoreline.ShorelineEdgeFinder;
 import com.pushdozer.items.handlers.shoreline.ShorelineTransitionPlanner;
@@ -28,15 +29,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 水岸处理处理器：根据生物群系自动生成沙滩或堤岸过渡。
- * 支持距离渐变、材质混合和植物种植，创造更自然的水岸效果。
- * <p>
- * 分层架构：边缘检测 → 过渡计算 → 应用变化 → 植物装饰。
- * 使用 BFS 从水体边缘向内陆扩展，按距离混合方块材质。
- * 植物种植与地形变更分离，支持撤销。
+ * 水岸材质过渡处理器：从水体边缘向内陆按水平距离混合地表材质，可选种植植被。
+ * 不调整地形高程或岸坡形态。
  */
 public class ShorelineProcessHandler implements TerrainToolHandler {
-    private static final int MAX_SHORELINE_WIDTH = 20;
     private static final int DEFAULT_SHORELINE_WIDTH = 5;
     private static final float DEFAULT_VEGETATION_DENSITY = 0.3f;
 
@@ -44,19 +40,24 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
     }
 
     private static void validateConfig(PushdozerConfig config) {
+        config.getShoreline().normalize();
+
         if (config.getShorelineWidth() < 1) {
-            PushdozerMod.LOGGER.warn("Invalid shoreline width {}, resetting to default ({})", config.getShorelineWidth(), DEFAULT_SHORELINE_WIDTH);
+            PushdozerMod.LOGGER.warn("Invalid shoreline width {}, resetting to default ({})",
+                config.getShorelineWidth(), DEFAULT_SHORELINE_WIDTH);
             config.setShorelineWidth(DEFAULT_SHORELINE_WIDTH);
         }
 
         if (config.getVegetationDensity() < 0.0f || config.getVegetationDensity() > 1.0f) {
-            PushdozerMod.LOGGER.warn("Invalid vegetation density {}, resetting to default ({})", config.getVegetationDensity(), DEFAULT_VEGETATION_DENSITY);
+            PushdozerMod.LOGGER.warn("Invalid vegetation density {}, resetting to default ({})",
+                config.getVegetationDensity(), DEFAULT_VEGETATION_DENSITY);
             config.setVegetationDensity(DEFAULT_VEGETATION_DENSITY);
         }
 
-        if (config.getShorelineWidth() > MAX_SHORELINE_WIDTH) {
-            PushdozerMod.LOGGER.warn("Shoreline width {} is too large, capping at {}", config.getShorelineWidth(), MAX_SHORELINE_WIDTH);
-            config.setShorelineWidth(MAX_SHORELINE_WIDTH);
+        if (config.getShorelineWidth() > ShorelineConfig.MAX_SHORELINE_WIDTH) {
+            PushdozerMod.LOGGER.warn("Shoreline width {} is too large, capping at {}",
+                config.getShorelineWidth(), ShorelineConfig.MAX_SHORELINE_WIDTH);
+            config.setShorelineWidth(ShorelineConfig.MAX_SHORELINE_WIDTH);
         }
     }
 
@@ -90,6 +91,7 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
             return;
         }
 
+        BlockPos brushCenter = ShapeUtil.getTargetBlockPos(player, config);
         GeometryShape shape = getProcessingShape(player, config);
         if (shape == null) {
             return;
@@ -100,12 +102,19 @@ public class ShorelineProcessHandler implements TerrainToolHandler {
         ShorelineTransitionPlanner transitionPlanner = new ShorelineTransitionPlanner(config, blockGenerator, edgeFinder);
         ShorelineVegetationPlanner vegetationPlanner = new ShorelineVegetationPlanner(config, edgeFinder, transitionPlanner);
 
+        Set<BlockPos> waterBlocks = edgeFinder.collectWaterBlocks(world, shape);
+        if (waterBlocks.isEmpty()) {
+            return;
+        }
+
         Set<BlockPos> shorelineEdges = edgeFinder.findEdges(world, shape);
         if (shorelineEdges.isEmpty()) {
             return;
         }
 
-        Map<BlockPos, ShorelineTransition> transitions = transitionPlanner.computeShorelineTransitions(world, shorelineEdges);
+        transitionPlanner.beginOperation(player);
+        Map<BlockPos, ShorelineTransition> transitions = transitionPlanner.computeShorelineTransitions(
+            world, shape, brushCenter, waterBlocks);
         ShorelineResult result = transitionPlanner.collectApplyableTransitions(world, player, transitions, vegetationPlanner);
         if (result.affectedPositions.isEmpty()) {
             return;

@@ -22,6 +22,21 @@ final class PushdozerGameTestSupport {
         return config;
     }
 
+    static PushdozerConfig createShorelineConfig() {
+        PushdozerConfig config = new PushdozerConfig();
+        config.setGeometryType(PushdozerConfig.GeometryType.BOX);
+        config.setLength(1);
+        config.setWidth(1);
+        config.setHeight(5);
+        config.setBoxHeight(5);
+        config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
+        config.setShorelineType(PushdozerConfig.ShorelineType.BEACH);
+        config.setShorelineWidth(3);
+        config.setPlantVegetationEnabled(false);
+        config.setNoiseSeed(42L);
+        return config;
+    }
+
     static PushdozerConfig createSurfaceConvertConfig(String targetBlockId) {
         PushdozerConfig config = new PushdozerConfig();
         config.setGeometryType(PushdozerConfig.GeometryType.BOX);

@@ -181,6 +181,7 @@ public final class LegacyConfigMigration {
         config.getBrush().markIgnoredBlocksCacheDirty();
         config.getBrush().rebuildIgnoredBlocksCache();
         config.getSurface().ensureSurfaceConvertDefaults();
+        config.getShoreline().normalize();
     }
 
     /** Legacy flat JSON field snapshot, used only for migration. */
