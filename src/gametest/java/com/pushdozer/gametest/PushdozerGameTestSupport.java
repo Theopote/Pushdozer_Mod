@@ -4,11 +4,13 @@ import com.mojang.authlib.GameProfile;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.config.domain.SurfaceConfig;
 import net.fabricmc.fabric.api.entity.FakePlayer;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.TestContext;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.UUID;
 
@@ -83,5 +85,25 @@ final class PushdozerGameTestSupport {
             context.getWorld(),
             new GameProfile(UUID.randomUUID(), "test-mock-player")
         );
+    }
+
+    /**
+     * CustomTestMethodInvoker implementations must defer by {@link GameTest#setupTicks()} themselves;
+     * Fabric does not apply setup delay before {@code invokeTestMethod}.
+     */
+    static void invokeAfterSetup(TestContext context, Object target, Method method) throws ReflectiveOperationException {
+        GameTest gameTest = method.getAnnotation(GameTest.class);
+        int setupTicks = gameTest != null ? gameTest.setupTicks() : 0;
+        if (setupTicks > 0) {
+            context.runAtTick(context.getTick() + setupTicks, () -> {
+                try {
+                    method.invoke(target, context);
+                } catch (ReflectiveOperationException ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+            return;
+        }
+        method.invoke(target, context);
     }
 }

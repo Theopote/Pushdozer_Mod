@@ -12,6 +12,7 @@ import com.pushdozer.operations.TerrainOperationScheduler;
 import com.pushdozer.operations.UndoAction;
 import com.pushdozer.operations.VegetationOperation;
 import com.pushdozer.services.UndoRedoService;
+import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -22,7 +23,9 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import org.jspecify.annotations.NonNull;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,11 +35,11 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
-public class PushdozerVegetationGameTest {
+public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
 
     private static final int VEGETATION_WAIT_LIMIT = 120;
 
-    @GameTest(maxTicks = 200, setupTicks = 600)
+    @GameTest(maxTicks = 780, setupTicks = 600)
     public void boneMealUndoRestoresInitialWheatAge(TestContext context) {
         runWhenSchedulerIdle(context, () -> {
             ServerWorld world = context.getWorld();
@@ -70,7 +73,7 @@ public class PushdozerVegetationGameTest {
         });
     }
 
-    @GameTest(maxTicks = 200, setupTicks = 650)
+    @GameTest(maxTicks = 1020, setupTicks = 780)
     public void boneMealSaplingUndoRestoresAllBlocks(TestContext context) {
         runWhenSchedulerIdle(context, () -> {
             ServerWorld world = context.getWorld();
@@ -84,38 +87,29 @@ public class PushdozerVegetationGameTest {
             BlockPos absoluteSapling = context.getAbsolutePos(sapling);
             Map<BlockPos, BlockState> before = snapshotLockArea(world, absoluteSapling);
             Map<BlockPos, BlockOperation.BlockChange> changes = new LinkedHashMap<>();
-            ItemStack boneMeal = new ItemStack(net.minecraft.item.Items.BONE_MEAL);
 
-            for (int attempt = 0; attempt < 12; attempt++) {
-                BoneMealItem.useOnFertilizable(boneMeal, world, absoluteSapling);
-                BoneMealHandler.recordChanges(before.keySet(), before, world, changes);
-                if (hasTreeBlocks(world, before.keySet(), before)) {
-                    break;
-                }
-            }
+            growSaplingWithBoneMeal(context, world, absoluteSapling, before, changes, 40, () -> {
+                UndoAction undoAction = new UndoAction(
+                    UndoAction.ActionType.BONE_MEAL,
+                    world.getRegistryKey(),
+                    changes.values().stream().map(BlockOperation.BlockChange::pos).toList(),
+                    changes.values().stream().map(BlockOperation.BlockChange::before).toList(),
+                    changes.values().stream().map(BlockOperation.BlockChange::after).toList()
+                );
+                PushdozerMod.pushUndoAction(player, undoAction);
+                UndoRedoService.getInstance().undoLastAction(player, world);
 
-            context.assertTrue(hasTreeBlocks(world, before.keySet(), before),
-                "Bone meal should grow sapling into a tree");
-
-            UndoAction undoAction = new UndoAction(
-                UndoAction.ActionType.BONE_MEAL,
-                world.getRegistryKey(),
-                changes.values().stream().map(BlockOperation.BlockChange::pos).toList(),
-                changes.values().stream().map(BlockOperation.BlockChange::before).toList(),
-                changes.values().stream().map(BlockOperation.BlockChange::after).toList()
-            );
-            PushdozerMod.pushUndoAction(player, undoAction);
-            UndoRedoService.getInstance().undoLastAction(player, world);
-
-            waitUntil(context,
-                () -> lockAreaMatchesSnapshot(world, before),
-                "Undo should restore entire bone meal lock area including canopy blocks",
-                VEGETATION_WAIT_LIMIT,
-                context::complete);
+                runWhenSchedulerIdle(context, () -> waitUntil(context,
+                    () -> TerrainOperationScheduler.getInstance().isIdle()
+                        && lockAreaMatchesSnapshot(world, before),
+                    "Undo should restore entire bone meal lock area including canopy blocks",
+                    200,
+                    context::complete));
+            });
         });
     }
 
-    @GameTest(maxTicks = 240, setupTicks = 820)
+    @GameTest(maxTicks = 1140, setupTicks = 1020)
     public void batchPlantHandlerUndoRestoresTallFlower(TestContext context) {
         runWhenSchedulerIdle(context, () -> {
             ServerWorld world = context.getWorld();
@@ -157,7 +151,7 @@ public class PushdozerVegetationGameTest {
         });
     }
 
-    @GameTest(maxTicks = 120, setupTicks = 700)
+    @GameTest(maxTicks = 960, setupTicks = 840)
     public void batchPlantUndoRestoresAllRecordedBlocks(TestContext context) {
         runWhenSchedulerIdle(context, () -> {
             ServerWorld world = context.getWorld();
@@ -215,7 +209,7 @@ public class PushdozerVegetationGameTest {
         });
     }
 
-    @GameTest(maxTicks = 80, setupTicks = 750)
+    @GameTest(maxTicks = 990, setupTicks = 900)
     public void vegetationOperation_rejectsOverlappingLock(TestContext context) {
         runWhenSchedulerIdle(context, () -> {
             ServerWorld world = context.getWorld();
@@ -231,6 +225,32 @@ public class PushdozerVegetationGameTest {
             first.get().release();
             context.complete();
         });
+    }
+
+    @Override
+    public void invokeTestMethod(@NonNull TestContext context, @NonNull Method method) throws ReflectiveOperationException {
+        PushdozerGameTestSupport.invokeAfterSetup(context, this, method);
+    }
+
+    private static void growSaplingWithBoneMeal(TestContext context, ServerWorld world, BlockPos absoluteSapling,
+                                                 Map<BlockPos, BlockState> before,
+                                                 Map<BlockPos, BlockOperation.BlockChange> changes,
+                                                 int attemptsLeft, Runnable onSuccess) {
+        if (hasTreeBlocks(world, before.keySet(), before)) {
+            BoneMealHandler.recordChanges(before.keySet(), before, world, changes);
+            onSuccess.run();
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            context.assertTrue(hasTreeBlocks(world, before.keySet(), before),
+                "Bone meal should grow sapling into a tree");
+            return;
+        }
+        ItemStack boneMeal = new ItemStack(net.minecraft.item.Items.BONE_MEAL);
+        BoneMealItem.useOnFertilizable(boneMeal, world, absoluteSapling);
+        BoneMealHandler.recordChanges(before.keySet(), before, world, changes);
+        context.runAtTick(context.getTick() + 1, () ->
+            growSaplingWithBoneMeal(context, world, absoluteSapling, before, changes, attemptsLeft - 1, onSuccess));
     }
 
     private static Map<BlockPos, BlockOperation.BlockChange> applyBoneMealGrowth(

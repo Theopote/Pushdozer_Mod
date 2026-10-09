@@ -990,7 +990,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 2100)
+    @GameTest(maxTicks = 2150, setupTicks = 2100)
 
     public void postProcessThreshold_4095_updatesNeighbors(TestContext context) {
 
@@ -1028,7 +1028,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 2150)
+    @GameTest(maxTicks = 2180, setupTicks = 2150)
 
     public void tallPlantApplyIsAtomicWhenUpperBlocked(TestContext context) {
 
@@ -1082,7 +1082,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 2170)
+    @GameTest(maxTicks = 2200, setupTicks = 2170)
 
     public void tallPlantApplyPlacesBothHalvesWhenSpaceIsClear(TestContext context) {
 
@@ -1140,7 +1140,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 40, setupTicks = 2200)
+    @GameTest(maxTicks = 2280, setupTicks = 2200)
 
     public void postProcessThreshold_4096_completesWithoutError(TestContext context) {
 
@@ -1188,7 +1188,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         prepareSharedTestArea(context, method);
 
-        method.invoke(this, context);
+        PushdozerGameTestSupport.invokeAfterSetup(context, this, method);
 
     }
 
