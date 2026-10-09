@@ -30,7 +30,8 @@ fabricApi {
 		createSourceSet = true
 		modId = "pushdozer-gametest"
 		enableGameTests = true
-		enableClientGameTests = true
+		// Client smoke tests need xvfb/GPU; keep them on runClientGameTest only.
+		enableClientGameTests = false
 		eula = true
 	}
 }

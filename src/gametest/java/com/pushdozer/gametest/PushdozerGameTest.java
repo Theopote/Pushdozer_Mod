@@ -941,7 +941,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             int nextAttempts = attemptsLeft - 1;
 
-            if (!applied) {
+            if (!applied && !TerrainOperationScheduler.getInstance().isIdle()) {
 
                 nextAttempts = attemptsLeft;
 

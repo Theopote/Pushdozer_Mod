@@ -7,7 +7,8 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContex
 /**
  * 客户端 Game Test 骨架：启动单人世界并截图，便于后续扩展 UI/预览类回归。
  * <p>
- * CI 默认不跑客户端 Game Test；本地可执行 {@code ./gradlew runClientGameTest}（若已配置）。
+ * CI/build 不跑客户端 Game Test（见 build.gradle enableClientGameTests=false）；
+ * 本地可执行 {@code ./gradlew runClientGameTest}。
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PushdozerClientGameTest implements FabricClientGameTest {
