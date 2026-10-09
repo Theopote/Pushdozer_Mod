@@ -199,7 +199,11 @@ public class SurfaceConvertHandler implements TerrainToolHandler {
 
     static BlockPos resolveConvertibleSurface(World world, BlockPos columnXZ, int searchStartY,
                                               int maxBelowSurfaceDepth, boolean allowArtificial) {
-        BlockPos candidate = TerrainSurfaceQueries.findGroundBlock(world, columnXZ.withY(searchStartY));
+        BlockPos searchStart = columnXZ.withY(searchStartY);
+        BlockPos candidate = TerrainSurfaceQueries.findGroundBlock(world, searchStart);
+        if (candidate == null) {
+            candidate = TerrainSurfaceQueries.findSolidBelow(world, searchStart);
+        }
         int attempts = 0;
         while (candidate != null && attempts < 16) {
             attempts++;

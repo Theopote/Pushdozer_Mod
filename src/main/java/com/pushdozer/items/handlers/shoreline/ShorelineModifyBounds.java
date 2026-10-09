@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 /**
  * Separates detection range from modify range for shoreline processing.
- * Modify range = brush X/Z columns expanded by shoreline width.
+ * Modify range = brush X/Z columns only (shoreline width controls blend distance, not modify extent).
  */
 public final class ShorelineModifyBounds {
 
@@ -48,8 +48,8 @@ public final class ShorelineModifyBounds {
         return expanded;
     }
 
-    public static Set<BlockPos> allowedModifyColumns(GeometryShape shape, int shorelineWidth) {
-        return expandColumns(collectBrushColumns(shape), shorelineWidth);
+    public static Set<BlockPos> allowedModifyColumns(GeometryShape shape) {
+        return collectBrushColumns(shape);
     }
 
     public static boolean isColumnInModifyBounds(BlockPos pos, Set<BlockPos> allowedColumns) {

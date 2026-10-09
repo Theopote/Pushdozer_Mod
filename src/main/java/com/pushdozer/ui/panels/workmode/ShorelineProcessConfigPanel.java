@@ -25,7 +25,6 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
 
     // 标高限制复选框
     private CheckboxWidget heightAboveCheckbox;
-    private CheckboxWidget heightBelowCheckbox;
 
     public ShorelineProcessConfigPanel(PushdozerConfigScreen parent, PushdozerConfig config) {
         super(parent, config);
@@ -45,7 +44,7 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
 
         // 水岸类型选择按钮
         CyclingButtonWidget<PushdozerConfig.ShorelineType> shorelineTypeButton =
-                CyclingButtonWidget.<PushdozerConfig.ShorelineType>builder(
+                CyclingButtonWidget.builder(
                                 PushdozerConfig.ShorelineType::getDisplayText,
                                 config.getShorelineType()
                         )
@@ -152,10 +151,10 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
         )));
         widgets.add(heightAboveCheckbox);
 
-        heightBelowCheckbox = CheckboxWidget.builder(
-                Text.translatable("pushdozer.config.shoreline_height_below"),
-                parent.getTextRenderer()
-        )
+        CheckboxWidget heightBelowCheckbox = CheckboxWidget.builder(
+                        Text.translatable("pushdozer.config.shoreline_height_below"),
+                        parent.getTextRenderer()
+                )
                 .pos(contentLeft + halfWidthForChecks + WIDGET_MARGIN, contentTop)
                 .checked(heightRestrictionsAvailable && config.isShorelineHeightBelowEnabled())
                 .callback((widget, checked) -> {

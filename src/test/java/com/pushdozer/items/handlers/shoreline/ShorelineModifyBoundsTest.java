@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShorelineModifyBoundsTest extends PushdozerTestBase {
 
     @Test
-    void allowedModifyColumns_expandsBrushColumnsByWidth() {
+    void allowedModifyColumns_matchesBrushColumnsOnly() {
         BlockPos center = new BlockPos(10, 64, 10);
-        BoxShape shape = new BoxShape(1, 1, 3, center);
-        Set<BlockPos> allowed = ShorelineModifyBounds.allowedModifyColumns(shape, 2);
+        BoxShape shape = new BoxShape(3, 3, 3, center);
+        Set<BlockPos> allowed = ShorelineModifyBounds.allowedModifyColumns(shape);
 
         assertTrue(allowed.contains(new BlockPos(10, 0, 10)));
-        assertTrue(allowed.contains(new BlockPos(12, 0, 10)));
+        assertTrue(allowed.contains(new BlockPos(11, 0, 10)));
         assertFalse(allowed.contains(new BlockPos(15, 0, 10)));
     }
 

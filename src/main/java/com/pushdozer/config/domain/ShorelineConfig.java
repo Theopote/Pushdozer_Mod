@@ -9,7 +9,6 @@ import net.minecraft.util.Identifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -42,7 +41,7 @@ public class ShorelineConfig {
     }
 
     public void normalize() {
-        shorelineWidth = Math.max(1, Math.min(MAX_SHORELINE_WIDTH, shorelineWidth));
+        shorelineWidth = Math.clamp(shorelineWidth, 1, MAX_SHORELINE_WIDTH);
         if (customShorelineBlocks == null) {
             customShorelineBlocks = new ArrayList<>();
         } else {
@@ -70,7 +69,7 @@ public class ShorelineConfig {
     }
 
     public void setShorelineWidth(int shorelineWidth) {
-        this.shorelineWidth = Math.max(1, Math.min(MAX_SHORELINE_WIDTH, shorelineWidth));
+        this.shorelineWidth = Math.clamp(shorelineWidth, 1, MAX_SHORELINE_WIDTH);
         onChange.onConfigChanged();
     }
 
@@ -88,7 +87,7 @@ public class ShorelineConfig {
     }
 
     public void setVegetationDensity(float density) {
-        this.vegetationDensity = Math.max(0.0f, Math.min(1.0f, density));
+        this.vegetationDensity = Math.clamp(density, 0.0f, 1.0f);
         onChange.onConfigChanged();
     }
 

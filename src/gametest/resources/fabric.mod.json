@@ -8,7 +8,8 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.pushdozer.gametest.PushdozerGameTest",
-      "com.pushdozer.gametest.PushdozerShorelineGameTest"
+      "com.pushdozer.gametest.PushdozerShorelineGameTest",
+      "com.pushdozer.gametest.PushdozerVegetationGameTest"
     ],
     "fabric-client-gametest": [
       "com.pushdozer.gametest.PushdozerClientGameTest"

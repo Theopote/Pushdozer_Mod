@@ -5,6 +5,7 @@ import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.config.domain.SurfaceConfig;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.TestContext;
 
@@ -23,16 +24,34 @@ final class PushdozerGameTestSupport {
     }
 
     static PushdozerConfig createShorelineConfig() {
+        return createShorelineConfig(1, 1);
+    }
+
+    static PushdozerConfig createShorelineConfig(int length, int width) {
         PushdozerConfig config = new PushdozerConfig();
         config.setGeometryType(PushdozerConfig.GeometryType.BOX);
-        config.setLength(1);
-        config.setWidth(1);
+        config.setLength(length);
+        config.setWidth(width);
         config.setHeight(5);
         config.setBoxHeight(5);
         config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
         config.setShorelineType(PushdozerConfig.ShorelineType.BEACH);
         config.setShorelineWidth(3);
         config.setPlantVegetationEnabled(false);
+        config.setNoiseSeed(42L);
+        return config;
+    }
+
+    static PushdozerConfig createBatchPlantFlowerConfig() {
+        PushdozerConfig config = new PushdozerConfig();
+        config.setGeometryType(PushdozerConfig.GeometryType.BOX);
+        config.setLength(1);
+        config.setWidth(1);
+        config.setBoxHeight(5);
+        config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
+        config.setPlantType(PushdozerConfig.PlantType.CUSTOM);
+        config.setCustomPlantBlocks(List.of(Blocks.SUNFLOWER));
+        config.setPlantDensity(100f);
         config.setNoiseSeed(42L);
         return config;
     }

@@ -164,7 +164,7 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
             cachedNoiseSignature = signature;
         }
 
-        long cacheKey = packNoiseCacheKey(worldX, worldZ, signature);
+        long cacheKey = packNoiseCacheKey(worldX, worldZ);
         Float cached = operationNoiseCache.get(cacheKey);
         if (cached != null) {
             return cached;
@@ -184,10 +184,8 @@ public class SurfaceRoughenHandler extends AbstractTerrainToolHandler {
         }
     }
 
-    private static long packNoiseCacheKey(int worldX, int worldZ, int signature) {
-        return ((long) signature << 32)
-            ^ ((long) worldX << 16)
-            ^ (worldZ & 0xFFFFL);
+    static long packNoiseCacheKey(int worldX, int worldZ) {
+        return ((long) worldX << 32) ^ (worldZ & 0xFFFFFFFFL);
     }
 
     private static int noiseSignature(float frequency, float persistence, int octaves) {

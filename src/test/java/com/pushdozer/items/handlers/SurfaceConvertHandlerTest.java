@@ -14,11 +14,13 @@ import net.minecraft.block.Blocks;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.EmptyBlockView;
+import net.minecraft.world.World;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -160,6 +162,64 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
     @Test
     void heightmapGuard_disabledWhenDepthZero() {
         assertTrue(TerrainSurfaceQueries.isWithinSurfaceDepth(null, 0, 0, -100, 0));
+    }
+
+    @Test
+    void resolveConvertibleSurface_findsGrassAboveStone() {
+        BlockPos grass = new BlockPos(10, 1, 10);
+        BlockPos stone = new BlockPos(10, 0, 10);
+        World world = mockWorldWithBlocks(Map.of(
+            grass, explicitState(Blocks.GRASS_BLOCK),
+            stone, taggedState(Blocks.STONE, BlockTags.BASE_STONE_OVERWORLD)
+        ));
+
+        BlockPos result = SurfaceConvertHandler.resolveConvertibleSurface(
+            world, new BlockPos(10, 0, 10), 2, 0, false);
+
+        assertEquals(grass, result);
+    }
+
+    @Test
+    void resolveConvertibleSurface_rejectsProtectedBuildingBlocks() {
+        BlockPos planks = new BlockPos(4, 1, 4);
+        BlockPos grass = new BlockPos(4, 0, 4);
+        BlockState planksState = taggedState(Blocks.OAK_PLANKS, BlockTags.PLANKS);
+        BlockState grassState = explicitState(Blocks.GRASS_BLOCK);
+        World world = mockWorldWithBlocks(Map.of(
+            planks, planksState,
+            grass, grassState
+        ));
+
+        BlockPos result = SurfaceConvertHandler.resolveConvertibleSurface(
+            world, new BlockPos(4, 0, 4), 2, 0, false);
+
+        assertEquals(grass, result);
+    }
+
+    private static BlockState airState() {
+        BlockState state = Mockito.mock(BlockState.class);
+        when(state.isAir()).thenReturn(true);
+        when(state.isIn(any(TagKey.class))).thenReturn(false);
+        when(state.getFluidState()).thenReturn(net.minecraft.fluid.Fluids.EMPTY.getDefaultState());
+        return state;
+    }
+
+    private static World mockWorldWithBlocks(Map<BlockPos, BlockState> blocks) {
+        Map<BlockPos, BlockState> layout = new HashMap<>(blocks);
+        BlockState air = airState();
+        World world = Mockito.mock(World.class);
+        when(world.getBottomY()).thenReturn(-64);
+        when(world.getHeight()).thenReturn(320);
+        when(world.getBlockState(any())).thenAnswer(invocation -> {
+            BlockPos pos = invocation.getArgument(0);
+            return layout.getOrDefault(pos, air);
+        });
+        when(world.isAir(any())).thenAnswer(invocation -> {
+            BlockPos pos = invocation.getArgument(0);
+            return !layout.containsKey(pos);
+        });
+        when(world.getFluidState(any())).thenReturn(net.minecraft.fluid.Fluids.EMPTY.getDefaultState());
+        return world;
     }
 
     private static SurfaceConvertMaterialSelector.SelectionContext stoneContext() {

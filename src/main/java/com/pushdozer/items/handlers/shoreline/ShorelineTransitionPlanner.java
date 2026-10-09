@@ -43,7 +43,7 @@ public class ShorelineTransitionPlanner {
             BlockPos brushCenter,
             Set<BlockPos> waterBlocks) {
         int width = config.getShorelineWidth();
-        Set<BlockPos> allowedColumns = ShorelineModifyBounds.allowedModifyColumns(shape, width);
+        Set<BlockPos> allowedColumns = ShorelineModifyBounds.allowedModifyColumns(shape);
         Map<BlockPos, Integer> columnDistances = ShorelineHorizontalDistance.compute(waterBlocks, width);
 
         int minY = shape.getMinY(brushCenter) - VERTICAL_SCAN_PADDING;

@@ -270,7 +270,7 @@
   "pushdozer.config.shoreline_type.tooltip": "选择水岸材质风格（仅替换地表方块，不调整地形高程或岸坡）。预设随生物群系自适应；自适应将自动选择最合适的类型。",
   "pushdozer.config.shoreline_width": "水岸宽度",
   "pushdozer.config.shoreline_width.value": "宽度：%s",
-  "pushdozer.config.shoreline_width.tooltip": "距水的水平距离（格数），仅在笔刷范围内参与材质混合。",
+  "pushdozer.config.shoreline_width.tooltip": "距水的水平距离（格数）。仅笔刷范围内的方块会被修改；宽度控制距水多远处参与混合。",
   "pushdozer.config.plant_vegetation": "启用植物种植",
   "pushdozer.config.plant_vegetation.tooltip": "在水岸处理时自动种植适合的植物",
   "pushdozer.config.vegetation_density": "植被密度",

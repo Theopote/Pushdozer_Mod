@@ -164,8 +164,8 @@ public class BoneMealHandler implements TerrainToolHandler {
         return uses;
     }
 
-    static void recordChanges(Set<BlockPos> positionsToCheck, Map<BlockPos, BlockState> statesBefore,
-                              World world, Map<BlockPos, BlockOperation.BlockChange> changes) {
+    public static void recordChanges(Set<BlockPos> positionsToCheck, Map<BlockPos, BlockState> statesBefore,
+                                     World world, Map<BlockPos, BlockOperation.BlockChange> changes) {
         for (BlockPos checkPos : positionsToCheck) {
             BlockState stateAfter = world.getBlockState(checkPos);
             BlockState stateBefore = statesBefore.get(checkPos);
@@ -183,7 +183,7 @@ public class BoneMealHandler implements TerrainToolHandler {
         }
     }
 
-    static Set<BlockPos> collectLockPositions(List<BlockPos> targetPositions) {
+    public static Set<BlockPos> collectLockPositions(List<BlockPos> targetPositions) {
         Set<BlockPos> lockPositions = new HashSet<>();
         for (BlockPos pos : targetPositions) {
             lockPositions.addAll(getPositionsToCheck(pos));

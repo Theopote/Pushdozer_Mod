@@ -128,6 +128,13 @@ class SurfaceRoughenHandlerTest extends PushdozerTestBase {
     }
 
     @Test
+    void packNoiseCacheKey_distinguishesLargeZOffsets() {
+        long base = SurfaceRoughenHandler.packNoiseCacheKey(100, 200);
+        long shifted = SurfaceRoughenHandler.packNoiseCacheKey(100, 200 + 65536);
+        assertNotEquals(base, shifted);
+    }
+
+    @Test
     void samplePadding_influencesSmoothedBaselineAtEdge() {
         config.setSmoothingIntensity(1.0f);
         config.setRoughnessStrength(0.0f);

@@ -20,42 +20,41 @@ import java.util.Set;
 public class PushdozerShorelineGameTest {
 
     @GameTest(maxTicks = 40)
-    public void shorelinePreservesSuspiciousSand(TestContext context) {
+    public void shorelinePreservesSuspiciousSandInsideBrush(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos water = new BlockPos(2, 1, 2);
-        BlockPos archaeology = new BlockPos(3, 1, 2);
+        BlockPos water = new BlockPos(3, 1, 3);
+        BlockPos archaeology = new BlockPos(4, 1, 3);
         context.setBlockState(water, Blocks.WATER.getDefaultState());
         context.setBlockState(archaeology, Blocks.SUSPICIOUS_SAND.getDefaultState());
 
-        PushdozerConfig config = PushdozerGameTestSupport.createShorelineConfig();
+        PushdozerConfig config = PushdozerGameTestSupport.createShorelineConfig(3, 3);
         BlockPos center = context.getAbsolutePos(water);
         GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, center);
 
         runShoreline(world, config, shape, center);
 
         context.assertTrue(context.getBlockState(archaeology).isOf(Blocks.SUSPICIOUS_SAND),
-            "Archaeology blocks must not be replaced by shoreline material pass");
+            "Archaeology blocks inside brush must not be replaced by shoreline material pass");
         context.complete();
     }
 
     @GameTest(maxTicks = 40)
     public void shorelineDoesNotModifyOutsideBrushBounds(TestContext context) {
         ServerWorld world = context.getWorld();
-        BlockPos water = new BlockPos(2, 1, 2);
-        BlockPos inside = new BlockPos(3, 1, 2);
-        BlockPos outside = new BlockPos(8, 1, 2);
+        BlockPos water = new BlockPos(3, 1, 3);
+        BlockPos outside = new BlockPos(8, 1, 3);
         context.setBlockState(water, Blocks.WATER.getDefaultState());
-        context.setBlockState(inside, Blocks.GRASS_BLOCK);
+        context.setBlockState(new BlockPos(4, 1, 3), Blocks.GRASS_BLOCK);
         context.setBlockState(outside, Blocks.GRASS_BLOCK);
 
-        PushdozerConfig config = PushdozerGameTestSupport.createShorelineConfig();
+        PushdozerConfig config = PushdozerGameTestSupport.createShorelineConfig(3, 3);
         BlockPos center = context.getAbsolutePos(water);
         GeometryShape shape = GeometryShapeFactory.createShape(config.getGeometryType(), config, center);
 
         runShoreline(world, config, shape, center);
 
         context.assertTrue(context.getBlockState(outside).isOf(Blocks.GRASS_BLOCK),
-            "Land outside brush modify bounds must stay unchanged");
+            "Land outside brush bounds must stay unchanged");
         context.complete();
     }
 

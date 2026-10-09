@@ -547,7 +547,7 @@ public class ShorelineBlockGenerator {
         }
 
         Random random = randomFor(world, pos);
-        int primaryIndex = Math.min(Math.max(distance - 1, 0), customBlocks.size() - 1);
+        int primaryIndex = Math.clamp(distance - 1, 0, customBlocks.size() - 1);
         BlockState primary = customBlocks.get(primaryIndex).getDefaultState();
         BlockState secondary;
         if (customBlocks.size() > 1) {

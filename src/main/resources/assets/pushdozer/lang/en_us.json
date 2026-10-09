@@ -270,7 +270,7 @@
     "pushdozer.config.shoreline_type.tooltip": "Choose shoreline material style (surface blocks only; does not reshape elevation). Presets adapt to the biome; Adaptive picks the best type automatically.",
   "pushdozer.config.shoreline_width": "Shoreline Width",
   "pushdozer.config.shoreline_width.value": "Width: %s",
-      "pushdozer.config.shoreline_width.tooltip": "Horizontal distance from water (in blocks) where material blending may occur within the brush area.",
+      "pushdozer.config.shoreline_width.tooltip": "Horizontal distance from water (in blocks). Only blocks inside the brush can be modified; width controls how far from water blending occurs.",
   "pushdozer.config.plant_vegetation": "Enable Plant Vegetation",
   "pushdozer.config.plant_vegetation.tooltip": "Automatically plant suitable vegetation during shoreline processing",
   "pushdozer.config.vegetation_density": "Vegetation Density",
