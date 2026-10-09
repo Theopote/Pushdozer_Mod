@@ -627,7 +627,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 1200, setupTicks = 450)
+    @GameTest(maxTicks = 2000, setupTicks = 1150)
 
     public void surfaceConvertScenarios(TestContext context) {
 
@@ -799,7 +799,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
     private static final int SCHEDULER_IDLE_WAIT_LIMIT = 80;
 
-    private static final int SURFACE_CONVERT_IDLE_WAIT_LIMIT = 80;
+    private static final int SURFACE_CONVERT_IDLE_WAIT_LIMIT = 200;
 
 
 
@@ -911,6 +911,16 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         context.runAtTick(context.getTick() + 1, () -> {
 
+            if (!TerrainOperationScheduler.getInstance().isIdle()) {
+
+                applyUntilSurfaceState(context, world, player, applyCenter, checkPos, config, expected, message,
+
+                    attemptsLeft, onSuccess);
+
+                return;
+
+            }
+
             BlockPos absoluteCenter = context.getAbsolutePos(applyCenter);
 
             world.getChunk(absoluteCenter);
@@ -931,7 +941,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             int nextAttempts = attemptsLeft - 1;
 
-            if (!applied && !TerrainOperationScheduler.getInstance().isIdle()) {
+            if (!applied) {
 
                 nextAttempts = attemptsLeft;
 

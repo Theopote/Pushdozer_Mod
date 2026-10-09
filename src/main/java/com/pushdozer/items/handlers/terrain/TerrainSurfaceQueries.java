@@ -5,7 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.PlantBlock;
 import net.minecraft.block.TallPlantBlock;
-import net.minecraft.fluid.FluidState;
+import net.minecraft.fluid.Fluids;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
@@ -26,8 +26,8 @@ public final class TerrainSurfaceQueries {
     }
 
     public static boolean isWater(World world, BlockPos pos) {
-        FluidState fluidState = world.getFluidState(pos);
-        return !fluidState.isEmpty() && fluidState.isStill();
+        var fluid = world.getFluidState(pos).getFluid();
+        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
     }
 
     public static boolean isIgnoredBlock(BlockState state) {
