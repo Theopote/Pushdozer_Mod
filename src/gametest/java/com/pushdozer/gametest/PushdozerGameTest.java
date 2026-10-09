@@ -89,7 +89,8 @@ import java.util.function.Predicate;
 
  * {@link #invokeTestMethod} 中调用 {@link TerrainOperationScheduler#resetForTests()}（会清掉其他测试的锁）。
 
- * 会占用调度器的测试通过 {@link GameTest#setupTicks()} 错峰启动；调度器/undo 测试额外延迟 2 tick 再操作。
+ * 会占用调度器的测试通过 {@link GameTest#setupTicks()} 错峰启动；{@link #invokeTestMethod} 会显式
+ * 等待 setupTicks（CustomTestMethodInvoker 默认不会延迟）。调度器/undo 测试额外延迟 2 tick 再操作。
 
  */
 
@@ -317,7 +318,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 70)
+    @GameTest(maxTicks = 150, setupTicks = 70)
 
     public void undoSync_smallOperation_sendsBlockUpdates(TestContext context) {
 
@@ -375,7 +376,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 40, setupTicks = 90)
+    @GameTest(maxTicks = 150, setupTicks = 90)
 
     public void undoSync_largeOperation_sendsBlockUpdates(TestContext context) {
 
@@ -485,7 +486,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(setupTicks = 300)
+    @GameTest(maxTicks = 400, setupTicks = 300)
 
     public void undoWrongDimension_doesNotModifyWorld(TestContext context) {
 
@@ -543,7 +544,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 60, setupTicks = 360)
+    @GameTest(maxTicks = 500, setupTicks = 360)
 
     public void undoReentry_blockedWhileLargeUndoPending(TestContext context) {
 
@@ -627,7 +628,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-    @GameTest(maxTicks = 2000, setupTicks = 1150)
+    @GameTest(maxTicks = 2500, setupTicks = 1150)
 
     public void surfaceConvertScenarios(TestContext context) {
 
