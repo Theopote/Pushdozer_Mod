@@ -227,7 +227,7 @@ public class SurfaceConfig {
     }
 
     public void setSurfaceConvertMaxBelowSurfaceDepth(int depth) {
-        this.surfaceConvertMaxBelowSurfaceDepth = Math.clamp(depth, 0, 16);
+        this.surfaceConvertMaxBelowSurfaceDepth = Math.clamp(depth, -1, 16);
         onChange.onConfigChanged();
     }
 }

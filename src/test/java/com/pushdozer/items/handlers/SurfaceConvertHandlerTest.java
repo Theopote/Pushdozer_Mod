@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 class SurfaceConvertHandlerTest extends PushdozerTestBase {
@@ -160,8 +161,57 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
     }
 
     @Test
-    void heightmapGuard_disabledWhenDepthZero() {
-        assertTrue(TerrainSurfaceQueries.isWithinSurfaceDepth(null, 0, 0, -100, 0));
+    void heightmapGuard_rejectsWhenWorldMissing() {
+        assertFalse(TerrainSurfaceQueries.isWithinSurfaceDepth(null, 0, 0, 64, 3));
+    }
+
+    @Test
+    void heightmapGuard_unlimitedDepthStillRequiresWorld() {
+        assertFalse(TerrainSurfaceQueries.isWithinSurfaceDepth(null, 0, 0, -100, -1));
+    }
+
+    @Test
+    void heightmapGuard_unlimitedDepthSkipsReferenceLookup() {
+        World world = mockWorldWithBlocks(Map.of());
+        assertTrue(TerrainSurfaceQueries.isWithinSurfaceDepth(world, 0, 0, -100, -1));
+    }
+
+    @Test
+    void heightmapGuard_depthZeroAllowsOnlyReferenceSurface() {
+        BlockPos surface = new BlockPos(0, 10, 0);
+        BlockPos below = new BlockPos(0, 9, 0);
+        World world = mockWorldWithBlocks(Map.of(
+            surface, explicitState(Blocks.GRASS_BLOCK),
+            below, taggedState(Blocks.DIRT, BlockTags.DIRT)
+        ));
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, 0, 0)).thenReturn(10);
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.OCEAN_FLOOR, 0, 0)).thenReturn(10);
+
+        assertTrue(TerrainSurfaceQueries.isWithinSurfaceDepth(world, 0, 0, 10, 0));
+        assertFalse(TerrainSurfaceQueries.isWithinSurfaceDepth(world, 0, 0, 9, 0));
+    }
+
+    @Test
+    void heightmapGuard_rejectsWhenReferenceSurfaceIndeterminate() {
+        World world = mockWorldWithBlocks(Map.of());
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, 0, 0)).thenReturn(8);
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.OCEAN_FLOOR, 0, 0)).thenReturn(8);
+
+        assertFalse(TerrainSurfaceQueries.isWithinSurfaceDepth(world, 0, 0, 8, 3));
+    }
+
+    @Test
+    void heightmapGuard_rejectsDeepCandidateFarFromReference() {
+        BlockPos surface = new BlockPos(0, 10, 0);
+        BlockPos deep = new BlockPos(0, -40, 0);
+        World world = mockWorldWithBlocks(Map.of(
+            surface, explicitState(Blocks.GRASS_BLOCK),
+            deep, taggedState(Blocks.STONE, BlockTags.BASE_STONE_OVERWORLD)
+        ));
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, 0, 0)).thenReturn(10);
+        when(world.getTopY(net.minecraft.world.Heightmap.Type.OCEAN_FLOOR, 0, 0)).thenReturn(10);
+
+        assertFalse(TerrainSurfaceQueries.isWithinSurfaceDepth(world, 0, 0, -40, 3));
     }
 
     @Test
@@ -174,7 +224,7 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
         ));
 
         BlockPos result = SurfaceConvertHandler.resolveConvertibleSurface(
-            world, new BlockPos(10, 0, 10), 2, 0, false);
+            world, new BlockPos(10, 0, 10), 2, 3, false);
 
         assertEquals(grass, result);
     }
@@ -191,7 +241,7 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
         ));
 
         BlockPos result = SurfaceConvertHandler.resolveConvertibleSurface(
-            world, new BlockPos(4, 0, 4), 2, 0, false);
+            world, new BlockPos(4, 0, 4), 2, 3, false);
 
         assertEquals(grass, result);
     }
@@ -219,6 +269,18 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
             return !layout.containsKey(pos);
         });
         when(world.getFluidState(any())).thenReturn(net.minecraft.fluid.Fluids.EMPTY.getDefaultState());
+        when(world.getTopY(any(), anyInt(), anyInt())).thenAnswer(invocation -> {
+            int x = invocation.getArgument(1);
+            int z = invocation.getArgument(2);
+            int highest = Integer.MIN_VALUE;
+            for (Map.Entry<BlockPos, BlockState> entry : layout.entrySet()) {
+                BlockPos pos = entry.getKey();
+                if (pos.getX() == x && pos.getZ() == z && !entry.getValue().isAir()) {
+                    highest = Math.max(highest, pos.getY());
+                }
+            }
+            return highest == Integer.MIN_VALUE ? 0 : highest;
+        });
         return world;
     }
 

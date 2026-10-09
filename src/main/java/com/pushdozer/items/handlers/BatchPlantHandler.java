@@ -43,22 +43,49 @@ public class BatchPlantHandler implements TerrainToolHandler {
         GeometryShape shape = ShapeUtil.createShape(player, config, basePos);
         if (shape == null) return;
 
+        applyBatchPlant(serverWorld, player, shape, basePos, config);
+    }
+
+    /**
+     * Applies batch planting at an explicit brush center (used by GameTest and direct callers).
+     */
+    public void applyBatchPlant(ServerWorld serverWorld, PlayerEntity player, GeometryShape shape,
+                                BlockPos brushCenter, PushdozerConfig config) {
         long worldSeed = serverWorld.getSeed();
         DensitySampler densitySampler = new DensitySampler(config, worldSeed, noiseSampler);
         PlantingPositionCollector positionCollector = new PlantingPositionCollector(config, densitySampler);
         SimplePlantProcessor simplePlantProcessor = new SimplePlantProcessor(config);
         TreeGenerator treeGenerator = new TreeGenerator(config, worldSeed);
 
-        PushdozerMod.LOGGER.info("Batch planting started at position: {}, plant type: {}", basePos, config.getPlantType());
+        PushdozerMod.LOGGER.info("Batch planting started at position: {}, plant type: {}", brushCenter, config.getPlantType());
 
-        List<PlantingPosition> plantingPositions = positionCollector.collect(world, shape);
+        List<PlantingPosition> plantingPositions = positionCollector.collect(serverWorld, shape);
         if (plantingPositions.isEmpty()) {
             PushdozerMod.LOGGER.info("No planting positions found");
             return;
         }
 
         PushdozerMod.LOGGER.info("Found {} planting positions", plantingPositions.size());
+        executeBatchPlant(serverWorld, player, config, plantingPositions, simplePlantProcessor, treeGenerator);
+    }
 
+    /**
+     * Executes the batch plant apply/lock/undo path for pre-collected positions (GameTest helper).
+     */
+    public void applyBatchPlantPositions(ServerWorld serverWorld, PlayerEntity player, PushdozerConfig config,
+                                         List<PlantingPosition> plantingPositions) {
+        if (plantingPositions.isEmpty()) {
+            return;
+        }
+        long worldSeed = serverWorld.getSeed();
+        SimplePlantProcessor simplePlantProcessor = new SimplePlantProcessor(config);
+        TreeGenerator treeGenerator = new TreeGenerator(config, worldSeed);
+        executeBatchPlant(serverWorld, player, config, plantingPositions, simplePlantProcessor, treeGenerator);
+    }
+
+    private void executeBatchPlant(ServerWorld serverWorld, PlayerEntity player, PushdozerConfig config,
+                                   List<PlantingPosition> plantingPositions,
+                                   SimplePlantProcessor simplePlantProcessor, TreeGenerator treeGenerator) {
         List<PlantingPosition> treePositions = new ArrayList<>();
         List<PlantingPosition> simplePlantPositions = new ArrayList<>();
         for (PlantingPosition pos : plantingPositions) {

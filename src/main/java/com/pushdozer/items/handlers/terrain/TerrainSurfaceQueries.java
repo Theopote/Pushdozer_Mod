@@ -78,27 +78,61 @@ public final class TerrainSurfaceQueries {
 
     /**
      * Reference surface Y for heightmap guard (world surface or ocean floor when flooded).
+     * Falls back to a full-column scan when heightmap data does not match placed blocks.
      */
     public static int resolveReferenceSurfaceY(World world, int x, int z) {
         int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
-        BlockState topState = world.getBlockState(new BlockPos(x, surfaceY, z));
+        BlockPos surfacePos = new BlockPos(x, surfaceY, z);
+        BlockState topState = world.getBlockState(surfacePos);
         if (!topState.getFluidState().isEmpty()) {
-            return world.getTopY(Heightmap.Type.OCEAN_FLOOR, x, z);
+            int oceanFloorY = world.getTopY(Heightmap.Type.OCEAN_FLOOR, x, z);
+            BlockPos solid = findColumnSurfaceBelow(world, x, oceanFloorY, z);
+            return solid != null ? solid.getY() : oceanFloorY;
         }
-        return surfaceY;
+        BlockPos solid = findColumnSurfaceBelow(world, x, surfaceY, z);
+        if (solid != null) {
+            return solid.getY();
+        }
+        BlockPos scanned = findColumnSurface(world, x, z);
+        return scanned != null ? scanned.getY() : surfaceY;
     }
 
+    private static BlockPos findColumnSurfaceBelow(World world, int x, int startY, int z) {
+        BlockPos solid = findSolidBelow(world, new BlockPos(x, startY, z));
+        if (solid != null) {
+            return solid;
+        }
+        return findColumnSurface(world, x, z);
+    }
+
+    private static BlockPos findColumnSurface(World world, int x, int z) {
+        BlockPos.Mutable cursor = new BlockPos.Mutable(x, world.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z), z);
+        while (cursor.getY() >= world.getBottomY()) {
+            BlockState state = world.getBlockState(cursor);
+            if (!state.isAir() && !isWater(world, cursor) && !isIgnoredBlock(state)) {
+                return cursor.toImmutable();
+            }
+            cursor.move(0, -1, 0);
+        }
+        return null;
+    }
+
+    /**
+     * Returns whether {@code groundY} is within {@code maxBelowSurfaceDepth} blocks below the
+     * column reference surface. Depth {@code 0} allows only the top surface block itself.
+     * When the reference surface cannot be determined, returns {@code false} (fail closed).
+     */
     public static boolean isWithinSurfaceDepth(World world, int x, int z, int groundY, int maxBelowSurfaceDepth) {
-        if (maxBelowSurfaceDepth <= 0) {
+        if (world == null) {
+            return false;
+        }
+        if (maxBelowSurfaceDepth < 0) {
             return true;
         }
         int referenceY = resolveReferenceSurfaceY(world, x, z);
         BlockState referenceState = world.getBlockState(new BlockPos(x, referenceY, z));
         if (referenceState.isAir() || !referenceState.getFluidState().isEmpty()) {
-            return true;
-        }
-        if (Math.abs(referenceY - groundY) > 64) {
-            return true;
+            return false;
         }
         return groundY >= referenceY - maxBelowSurfaceDepth;
     }

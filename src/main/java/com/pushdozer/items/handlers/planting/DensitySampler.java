@@ -34,6 +34,9 @@ public class DensitySampler {
 
     public boolean shouldPlantHere(BlockPos pos) {
         double density = Math.clamp(config.getPlantDensity(), 0.0, 1.0);
+        if (density >= 1.0) {
+            return true;
+        }
         double finalProb = computeFinalProbability(pos, density);
         Random positionRandom = PositionRandom.forOperation(pos, worldSeed, DENSITY_RANDOM_SALT);
         return positionRandom.nextFloat() < (float) finalProb;

@@ -2,6 +2,7 @@ package com.pushdozer.gametest;
 
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
+import com.pushdozer.items.handlers.BatchPlantHandler;
 import com.pushdozer.items.handlers.BoneMealHandler;
 import com.pushdozer.items.handlers.planting.SimplePlantProcessor;
 import com.pushdozer.items.handlers.planting.model.BatchPlantingResult;
@@ -106,12 +107,52 @@ public class PushdozerVegetationGameTest {
             PushdozerMod.pushUndoAction(player, undoAction);
             UndoRedoService.getInstance().undoLastAction(player, world);
 
-            waitUntilBlockState(context, sapling,
-                state -> state.isOf(Blocks.OAK_SAPLING),
-                "Undo should restore sapling", VEGETATION_WAIT_LIMIT, () -> {
-                    context.assertTrue(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
-                        "Undo should restore ground block");
-                    context.complete();
+            waitUntil(context,
+                () -> lockAreaMatchesSnapshot(world, before),
+                "Undo should restore entire bone meal lock area including canopy blocks",
+                VEGETATION_WAIT_LIMIT,
+                context::complete);
+        });
+    }
+
+    @GameTest(maxTicks = 240, setupTicks = 820)
+    public void batchPlantHandlerUndoRestoresTallFlower(TestContext context) {
+        runWhenSchedulerIdle(context, () -> {
+            ServerWorld world = context.getWorld();
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+
+            BlockPos ground = new BlockPos(2, 0, 2);
+            BlockPos lower = new BlockPos(2, 1, 2);
+            BlockPos upper = lower.up();
+            context.setBlockState(ground, Blocks.GRASS_BLOCK);
+            context.setBlockState(lower, Blocks.AIR);
+            context.setBlockState(upper, Blocks.AIR);
+
+            BlockPos absoluteGround = context.getAbsolutePos(ground);
+            BlockPos absoluteLower = context.getAbsolutePos(lower);
+            Map<BlockPos, BlockState> before = Map.of(
+                absoluteGround, Blocks.GRASS_BLOCK.getDefaultState(),
+                absoluteLower, Blocks.AIR.getDefaultState(),
+                context.getAbsolutePos(upper), Blocks.AIR.getDefaultState()
+            );
+
+            PushdozerConfig config = PushdozerGameTestSupport.createBatchPlantFlowerConfig();
+            world.getChunk(absoluteLower);
+            new BatchPlantHandler().applyBatchPlantPositions(world, player, config,
+                List.of(new PlantingPosition(absoluteLower, PushdozerConfig.PlantType.CUSTOM)));
+
+            waitUntil(context,
+                () -> TerrainOperationScheduler.getInstance().isIdle()
+                    && isTallSunflowerPlanted(context, lower, upper),
+                "Batch plant handler should place a tall sunflower through the full entry path",
+                VEGETATION_WAIT_LIMIT,
+                () -> {
+                    UndoRedoService.getInstance().undoLastAction(player, world);
+                    waitUntil(context,
+                        () -> lockAreaMatchesSnapshot(world, before),
+                        "Batch plant handler undo should restore all recorded blocks",
+                        VEGETATION_WAIT_LIMIT,
+                        context::complete);
                 });
         });
     }
@@ -213,6 +254,20 @@ public class PushdozerVegetationGameTest {
             snapshot.put(pos, world.getBlockState(pos));
         }
         return snapshot;
+    }
+
+    private static boolean isTallSunflowerPlanted(TestContext context, BlockPos lower, BlockPos upper) {
+        return context.getBlockState(lower).isOf(Blocks.SUNFLOWER)
+            && context.getBlockState(upper).isOf(Blocks.SUNFLOWER);
+    }
+
+    private static boolean lockAreaMatchesSnapshot(ServerWorld world, Map<BlockPos, BlockState> expected) {
+        for (Map.Entry<BlockPos, BlockState> entry : expected.entrySet()) {
+            if (!world.getBlockState(entry.getKey()).equals(entry.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean hasTreeBlocks(ServerWorld world, Set<BlockPos> area, Map<BlockPos, BlockState> before) {

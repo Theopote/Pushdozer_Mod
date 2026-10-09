@@ -51,7 +51,7 @@ final class PushdozerGameTestSupport {
         config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
         config.setPlantType(PushdozerConfig.PlantType.CUSTOM);
         config.setCustomPlantBlocks(List.of(Blocks.SUNFLOWER));
-        config.setPlantDensity(100f);
+        config.setPlantDensity(1.0f);
         config.setNoiseSeed(42L);
         return config;
     }
@@ -65,7 +65,8 @@ final class PushdozerGameTestSupport {
         config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
         config.setNoiseSeed(42L);
         config.setSurfaceConvertDistribution(PushdozerConfig.SurfaceConvertDistribution.SCATTER);
-        config.setSurfaceConvertMaxBelowSurfaceDepth(0);
+        // Explicit unlimited depth for void GameTest columns; production default remains 3.
+        config.setSurfaceConvertMaxBelowSurfaceDepth(-1);
         config.getSurfaceConvertBlocks().clear();
         config.getSurfaceConvertBlocks().add(new SurfaceConfig.SurfaceConvertBlock(targetBlockId, 100f));
         return config;
