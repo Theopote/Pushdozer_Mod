@@ -89,8 +89,8 @@ import java.util.function.Predicate;
 
  * {@link #invokeTestMethod} 中调用 {@link TerrainOperationScheduler#resetForTests()}（会清掉其他测试的锁）。
 
- * 会占用调度器的测试通过 {@link GameTest#setupTicks()} 错峰启动；{@link #invokeTestMethod} 会显式
- * 等待 setupTicks（CustomTestMethodInvoker 默认不会延迟）。调度器/undo 测试额外延迟 2 tick 再操作。
+ * 会占用调度器的测试通过 {@link GameTest#setupTicks()} 错峰启动；{@link #invokeTestMethod} 经
+ * {@link PushdozerGameTestSupport#invokeAfterSetup} 以绝对 tick 等待 setup（避免重复延迟）。
 
  */
 

@@ -88,22 +88,27 @@ final class PushdozerGameTestSupport {
     }
 
     /**
-     * CustomTestMethodInvoker implementations must defer by {@link GameTest#setupTicks()} themselves;
-     * Fabric does not apply setup delay before {@code invokeTestMethod}.
+     * Ensures {@link GameTest#setupTicks()} elapses before the test body runs.
+     * <p>
+     * CustomTestMethodInvoker suites must call this from {@code invokeTestMethod}. Some runtimes
+     * already advance the tick counter through setup; scheduling uses an absolute target tick so
+     * setup is never applied twice.
      */
     static void invokeAfterSetup(TestContext context, Object target, Method method) throws ReflectiveOperationException {
         GameTest gameTest = method.getAnnotation(GameTest.class);
         int setupTicks = gameTest != null ? gameTest.setupTicks() : 0;
-        if (setupTicks > 0) {
-            context.runAtTick(context.getTick() + setupTicks, () -> {
-                try {
-                    method.invoke(target, context);
-                } catch (ReflectiveOperationException ex) {
-                    throw new RuntimeException(ex);
-                }
-            });
+        if (setupTicks > 0 && context.getTick() < setupTicks) {
+            context.runAtTick(setupTicks, () -> invokeUnchecked(target, method, context));
             return;
         }
         method.invoke(target, context);
+    }
+
+    private static void invokeUnchecked(Object target, Method method, TestContext context) {
+        try {
+            method.invoke(target, context);
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }
