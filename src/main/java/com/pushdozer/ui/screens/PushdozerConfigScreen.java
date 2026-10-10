@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFW;
 import com.pushdozer.PushdozerMod;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.items.PushdozerItem;
+import net.minecraft.item.ItemStack;
 import com.pushdozer.ui.panels.*;
 import com.pushdozer.ui.panels.brushgeometry.BoxSubPanel;
 import com.pushdozer.ui.panels.brushgeometry.ConeSubPanel;
@@ -107,10 +108,16 @@ public class PushdozerConfigScreen extends Screen {
         super(Text.translatable("pushdozer.config.title"));
         this.config = config; // Initialize config object
         MinecraftClient client = MinecraftClient.getInstance();
-        // Check if player is holding Pushdozer item
-        if (client.player != null && !(client.player.getMainHandStack().getItem() instanceof PushdozerItem)) {
-            client.setScreen(null);
-            return;
+        // Match KeyBindings.isHoldingPushdozer: main hand or offhand
+        if (client.player != null) {
+            ItemStack mainHand = client.player.getMainHandStack();
+            ItemStack offHand = client.player.getOffHandStack();
+            boolean holdingPushdozer = mainHand.getItem() instanceof PushdozerItem
+                    || offHand.getItem() instanceof PushdozerItem;
+            if (!holdingPushdozer) {
+                client.setScreen(null);
+                return;
+            }
         }
         this.openTime = System.currentTimeMillis();
 

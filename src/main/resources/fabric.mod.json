@@ -8,9 +8,9 @@
 		"Theopote"
 	],
 	"contact": {
-		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/en/",
-		"sources": "https://github.com/Theopote/pushdozer",
-		"issues": "https://github.com/Theopote/pushdozer/issues"
+		"homepage": "https://theopote.github.io/Pushdozer-Introduction/#/zh/",
+		"sources": "https://github.com/Theopote/Pushdozer_Mod",
+		"issues": "https://github.com/Theopote/Pushdozer_Mod/issues"
 	},
 	"license": "MIT",
 	"environment": "*",
@@ -38,7 +38,7 @@
 		"modmenu": {
 			"links": {
 				"modmenu.discord": "https://discord.gg/jjr8WmPZ",
-				"modmenu.wiki": "https://theopote.github.io/Pushdozer-Introduction/#/en/"
+				"modmenu.wiki": "https://theopote.github.io/Pushdozer-Introduction/#/zh/"
 			}
 		}
 	},
