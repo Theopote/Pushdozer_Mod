@@ -9,6 +9,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 正八面体形状类
@@ -18,6 +19,9 @@ public class OctahedronShape implements GeometryShape {
     private BlockPos center;
 
     public OctahedronShape(int radius, BlockPos center) {
+        if (radius <= 0) {
+            throw new IllegalArgumentException("Octahedron radius must be positive");
+        }
         this.radius = radius;
         this.center = center;
     }
@@ -46,18 +50,12 @@ public class OctahedronShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        int distance = (int)(Math.abs(pos.x - center.getX()) + 
-                           Math.abs(pos.y - center.getY()) + 
-                           Math.abs(pos.z - center.getZ()));
-        return distance <= radius;
+        return isInsideAtVec3d(pos, center);
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        int distance = Math.abs(pos.getX() - center.getX()) + 
-                      Math.abs(pos.getY() - center.getY()) + 
-                      Math.abs(pos.getZ() - center.getZ());
-        return distance <= radius;
+        return isInsideAtBlock(pos, center);
     }
 
     @Override
@@ -75,7 +73,7 @@ public class OctahedronShape implements GeometryShape {
         List<BlockPos> positions = new ArrayList<>();
         int yDistance = Math.abs(y - basePos.getY());
         int maxXZ = radius - yDistance;
-        
+
         if (maxXZ >= 0) {
             for (int x = basePos.getX() - maxXZ; x <= basePos.getX() + maxXZ; x++) {
                 for (int z = basePos.getZ() - maxXZ; z <= basePos.getZ() + maxXZ; z++) {
@@ -86,34 +84,41 @@ public class OctahedronShape implements GeometryShape {
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> positions = new ArrayList<>();
-        BlockPos centerPos = BlockPos.ofFloored(center);
-        
-        for (int x = centerPos.getX() - maxDistance; x <= centerPos.getX() + maxDistance; x++) {
-            for (int y = centerPos.getY() - maxDistance; y <= centerPos.getY() + maxDistance; y++) {
-                for (int z = centerPos.getZ() - maxDistance; z <= centerPos.getZ() + maxDistance; z++) {
-                    int distance = Math.abs(x - centerPos.getX()) + 
-                                  Math.abs(y - centerPos.getY()) + 
-                                  Math.abs(z - centerPos.getZ());
-                    if (distance <= Math.min(radius, maxDistance)) {
-                        positions.add(new BlockPos(x, y, z));
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        Box octahedronBounds = getBoundingBox(center);
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(octahedronBounds.minX));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(octahedronBounds.maxX));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(octahedronBounds.minY));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(octahedronBounds.maxY));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(octahedronBounds.minZ));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(octahedronBounds.maxZ));
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
+                        positions.add(pos);
                     }
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return isInsideAtBlock(pos, basePos);
     }
 
     @Override
@@ -128,7 +133,7 @@ public class OctahedronShape implements GeometryShape {
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlockPositions().iterator();
+        return new LayerBlockIterator(center, getMinY(center), getMaxY(center));
     }
 
     @Override
@@ -139,29 +144,70 @@ public class OctahedronShape implements GeometryShape {
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> positions = new ArrayList<>();
-        
-        int centerX = center.getX();
-        int centerY = center.getY();
-        int centerZ = center.getZ();
-        
-        // 正八面体的距离计算：使用曼哈顿距离（L1距离）
-        for (int x = centerX - radius; x <= centerX + radius; x++) {
-            for (int y = centerY - radius; y <= centerY + radius; y++) {
-                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-                    // 计算到中心的曼哈顿距离
-                    int distance = Math.abs(x - centerX) + Math.abs(y - centerY) + Math.abs(z - centerZ);
-                    
-                    if (distance <= radius) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+        for (int y = getMinY(center); y <= getMaxY(center); y++) {
+            positions.addAll(getBlocksInLayer(center, y));
         }
-        
         return positions;
     }
 
     public int getRadius() {
         return radius;
     }
-} 
+
+    private int manhattanBlockDistance(BlockPos pos, BlockPos reference) {
+        return Math.abs(pos.getX() - reference.getX())
+            + Math.abs(pos.getY() - reference.getY())
+            + Math.abs(pos.getZ() - reference.getZ());
+    }
+
+    private double manhattanVecDistance(Vec3d pos, BlockPos reference) {
+        return Math.abs(pos.x - reference.getX())
+            + Math.abs(pos.y - reference.getY())
+            + Math.abs(pos.z - reference.getZ());
+    }
+
+    private boolean isInsideAtBlock(BlockPos pos, BlockPos basePos) {
+        return manhattanBlockDistance(pos, basePos) <= radius;
+    }
+
+    private boolean isInsideAtVec3d(Vec3d pos, BlockPos basePos) {
+        return manhattanVecDistance(pos, basePos) <= radius;
+    }
+
+    private final class LayerBlockIterator implements Iterator<BlockPos> {
+        private final BlockPos basePos;
+        private final int maxY;
+        private int currentY;
+        private Iterator<BlockPos> currentLayer = List.<BlockPos>of().iterator();
+
+        private LayerBlockIterator(BlockPos basePos, int minY, int maxY) {
+            this.basePos = basePos;
+            this.maxY = maxY;
+            this.currentY = minY - 1;
+            advanceLayer();
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (!currentLayer.hasNext() && currentY < maxY) {
+                advanceLayer();
+            }
+            return currentLayer.hasNext();
+        }
+
+        @Override
+        public BlockPos next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return currentLayer.next();
+        }
+
+        private void advanceLayer() {
+            currentY++;
+            if (currentY <= maxY) {
+                currentLayer = getBlocksInLayer(basePos, currentY).iterator();
+            }
+        }
+    }
+}
