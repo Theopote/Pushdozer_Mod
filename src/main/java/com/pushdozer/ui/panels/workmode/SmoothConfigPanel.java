@@ -158,16 +158,20 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
     }
 
     private Text getStrengthText(float strength) {
-        if (usesDirectionalDepthLabel()) {
-            return Text.translatable("pushdozer.config.directional_depth", String.format("%.2f", strength));
-        }
-        return Text.translatable("pushdozer.config.smooth_strength", String.format("%.2f", strength));
+        String formatted = String.format("%.2f", strength);
+        return switch (config.getSmoothVariant()) {
+            case RAISE -> Text.translatable("pushdozer.config.raise_depth", formatted);
+            case LOWER -> Text.translatable("pushdozer.config.lower_depth", formatted);
+            default -> Text.translatable("pushdozer.config.smooth_strength", formatted);
+        };
     }
 
-    private boolean usesDirectionalDepthLabel() {
-        PushdozerConfig.SmoothVariant variant = config.getSmoothVariant();
-        return variant == PushdozerConfig.SmoothVariant.RAISE
-            || variant == PushdozerConfig.SmoothVariant.LOWER;
+    private Text getStrengthTooltip() {
+        return switch (config.getSmoothVariant()) {
+            case RAISE -> Text.translatable("pushdozer.tooltip.raise_depth");
+            case LOWER -> Text.translatable("pushdozer.tooltip.lower_depth");
+            default -> Text.translatable("pushdozer.tooltip.smooth_strength");
+        };
     }
 
     private void updateStrengthSliderPresentation() {
@@ -175,11 +179,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
             return;
         }
         strengthSlider.setMessage(getStrengthText(config.getSmoothStrength()));
-        if (usesDirectionalDepthLabel()) {
-            strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.directional_depth")));
-        } else {
-            strengthSlider.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_strength")));
-        }
+        strengthSlider.setTooltip(Tooltip.of(getStrengthTooltip()));
     }
 
     @Override
