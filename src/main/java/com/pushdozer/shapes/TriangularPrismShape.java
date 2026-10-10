@@ -10,25 +10,46 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 public class TriangularPrismShape implements GeometryShape {
-    private final double sideLength; // 等边三角形的边长
-    private final double height;
+    private final int sideLength;
+    private final int height;
+    private final double triangleHeight;
+    private final double[] edgeAnchorX;
+    private final double[] edgeAnchorZ;
+    private final double[] edgeNormalX;
+    private final double[] edgeNormalZ;
     private Vec3d prismCenter;
     private BlockPos center;
 
-    public TriangularPrismShape(double sideLength, double height, BlockPos center) {
+    public TriangularPrismShape(int sideLength, int height, BlockPos center) {
+        if (sideLength < 1 || height < 1) {
+            throw new IllegalArgumentException("Triangular prism side length and height must be at least 1");
+        }
         this.sideLength = sideLength;
         this.height = height;
+        this.triangleHeight = sideLength * Math.sqrt(3.0) / 2.0;
         this.center = center;
         this.prismCenter = Vec3d.ofCenter(center);
+        double[] anchorX = new double[3];
+        double[] anchorZ = new double[3];
+        double[] normalX = new double[3];
+        double[] normalZ = new double[3];
+        computeEdgeHalfPlanes(anchorX, anchorZ, normalX, normalZ);
+        this.edgeAnchorX = anchorX;
+        this.edgeAnchorZ = anchorZ;
+        this.edgeNormalX = normalX;
+        this.edgeNormalZ = normalZ;
     }
 
-    public TriangularPrismShape(double sideLength, double height, Vec3d center) {
-        this.sideLength = sideLength;
-        this.height = height;
+    public TriangularPrismShape(int sideLength, int height, Vec3d center) {
+        this(sideLength, height, new BlockPos(
+            (int) Math.floor(center.x),
+            (int) Math.floor(center.y),
+            (int) Math.floor(center.z)
+        ));
         this.prismCenter = center;
-        this.center = new BlockPos((int) Math.floor(center.x), (int) Math.floor(center.y), (int) Math.floor(center.z));
     }
 
     @Override
@@ -50,21 +71,17 @@ public class TriangularPrismShape implements GeometryShape {
         matrices.push();
         matrices.translate(center.x, center.y, center.z);
 
-        // 三棱柱的6个顶点
         Vec3d[] bottomVertices = getBottomVertices();
         Vec3d[] topVertices = getTopVertices();
 
-        // 绘制底面三角形的边
         drawEdge(vertexConsumer, matrices, bottomVertices[0], bottomVertices[1], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, bottomVertices[1], bottomVertices[2], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, bottomVertices[2], bottomVertices[0], red, green, blue, alpha);
 
-        // 绘制顶面三角形的边
         drawEdge(vertexConsumer, matrices, topVertices[0], topVertices[1], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, topVertices[1], topVertices[2], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, topVertices[2], topVertices[0], red, green, blue, alpha);
 
-        // 绘制连接底面和顶面的边
         drawEdge(vertexConsumer, matrices, bottomVertices[0], topVertices[0], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, bottomVertices[1], topVertices[1], red, green, blue, alpha);
         drawEdge(vertexConsumer, matrices, bottomVertices[2], topVertices[2], red, green, blue, alpha);
@@ -77,17 +94,12 @@ public class TriangularPrismShape implements GeometryShape {
         matrices.push();
         matrices.translate(center.x, center.y, center.z);
 
-        // 三棱柱的6个顶点
         Vec3d[] bottomVertices = getBottomVertices();
         Vec3d[] topVertices = getTopVertices();
 
-        // 渲染底面三角形
         renderTriangleFace(vertexConsumer, matrices, bottomVertices[0], bottomVertices[1], bottomVertices[2], red, green, blue, alpha);
-
-        // 渲染顶面三角形
         renderTriangleFace(vertexConsumer, matrices, topVertices[0], topVertices[1], topVertices[2], red, green, blue, alpha);
 
-        // 渲染3个矩形侧面
         renderRectangleFace(vertexConsumer, matrices, bottomVertices[0], bottomVertices[1], topVertices[1], topVertices[0], red, green, blue, alpha);
         renderRectangleFace(vertexConsumer, matrices, bottomVertices[1], bottomVertices[2], topVertices[2], topVertices[1], red, green, blue, alpha);
         renderRectangleFace(vertexConsumer, matrices, bottomVertices[2], bottomVertices[0], topVertices[0], topVertices[2], red, green, blue, alpha);
@@ -97,100 +109,85 @@ public class TriangularPrismShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        // 三棱柱内部检测 - 使用三角形检测
-        Vec3d relativePos = pos.subtract(prismCenter);
-        
-        // 检查Y坐标是否在高度范围内
-        if (Math.abs(relativePos.y) > height / 2) {
-            return false;
-        }
-        
-        // 检查XZ平面是否在等边三角形内
-        return isPointInTriangle(relativePos.x, relativePos.z, sideLength);
-    }
-    
-    /**
-     * 检查点是否在等边三角形内
-     * @param x 点的X坐标
-     * @param z 点的Z坐标
-     * @param sideLength 等边三角形的边长
-     * @return 是否在三角形内
-     */
-    private boolean isPointInTriangle(double x, double z, double sideLength) {
-        // 等边三角形的高
-        double height = sideLength * Math.sqrt(3) / 2;
-        
-        // 三角形的三个顶点（以中心为原点）
-        double[] xCoords = {0, -sideLength/2, sideLength/2};
-        double[] zCoords = {height/2, -height/2, -height/2};
-        
-        // 使用重心坐标法判断点是否在三角形内
-        double area = height * sideLength / 2; // 三角形面积
-        
-        // 计算三个子三角形的面积
-        double area1 = Math.abs((xCoords[1] - x) * (zCoords[2] - z) - (xCoords[2] - x) * (zCoords[1] - z)) / 2;
-        double area2 = Math.abs((xCoords[2] - x) * (zCoords[0] - z) - (xCoords[0] - x) * (zCoords[2] - z)) / 2;
-        double area3 = Math.abs((xCoords[0] - x) * (zCoords[1] - z) - (xCoords[1] - x) * (zCoords[0] - z)) / 2;
-        
-        // 如果三个子三角形面积之和等于原三角形面积，则点在三角形内
-        return Math.abs(area1 + area2 + area3 - area) < 0.001;
+        return isInsideAt(pos, center);
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        return isInside(Vec3d.ofCenter(pos));
+        return isInsideAt(Vec3d.ofCenter(pos), center);
     }
 
     @Override
     public Box getBoundingBox(BlockPos basePos) {
+        Vec3d worldCenter = resolveWorldCenter(basePos);
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
         return new Box(
-            basePos.getX() - sideLength, basePos.getY() - height / 2, basePos.getZ() - sideLength,
-            basePos.getX() + sideLength, basePos.getY() + height / 2, basePos.getZ() + sideLength
+            worldCenter.x - sideLength / 2.0, minY, worldCenter.z - triangleHeight / 3.0,
+            worldCenter.x + sideLength / 2.0, maxY + 1, worldCenter.z + 2.0 * triangleHeight / 3.0
         );
     }
 
     @Override
     public int getMinY(BlockPos basePos) {
-        return (int) (basePos.getY() - height / 2);
+        return computeMinY(basePos);
     }
 
     @Override
     public int getMaxY(BlockPos basePos) {
-        return (int) (basePos.getY() + height / 2);
+        return computeMaxY(basePos);
     }
 
     @Override
     public List<BlockPos> getBlocksInLayer(BlockPos basePos, int y) {
+        if (y < computeMinY(basePos) || y > computeMaxY(basePos)) {
+            return List.of();
+        }
+
         List<BlockPos> blocks = new ArrayList<>();
-        Box boundingBox = getBoundingBox(basePos);
-        
-        for (int x = (int) boundingBox.minX; x <= boundingBox.maxX; x++) {
-            for (int z = (int) boundingBox.minZ; z <= boundingBox.maxZ; z++) {
+        for (int x = computeMinX(basePos); x <= computeMaxX(basePos); x++) {
+            for (int z = computeMinZ(basePos); z <= computeMaxZ(basePos); z++) {
                 BlockPos pos = new BlockPos(x, y, z);
-                if (isInside(pos)) {
+                if (isInsideAt(Vec3d.ofCenter(pos), basePos)) {
                     blocks.add(pos);
                 }
             }
         }
-        
+
         return blocks;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> blocks = new ArrayList<>();
-        BlockPos basePos = new BlockPos((int) center.x, (int) center.y, (int) center.z);
-        
-        for (int y = getMinY(basePos); y <= getMaxY(basePos); y++) {
-            blocks.addAll(getBlocksInLayer(basePos, y));
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        Box shapeBounds = getBoundingBox(center);
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(shapeBounds.minX));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(shapeBounds.maxX));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(shapeBounds.minY));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(shapeBounds.maxY));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(shapeBounds.minZ));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(shapeBounds.maxZ));
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
+                        blocks.add(pos);
+                    }
+                }
+            }
         }
-        
+
         return blocks;
     }
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return isInsideAt(Vec3d.ofCenter(pos), basePos);
     }
 
     @Override
@@ -200,106 +197,193 @@ public class TriangularPrismShape implements GeometryShape {
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlocks().iterator();
+        return new LayerBlockIterator(center, getMinY(center), getMaxY(center));
     }
 
-    public double getSideLength() {
+    public int getSideLength() {
         return sideLength;
     }
 
-    public double getHeight() {
+    public int getHeight() {
         return height;
+    }
+
+    public double getTriangleHeight() {
+        return triangleHeight;
+    }
+
+    public double getCrossSectionVertexX(int index) {
+        return switch (index) {
+            case 0 -> 0.0;
+            case 1 -> -sideLength / 2.0;
+            case 2 -> sideLength / 2.0;
+            default -> throw new IndexOutOfBoundsException("Triangle vertex index must be 0..2");
+        };
+    }
+
+    public double getCrossSectionVertexZ(int index) {
+        return switch (index) {
+            case 0 -> 2.0 * triangleHeight / 3.0;
+            case 1, 2 -> -triangleHeight / 3.0;
+            default -> throw new IndexOutOfBoundsException("Triangle vertex index must be 0..2");
+        };
+    }
+
+    public float getPreviewBottomY(BlockPos basePos) {
+        return computeMinY(basePos) - (basePos.getY() + 0.5f);
+    }
+
+    public float getPreviewTopY(BlockPos basePos) {
+        return computeMaxY(basePos) + 1 - (basePos.getY() + 0.5f);
     }
 
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> blocks = new ArrayList<>();
-        Box boundingBox = getBoundingBox(center);
-        
-        for (int x = (int) boundingBox.minX; x <= boundingBox.maxX; x++) {
-            for (int y = (int) boundingBox.minY; y <= boundingBox.maxY; y++) {
-                for (int z = (int) boundingBox.minZ; z <= boundingBox.maxZ; z++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (isInside(pos)) {
-                        blocks.add(pos);
-                    }
-                }
-            }
+        for (int y = getMinY(center); y <= getMaxY(center); y++) {
+            blocks.addAll(getBlocksInLayer(center, y));
         }
-        
         return blocks;
     }
 
+    private int computeMinY(BlockPos basePos) {
+        return basePos.getY() - (height - 1) / 2;
+    }
+
+    private int computeMaxY(BlockPos basePos) {
+        return computeMinY(basePos) + height - 1;
+    }
+
+    private int computeMinX(BlockPos basePos) {
+        return (int) Math.floor(resolveWorldCenter(basePos).x - sideLength / 2.0);
+    }
+
+    private int computeMaxX(BlockPos basePos) {
+        return (int) Math.floor(resolveWorldCenter(basePos).x + sideLength / 2.0);
+    }
+
+    private int computeMinZ(BlockPos basePos) {
+        return (int) Math.floor(resolveWorldCenter(basePos).z - triangleHeight / 3.0);
+    }
+
+    private int computeMaxZ(BlockPos basePos) {
+        return (int) Math.floor(resolveWorldCenter(basePos).z + 2.0 * triangleHeight / 3.0);
+    }
+
+    private Vec3d resolveWorldCenter(BlockPos basePos) {
+        return prismCenter.add(
+            basePos.getX() - center.getX(),
+            basePos.getY() - center.getY(),
+            basePos.getZ() - center.getZ()
+        );
+    }
+
+    private boolean isInsideAt(Vec3d pos, BlockPos basePos) {
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
+        if (pos.y < minY || pos.y >= maxY + 1) {
+            return false;
+        }
+
+        Vec3d worldCenter = resolveWorldCenter(basePos);
+        return isInsideTriangleRelative(pos.x - worldCenter.x, pos.z - worldCenter.z);
+    }
+
+    private boolean isInsideTriangleRelative(double x, double z) {
+        double tol = sideLength * 1e-9;
+        for (int i = 0; i < 3; i++) {
+            double dx = x - edgeAnchorX[i];
+            double dz = z - edgeAnchorZ[i];
+            if (dx * edgeNormalX[i] + dz * edgeNormalZ[i] < -tol) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void computeEdgeHalfPlanes(double[] anchorX, double[] anchorZ, double[] normalX, double[] normalZ) {
+        double[] vertexX = {
+            getCrossSectionVertexX(0),
+            getCrossSectionVertexX(1),
+            getCrossSectionVertexX(2)
+        };
+        double[] vertexZ = {
+            getCrossSectionVertexZ(0),
+            getCrossSectionVertexZ(1),
+            getCrossSectionVertexZ(2)
+        };
+
+        for (int i = 0; i < 3; i++) {
+            int next = (i + 1) % 3;
+            anchorX[i] = vertexX[i];
+            anchorZ[i] = vertexZ[i];
+            double edgeX = vertexX[next] - vertexX[i];
+            double edgeZ = vertexZ[next] - vertexZ[i];
+            normalX[i] = -edgeZ;
+            normalZ[i] = edgeX;
+        }
+    }
+
     private Vec3d[] getBottomVertices() {
-        // 等边三角形的3个顶点
-        // 等边三角形的高 = sideLength * sqrt(3) / 2
-        double triangleHeight = sideLength * Math.sqrt(3) / 2;
-        
+        float bottomY = getPreviewBottomY(center);
         return new Vec3d[]{
-            new Vec3d(0, -this.height / 2, triangleHeight / 2),                    // 顶部顶点
-            new Vec3d(-sideLength / 2, -this.height / 2, -triangleHeight / 2),     // 左下顶点
-            new Vec3d(sideLength / 2, -this.height / 2, -triangleHeight / 2)       // 右下顶点
+            new Vec3d(getCrossSectionVertexX(0), bottomY, getCrossSectionVertexZ(0)),
+            new Vec3d(getCrossSectionVertexX(1), bottomY, getCrossSectionVertexZ(1)),
+            new Vec3d(getCrossSectionVertexX(2), bottomY, getCrossSectionVertexZ(2))
         };
     }
 
     private Vec3d[] getTopVertices() {
-        // 等边三角形的3个顶点
-        // 等边三角形的高 = sideLength * sqrt(3) / 2
-        double triangleHeight = sideLength * Math.sqrt(3) / 2;
-        
+        float topY = getPreviewTopY(center);
         return new Vec3d[]{
-            new Vec3d(0, this.height / 2, triangleHeight / 2),                    // 顶部顶点
-            new Vec3d(-sideLength / 2, this.height / 2, -triangleHeight / 2),     // 左下顶点
-            new Vec3d(sideLength / 2, this.height / 2, -triangleHeight / 2)       // 右下顶点
+            new Vec3d(getCrossSectionVertexX(0), topY, getCrossSectionVertexZ(0)),
+            new Vec3d(getCrossSectionVertexX(1), topY, getCrossSectionVertexZ(1)),
+            new Vec3d(getCrossSectionVertexX(2), topY, getCrossSectionVertexZ(2))
         };
     }
 
-    private void drawEdge(VertexConsumer vertexConsumer, MatrixStack matrices, Vec3d start, Vec3d end, 
+    private void drawEdge(VertexConsumer vertexConsumer, MatrixStack matrices, Vec3d start, Vec3d end,
                          float red, float green, float blue, float alpha) {
         Vec3d normal = end.subtract(start).normalize();
-        
+
         vertexConsumer.vertex(matrices.peek().getPositionMatrix(), (float) start.x, (float) start.y, (float) start.z)
             .color(red, green, blue, alpha)
             .normal((float) normal.x, (float) normal.y, (float) normal.z);
-        
+
         vertexConsumer.vertex(matrices.peek().getPositionMatrix(), (float) end.x, (float) end.y, (float) end.z)
             .color(red, green, blue, alpha)
             .normal((float) normal.x, (float) normal.y, (float) normal.z);
     }
 
-    private void renderTriangleFace(VertexConsumer vertexConsumer, MatrixStack matrices, 
-                                  Vec3d v1, Vec3d v2, Vec3d v3, 
+    private void renderTriangleFace(VertexConsumer vertexConsumer, MatrixStack matrices,
+                                  Vec3d v1, Vec3d v2, Vec3d v3,
                                   float red, float green, float blue, float alpha) {
-        // 计算法线
         Vec3d edge1 = v2.subtract(v1);
         Vec3d edge2 = v3.subtract(v1);
         Vec3d normal = edge1.crossProduct(edge2).normalize();
-        
-        // 渲染三角形
+
         addVertex(vertexConsumer, matrices, v1, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v2, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v3, normal, red, green, blue, alpha);
     }
 
-    private void renderRectangleFace(VertexConsumer vertexConsumer, MatrixStack matrices, 
-                                   Vec3d v1, Vec3d v2, Vec3d v3, Vec3d v4, 
+    private void renderRectangleFace(VertexConsumer vertexConsumer, MatrixStack matrices,
+                                   Vec3d v1, Vec3d v2, Vec3d v3, Vec3d v4,
                                    float red, float green, float blue, float alpha) {
-        // 计算法线
         Vec3d edge1 = v2.subtract(v1);
         Vec3d edge2 = v3.subtract(v1);
         Vec3d normal = edge1.crossProduct(edge2).normalize();
-        
-        // 渲染矩形（两个三角形）
+
         addVertex(vertexConsumer, matrices, v1, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v2, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v3, normal, red, green, blue, alpha);
-        
+
         addVertex(vertexConsumer, matrices, v1, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v3, normal, red, green, blue, alpha);
         addVertex(vertexConsumer, matrices, v4, normal, red, green, blue, alpha);
     }
 
-    private void addVertex(VertexConsumer vertexConsumer, MatrixStack matrices, Vec3d pos, Vec3d normal, 
+    private void addVertex(VertexConsumer vertexConsumer, MatrixStack matrices, Vec3d pos, Vec3d normal,
                           float red, float green, float blue, float alpha) {
         vertexConsumer.vertex(matrices.peek().getPositionMatrix(), (float) pos.x, (float) pos.y, (float) pos.z)
             .color(red, green, blue, alpha)
@@ -307,5 +391,42 @@ public class TriangularPrismShape implements GeometryShape {
             .overlay(OverlayTexture.DEFAULT_UV)
             .light(15728880)
             .normal((float) normal.x, (float) normal.y, (float) normal.z);
+    }
+
+    private final class LayerBlockIterator implements Iterator<BlockPos> {
+        private final BlockPos basePos;
+        private final int maxY;
+        private int currentY;
+        private Iterator<BlockPos> currentLayer = List.<BlockPos>of().iterator();
+
+        private LayerBlockIterator(BlockPos basePos, int minY, int maxY) {
+            this.basePos = basePos;
+            this.maxY = maxY;
+            this.currentY = minY - 1;
+            advanceLayer();
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (!currentLayer.hasNext() && currentY < maxY) {
+                advanceLayer();
+            }
+            return currentLayer.hasNext();
+        }
+
+        @Override
+        public BlockPos next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return currentLayer.next();
+        }
+
+        private void advanceLayer() {
+            currentY++;
+            if (currentY <= maxY) {
+                currentLayer = getBlocksInLayer(basePos, currentY).iterator();
+            }
+        }
     }
 }

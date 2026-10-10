@@ -50,8 +50,7 @@ public class WireframeRenderer {
                             renderTetrahedronWireframe(lines, matrices.peek().getPositionMatrix(),
                                     (int) tetrahedron.getEdgeLength());
                     case TriangularPrismShape prism ->
-                            renderTriangularPrismWireframe(lines, matrices.peek().getPositionMatrix(),
-                                    (int) prism.getSideLength(), (int) prism.getHeight());
+                            renderTriangularPrismWireframe(lines, matrices.peek().getPositionMatrix(), prism, basePos);
                     case null, default -> {
                         // 对于长方体，使用相对坐标的边界框
                         matrices.translate(-center.x, -center.y, -center.z);
@@ -320,19 +319,18 @@ public class WireframeRenderer {
         }
     }
 
-    private static void renderTriangularPrismWireframe(VertexConsumer lines, Matrix4f matrix, int sideLength, int height) {
-        double triangleHeight = sideLength * Math.sqrt(3) / 2;
-        float bottomY = -height / 2f;
-        float topY = height / 2f;
+    private static void renderTriangularPrismWireframe(VertexConsumer lines, Matrix4f matrix, TriangularPrismShape prism, BlockPos basePos) {
+        float bottomY = prism.getPreviewBottomY(basePos);
+        float topY = prism.getPreviewTopY(basePos);
         float[] bottomVertices = {
-            0, bottomY, (float)(triangleHeight / 2),
-            (float)(-sideLength / 2), bottomY, (float)(-triangleHeight / 2),
-            (float)(sideLength / 2), bottomY, (float)(-triangleHeight / 2)
+            (float) prism.getCrossSectionVertexX(0), bottomY, (float) prism.getCrossSectionVertexZ(0),
+            (float) prism.getCrossSectionVertexX(1), bottomY, (float) prism.getCrossSectionVertexZ(1),
+            (float) prism.getCrossSectionVertexX(2), bottomY, (float) prism.getCrossSectionVertexZ(2)
         };
         float[] topVertices = {
-            0, topY, (float)(triangleHeight / 2),
-            (float)(-sideLength / 2), topY, (float)(-triangleHeight / 2),
-            (float)(sideLength / 2), topY, (float)(-triangleHeight / 2)
+            (float) prism.getCrossSectionVertexX(0), topY, (float) prism.getCrossSectionVertexZ(0),
+            (float) prism.getCrossSectionVertexX(1), topY, (float) prism.getCrossSectionVertexZ(1),
+            (float) prism.getCrossSectionVertexX(2), topY, (float) prism.getCrossSectionVertexZ(2)
         };
         drawLine(lines, matrix, bottomVertices[0], bottomVertices[1], bottomVertices[2], bottomVertices[3], bottomVertices[4], bottomVertices[5]);
         drawLine(lines, matrix, bottomVertices[3], bottomVertices[4], bottomVertices[5], bottomVertices[6], bottomVertices[7], bottomVertices[8]);

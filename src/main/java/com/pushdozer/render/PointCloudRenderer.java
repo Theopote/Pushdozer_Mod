@@ -85,7 +85,7 @@ public class PointCloudRenderer {
             } else if (shape instanceof TetrahedronShape tetrahedronShape) {
                 renderTetrahedronPoints(buffer, matrices.peek().getPositionMatrix(), center, (float) tetrahedronShape.getEdgeLength());
             } else if (shape instanceof TriangularPrismShape triangularPrismShape) {
-                renderTriangularPrismPoints(buffer, matrices.peek().getPositionMatrix(), center, (float) triangularPrismShape.getSideLength(), (float) triangularPrismShape.getHeight());
+                renderTriangularPrismPoints(buffer, matrices.peek().getPositionMatrix(), triangularPrismShape, basePos);
             } else if (shape instanceof BoxShape boxShape) {
                 // 使用BoxShape的边界框进行点云渲染
                 Box boundingBox = boxShape.getBoundingBox(new BlockPos((int) center.x, (int) center.y, (int) center.z));
@@ -359,22 +359,21 @@ public class PointCloudRenderer {
     /**
      * 渲染三棱柱表面点云
      */
-    private static void renderTriangularPrismPoints(VertexConsumer buffer, Matrix4f matrix, Vec3d center, float sideLength, float height) {
-        // 等边三角形的高
-        double triangleHeight = sideLength * Math.sqrt(3) / 2;
-        
-        // 底面三角形的3个顶点
+    private static void renderTriangularPrismPoints(VertexConsumer buffer, Matrix4f matrix, TriangularPrismShape prism, BlockPos basePos) {
+        Vec3d center = Vec3d.ofCenter(basePos);
+        float bottomY = prism.getPreviewBottomY(basePos);
+        float topY = prism.getPreviewTopY(basePos);
+
         Vec3d[] bottomVertices = {
-            center.add(0, -height / 2, triangleHeight / 2),                    // 顶部顶点
-            center.add(-sideLength / 2, -height / 2, -triangleHeight / 2),     // 左下顶点
-            center.add(sideLength / 2, -height / 2, -triangleHeight / 2)       // 右下顶点
+            center.add(prism.getCrossSectionVertexX(0), bottomY, prism.getCrossSectionVertexZ(0)),
+            center.add(prism.getCrossSectionVertexX(1), bottomY, prism.getCrossSectionVertexZ(1)),
+            center.add(prism.getCrossSectionVertexX(2), bottomY, prism.getCrossSectionVertexZ(2))
         };
 
-        // 顶面三角形的3个顶点
         Vec3d[] topVertices = {
-            center.add(0, height / 2, triangleHeight / 2),                    // 顶部顶点
-            center.add(-sideLength / 2, height / 2, -triangleHeight / 2),     // 左下顶点
-            center.add(sideLength / 2, height / 2, -triangleHeight / 2)       // 右下顶点
+            center.add(prism.getCrossSectionVertexX(0), topY, prism.getCrossSectionVertexZ(0)),
+            center.add(prism.getCrossSectionVertexX(1), topY, prism.getCrossSectionVertexZ(1)),
+            center.add(prism.getCrossSectionVertexX(2), topY, prism.getCrossSectionVertexZ(2))
         };
 
         // 只渲染3个矩形侧面，不渲染底面和顶面
