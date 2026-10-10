@@ -28,6 +28,8 @@ import java.util.List;
 public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     
     private List<BlockConfigRow> blockRows = new ArrayList<>();
+    private CyclingButtonWidget<PushdozerConfig.SurfaceConvertDistribution> distributionButton;
+    private ButtonWidget artificialSurfacesButton;
     private int panelHeight;
     private static final int MAX_BLOCKS = 5;
     private static final int ROW_HEIGHT = 20;
@@ -51,6 +53,9 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     @Override
     protected void initializeWidgets() {
         widgets.clear();
+        distributionButton = null;
+        artificialSurfacesButton = null;
+        confirmButton = null;
         if (blockRows == null) {
             blockRows = new ArrayList<>();
         } else {
@@ -107,6 +112,53 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
             currentY += ROW_HEIGHT + WIDGET_MARGIN;
         }
         currentY = addSurfaceConvertOptionWidgets(contentLeft, contentWidth, currentY);
+        layoutActionButtons(contentLeft, contentWidth, currentY);
+    }
+
+    private int addSurfaceConvertOptionWidgets(int contentLeft, int contentWidth, int currentY) {
+        distributionButton = CyclingButtonWidget.builder(
+                    PushdozerConfig.SurfaceConvertDistribution::getDisplayText,
+                    config.getSurfaceConvertDistribution())
+                .values(PushdozerConfig.SurfaceConvertDistribution.values())
+                .build(contentLeft, currentY, contentWidth, WIDGET_HEIGHT,
+                    Text.translatable("pushdozer.config.surface_convert_distribution",
+                        config.getSurfaceConvertDistribution().getDisplayText()),
+                    (button, value) -> {
+                        config.setSurfaceConvertDistribution(value);
+                        button.setMessage(Text.translatable("pushdozer.config.surface_convert_distribution",
+                            value.getDisplayText()));
+                    });
+        distributionButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.surface_convert_distribution")));
+        widgets.add(distributionButton);
+        currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
+
+        artificialSurfacesButton = ButtonWidget.builder(
+                artificialSurfacesLabel(config.isConvertArtificialSurfaces()),
+                button -> {
+                    config.setConvertArtificialSurfaces(!config.isConvertArtificialSurfaces());
+                    button.setMessage(artificialSurfacesLabel(config.isConvertArtificialSurfaces()));
+                })
+            .dimensions(contentLeft, currentY, contentWidth, WIDGET_HEIGHT)
+            .build();
+        artificialSurfacesButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.convert_artificial_surfaces")));
+        widgets.add(artificialSurfacesButton);
+        return currentY + WIDGET_HEIGHT + WIDGET_MARGIN;
+    }
+
+    private void repositionSurfaceConvertOptionWidgets(int contentLeft, int contentWidth, int currentY) {
+        if (distributionButton != null) {
+            distributionButton.setPosition(contentLeft, currentY);
+            distributionButton.setWidth(contentWidth);
+            currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
+        }
+        if (artificialSurfacesButton != null) {
+            artificialSurfacesButton.setPosition(contentLeft, currentY);
+            artificialSurfacesButton.setWidth(contentWidth);
+        }
+    }
+
+    private void layoutActionButtons(int contentLeft, int contentWidth, int currentY) {
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
         if (surfaceBlocks.size() == 1) {
             ButtonWidget addBlockButton = ButtonWidget.builder(
                             Text.translatable("pushdozer.config.add_block"),
@@ -172,35 +224,31 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         }
     }
 
-    private int addSurfaceConvertOptionWidgets(int contentLeft, int contentWidth, int currentY) {
-        CyclingButtonWidget<PushdozerConfig.SurfaceConvertDistribution> distributionButton =
-            CyclingButtonWidget.builder(
-                    PushdozerConfig.SurfaceConvertDistribution::getDisplayText,
-                    config.getSurfaceConvertDistribution())
-                .values(PushdozerConfig.SurfaceConvertDistribution.values())
-                .build(contentLeft, currentY, contentWidth, WIDGET_HEIGHT,
-                    Text.translatable("pushdozer.config.surface_convert_distribution",
-                        config.getSurfaceConvertDistribution().getDisplayText()),
-                    (button, value) -> {
-                        config.setSurfaceConvertDistribution(value);
-                        button.setMessage(Text.translatable("pushdozer.config.surface_convert_distribution",
-                            value.getDisplayText()));
-                    });
-        distributionButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.surface_convert_distribution")));
-        widgets.add(distributionButton);
-        currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
+    private void repositionActionButtons(int contentLeft, int contentWidth, int currentY) {
+        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
+        int halfWidth = (contentWidth - WIDGET_MARGIN) / 2;
+        if (surfaceBlocks.size() == 1) {
+            setWidgetPosition(widgets.size() - 2, contentLeft, currentY);
+            setWidgetPosition(widgets.size() - 1, contentLeft, currentY + WIDGET_HEIGHT + WIDGET_MARGIN);
+        } else if (surfaceBlocks.size() >= 2 && surfaceBlocks.size() < MAX_BLOCKS) {
+            setWidgetPosition(widgets.size() - 3, contentLeft, currentY);
+            setWidgetPosition(widgets.size() - 2, contentLeft + halfWidth + WIDGET_MARGIN, currentY);
+            setWidgetPosition(widgets.size() - 1, contentLeft, currentY + WIDGET_HEIGHT + WIDGET_MARGIN);
+        } else if (surfaceBlocks.size() == MAX_BLOCKS) {
+            setWidgetPosition(widgets.size() - 2, contentLeft, currentY);
+            setWidgetPosition(widgets.size() - 1, contentLeft + halfWidth + WIDGET_MARGIN, currentY);
+        }
 
-        ButtonWidget artificialButton = ButtonWidget.builder(
-                artificialSurfacesLabel(config.isConvertArtificialSurfaces()),
-                button -> {
-                    config.setConvertArtificialSurfaces(!config.isConvertArtificialSurfaces());
-                    button.setMessage(artificialSurfacesLabel(config.isConvertArtificialSurfaces()));
-                })
-            .dimensions(contentLeft, currentY, contentWidth, WIDGET_HEIGHT)
-            .build();
-        artificialButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.convert_artificial_surfaces")));
-        widgets.add(artificialButton);
-        return currentY + WIDGET_HEIGHT + WIDGET_MARGIN;
+        if (widgets.getLast() instanceof ButtonWidget button) {
+            confirmButton = button;
+        }
+    }
+
+    private void setWidgetPosition(int index, int x, int y) {
+        if (index >= 0 && index < widgets.size()
+            && widgets.get(index) instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
+            clickableWidget.setPosition(x, y);
+        }
     }
 
     private static Text artificialSurfacesLabel(boolean enabled) {
@@ -358,53 +406,15 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
         int contentTop = panelTop + TITLE_HEIGHT + WIDGET_MARGIN;
         int contentWidth = PANEL_WIDTH - (WIDGET_MARGIN * 2);
         int currentY = contentTop;
-        
-        // 重新计算方块行的位置
+
         for (BlockConfigRow row : blockRows) {
             row.recalculatePosition(contentLeft, currentY, contentWidth);
             currentY += ROW_HEIGHT + WIDGET_MARGIN;
         }
-        
-        // 重新计算按钮位置（包括确认按钮）
-        List<SurfaceConfig.SurfaceConvertBlock> surfaceBlocks = config.getSurfaceConvertBlocks();
-        if (surfaceBlocks.size() == 1) {
-            // 重新定位添加方块按钮和确认按钮
-            if (widgets.size() >= 2) {
-                if (widgets.get(widgets.size() - 2) instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft, currentY);
-                }
-                currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
-                if (widgets.getLast() instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft, currentY);
-                }
-            }
-        } else if (surfaceBlocks.size() >= 2 && surfaceBlocks.size() < MAX_BLOCKS) {
-            // 重新定位添加方块按钮、均匀分布按钮和确认按钮
-            int halfWidth = (contentWidth - WIDGET_MARGIN) / 2;
-            if (widgets.size() >= 3) {
-                if (widgets.get(widgets.size() - 3) instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft, currentY);
-                }
-                if (widgets.get(widgets.size() - 2) instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft + halfWidth + WIDGET_MARGIN, currentY);
-                }
-                currentY += WIDGET_HEIGHT + WIDGET_MARGIN;
-                if (widgets.getLast() instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft, currentY);
-                }
-            }
-        } else if (surfaceBlocks.size() == MAX_BLOCKS) {
-            // 重新定位均匀分布按钮和确认按钮
-            int halfWidth = (contentWidth - WIDGET_MARGIN) / 2;
-            if (widgets.size() >= 2) {
-                if (widgets.get(widgets.size() - 2) instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft, currentY);
-                }
-                if (widgets.getLast() instanceof net.minecraft.client.gui.widget.ClickableWidget clickableWidget) {
-                    clickableWidget.setPosition(contentLeft + halfWidth + WIDGET_MARGIN, currentY);
-                }
-            }
-        }
+
+        repositionSurfaceConvertOptionWidgets(contentLeft, contentWidth, currentY);
+        currentY += OPTION_ROW_COUNT * (WIDGET_HEIGHT + WIDGET_MARGIN);
+        repositionActionButtons(contentLeft, contentWidth, currentY);
     }
 
     /**
