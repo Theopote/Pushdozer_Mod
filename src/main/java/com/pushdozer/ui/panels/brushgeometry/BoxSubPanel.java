@@ -34,8 +34,6 @@ public class BoxSubPanel extends GeometrySubPanel {
         lengthSlider = addSlider(0, Text.translatable("pushdozer.config.length"), config.getLength());
         widthSlider = addSlider(1, Text.translatable("pushdozer.config.width"), config.getWidth());
         heightSlider = addSlider(2, Text.translatable("pushdozer.config.height"), config.getBoxHeight());
-        
-        System.out.println("BoxSubPanel initialized");
     }
 
     /**
