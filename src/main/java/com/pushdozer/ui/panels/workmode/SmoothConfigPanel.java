@@ -63,6 +63,7 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
                 btn -> selectVariant(PushdozerConfig.SmoothVariant.LOWER)
         ).dimensions(contentLeft, contentTop + 3 * rowHeight, contentWidth, WIDGET_HEIGHT).build();
         widgets.add(lowerButton);
+        applyVariantTooltips();
 
         float currentStrength = config.getSmoothStrength();
         strengthSlider = new SliderWidget(
@@ -126,6 +127,13 @@ public class SmoothConfigPanel extends WorkModeConfigPanel {
         config.setSmoothVariant(variant);
         updateVariantButtons();
         updateStrengthSliderPresentation();
+    }
+
+    private void applyVariantTooltips() {
+        standardButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_variant.standard")));
+        adaptiveButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_variant.adaptive")));
+        raiseButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_variant.raise")));
+        lowerButton.setTooltip(Tooltip.of(Text.translatable("pushdozer.tooltip.smooth_variant.lower")));
     }
 
     private void updateVariantButtons() {
