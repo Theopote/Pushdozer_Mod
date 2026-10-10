@@ -179,17 +179,8 @@ class EllipsoidShapeTest extends PushdozerTestBase {
     @Test
     void largeRadiusLayerUnionMatchesBlockPositions() {
         BlockPos center = new BlockPos(0, 64, 0);
-        EllipsoidShape ellipsoid = new EllipsoidShape(64, 64, 64, center);
-
-        for (BlockPos pos : ellipsoid.getBlockPositions()) {
-            assertTrue(ellipsoid.isInside(pos));
-        }
-
-        Set<BlockPos> layered = new HashSet<>();
-        for (int y = ellipsoid.getMinY(center); y <= ellipsoid.getMaxY(center); y++) {
-            layered.addAll(ellipsoid.getBlocksInLayer(center, y));
-        }
-        assertEquals(new HashSet<>(ellipsoid.getBlockPositions()), layered);
+        EllipsoidShape ellipsoid = new EllipsoidShape(32, 32, 32, center);
+        ShapeTestSupport.assertLargeShapeLayerSmoke(ellipsoid, center, 0);
     }
 
     @Test

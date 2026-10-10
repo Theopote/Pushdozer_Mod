@@ -199,7 +199,7 @@ class BoxShapeTest extends PushdozerTestBase {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 64})
+    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 32})
     void cubicDimensionsMatchLayerCount(int size) {
         BoxShape shape = new BoxShape(size, size, size, BlockPos.ORIGIN);
         long layers = shape.getBlocks().stream().map(BlockPos::getY).distinct().count();

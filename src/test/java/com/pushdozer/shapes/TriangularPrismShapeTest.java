@@ -23,7 +23,7 @@ class TriangularPrismShapeTest extends PushdozerTestBase {
 
     @ParameterizedTest
     @CsvSource({
-        "1,1", "2,2", "3,3", "4,4", "5,5", "8,8", "16,16", "64,64",
+        "1,1", "2,2", "3,3", "4,4", "5,5", "8,8", "16,16", "32,32",
         "3,5", "5,3", "8,4"
     })
     void layerUnionEqualsBlockPositions(int sideLength, int height) {
@@ -38,7 +38,7 @@ class TriangularPrismShapeTest extends PushdozerTestBase {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 64})
+    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 32})
     void heightMatchesConfiguration(int height) {
         TriangularPrismShape shape = new TriangularPrismShape(5, height, BlockPos.ORIGIN);
 

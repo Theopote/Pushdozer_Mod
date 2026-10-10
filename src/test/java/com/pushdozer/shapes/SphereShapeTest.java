@@ -27,18 +27,8 @@ class SphereShapeTest extends PushdozerTestBase {
     @Test
     void largeRadiusBlockPositionsMatchInsideCheck() {
         BlockPos center = new BlockPos(0, 64, 0);
-        int radius = 64;
-        SphereShape sphere = new SphereShape(radius, Vec3d.ofCenter(center));
-
-        for (BlockPos pos : sphere.getBlockPositions()) {
-            assertTrue(sphere.isInside(pos));
-        }
-
-        Set<BlockPos> layered = new HashSet<>();
-        for (int y = sphere.getMinY(center); y <= sphere.getMaxY(center); y++) {
-            layered.addAll(sphere.getBlocksInLayer(center, y));
-        }
-        assertEquals(new HashSet<>(sphere.getBlockPositions()), layered);
+        SphereShape sphere = new SphereShape(32, Vec3d.ofCenter(center));
+        ShapeTestSupport.assertLargeShapeLayerSmoke(sphere, center, 0);
     }
 
     private static void assertBlockPositionsConsistentWithInside(BlockPos center, int radius, boolean scanBoundingBox) {

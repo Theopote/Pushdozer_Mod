@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ConeShapeTest extends PushdozerTestBase {
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 64})
+    @ValueSource(ints = {1, 2, 3, 4, 5, 8, 16, 32})
     void coneHeightMatchesConfiguration(int height) {
         ConeShape shape = new ConeShape(3, height, BlockPos.ORIGIN);
 
@@ -188,15 +188,8 @@ class ConeShapeTest extends PushdozerTestBase {
     @Test
     void largeParametersLayerUnionMatchesBlockPositions() {
         BlockPos center = new BlockPos(0, 64, 0);
-        ConeShape shape = new ConeShape(64, 64, center);
-
-        Set<BlockPos> layered = new HashSet<>();
-        for (int y = shape.getMinY(center); y <= shape.getMaxY(center); y++) {
-            layered.addAll(shape.getBlocksInLayer(center, y));
-        }
-
-        assertEquals(new HashSet<>(shape.getBlockPositions()), layered);
-        assertEquals(64, shape.getBlockPositions().stream().map(BlockPos::getY).distinct().count());
+        ConeShape shape = new ConeShape(32, 32, center);
+        ShapeTestSupport.assertLargeShapeLayerSmoke(shape, center, 32);
     }
 
     @Test

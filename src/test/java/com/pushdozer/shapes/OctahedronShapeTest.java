@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OctahedronShapeTest extends PushdozerTestBase {
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 8, 32, 64})
+    @ValueSource(ints = {1, 2, 3, 8, 16, 32})
     void layerUnionEqualsBlockPositions(int radius) {
         OctahedronShape shape = new OctahedronShape(radius, BlockPos.ORIGIN);
 

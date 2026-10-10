@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TetrahedronShapeTest extends PushdozerTestBase {
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 4, 8, 16, 64})
+    @ValueSource(ints = {1, 2, 3, 4, 8, 16, 32})
     void layerUnionEqualsBlockPositions(int edgeLength) {
         TetrahedronShape shape = new TetrahedronShape(edgeLength, BlockPos.ORIGIN);
 

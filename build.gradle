@@ -111,6 +111,7 @@ java {
 
 test {
 	useJUnitPlatform()
+	maxHeapSize = "768m"
 }
 
 tasks.named("check").configure {
