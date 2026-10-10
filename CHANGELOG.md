@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.2] - 2026-10-10
+
+### Changed
+- Smooth raise/lower slider labels now vary by variant (Raise Depth / Lower Depth)
+- Chinese surface convert toggle label: "Allow converting artificial blocks"
+- Version 1.1.2; `fabric.mod.json` version injected from Gradle
+
 ## [1.1.1] - 2026-07-14
 
 ### Added
@@ -33,5 +40,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - Java 21 required
 - Fabric Loader ≥ 0.18.2
 
-[1.1.1]: https://github.com/Theopote/pushdozer/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/Theopote/pushdozer/releases/tag/v1.1.0
+[1.1.2]: https://github.com/Theopote/Pushdozer_Mod/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/Theopote/Pushdozer_Mod/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/Theopote/Pushdozer_Mod/releases/tag/v1.1.0

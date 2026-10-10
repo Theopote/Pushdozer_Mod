@@ -16,7 +16,7 @@ Pushdozer is a Fabric mod for large-scale terrain editing. Multiple work modes, 
 - Java **21**
 
 ### Links
-- Source: [github.com/Theopote/pushdozer](https://github.com/Theopote/pushdozer)
+- Source: [github.com/Theopote/Pushdozer_Mod](https://github.com/Theopote/Pushdozer_Mod)
 - Docs: [Pushdozer-Introduction](https://theopote.github.io/Pushdozer-Introduction/)
 - Discord: [discord.gg/jjr8WmPZ](https://discord.gg/jjr8WmPZ)
 

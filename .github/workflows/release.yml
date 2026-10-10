@@ -27,9 +27,22 @@ jobs:
       - name: Build
         run: ./gradlew build --no-daemon
 
+      - name: Prepare release artifacts
+        run: |
+          VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2)
+          echo "MOD_JAR=build/libs/pushdozer-${VERSION}.jar" >> $GITHUB_ENV
+          echo "SOURCES_JAR=build/libs/pushdozer-${VERSION}-sources.jar" >> $GITHUB_ENV
+
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/libs/pushdozer-*.jar
+            ${{ env.MOD_JAR }}
+            ${{ env.SOURCES_JAR }}
+          body: |
+            ## Installation
+
+            Download **pushdozer-*.jar** (without `-sources`) and place it in your `.minecraft/mods` folder.
+
+            The `-sources.jar` attachment is for developers only.
           generate_release_notes: true

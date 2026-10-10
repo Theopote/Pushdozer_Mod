@@ -48,3 +48,7 @@ config/pushdozer_config.json
 FIXES_SUMMARY.md
 OPTIMIZATION_REPORT.md
 /logs
+
+# accidentally committed binaries (dependencies come from Gradle)
+lib/
+net/

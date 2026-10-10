@@ -14,8 +14,8 @@ Gradle will download Minecraft, Fabric, and other dependencies automatically.
 ### Setup
 
 ```bash
-git clone https://github.com/Theopote/pushdozer.git
-cd pushdozer
+git clone https://github.com/Theopote/Pushdozer_Mod.git
+cd Pushdozer_Mod
 ./gradlew build
 ```
 
@@ -53,7 +53,7 @@ On Windows, use `gradlew.bat` instead of `./gradlew`.
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/Theopote/pushdozer/issues) and include:
+Use [GitHub Issues](https://github.com/Theopote/Pushdozer_Mod/issues) and include:
 
 - Minecraft version, Fabric Loader version, Pushdozer version
 - Steps to reproduce
