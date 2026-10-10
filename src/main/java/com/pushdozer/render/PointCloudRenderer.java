@@ -73,7 +73,8 @@ public class PointCloudRenderer {
             if (shape instanceof SphereShape sphere) {
                 renderSpherePoints(buffer, matrices.peek().getPositionMatrix(), center, (float) sphere.getRadius());
             } else if (shape instanceof ConeShape cone) {
-                renderConePoints(buffer, matrices.peek().getPositionMatrix(), center, (float) cone.getBaseRadius(), (float) cone.getHeight());
+                renderConePoints(buffer, matrices.peek().getPositionMatrix(), center, (float) cone.getBaseRadius(),
+                    cone.getPreviewBottomY(basePos), cone.getPreviewTopY(basePos));
             } else if (shape instanceof CylinderShape cylinder) {
                 renderCylinderPoints(buffer, matrices.peek().getPositionMatrix(), center, (float) cylinder.getRadius(),
                     cylinder.getPreviewBottomY(basePos), cylinder.getPreviewTopY(basePos));
@@ -137,24 +138,21 @@ public class PointCloudRenderer {
     /**
      * 渲染圆锥体表面点云
      */
-    private static void renderConePoints(VertexConsumer buffer, Matrix4f matrix, Vec3d center, float radius, float height) {
-        // 底面圆周点（y = -h/2）
-        double bottomY = -height / 2.0;
+    private static void renderConePoints(VertexConsumer buffer, Matrix4f matrix, Vec3d center, float radius, float bottomY, float topY) {
+        double previewHeight = topY - bottomY;
         for (int i = 0; i < DEFAULT_SEGMENTS; i++) {
             double angle = i * 2 * Math.PI / DEFAULT_SEGMENTS;
             Vec3d basePoint = center.add(radius * Math.cos(angle), bottomY, radius * Math.sin(angle));
             addPointAsLine(buffer, matrix, basePoint);
         }
-        // 顶点（y = +h/2）
-        Vec3d apex = center.add(0, height / 2.0, 0);
+        Vec3d apex = center.add(0, topY, 0);
         addPointAsLine(buffer, matrix, apex);
-        // 侧面点
         for (int i = 0; i < DEFAULT_SEGMENTS; i++) {
             double angle = i * 2 * Math.PI / DEFAULT_SEGMENTS;
             for (int h = 0; h <= HEIGHT_SEGMENTS; h++) {
                 double heightRatio = h / (double) HEIGHT_SEGMENTS;
                 double currentRadius = radius * (1 - heightRatio);
-                double y = bottomY + height * heightRatio;
+                double y = bottomY + previewHeight * heightRatio;
                 Vec3d sidePoint = center.add(
                         currentRadius * Math.cos(angle),
                         y,

@@ -37,7 +37,7 @@ public class WireframeRenderer {
                     case SphereShape sphere -> renderSphereWireframe(lines, matrices.peek().getPositionMatrix(),
                             (float) sphere.getRadius());
                     case ConeShape cone -> renderConeWireframe(lines, matrices.peek().getPositionMatrix(),
-                            cone.getBaseRadius(), cone.getHeight());
+                            cone.getBaseRadius(), cone.getPreviewBottomY(basePos), cone.getPreviewTopY(basePos));
                     case CylinderShape cylinder -> renderCylinderWireframe(lines, matrices.peek().getPositionMatrix(),
                             cylinder.getRadius(), cylinder.getPreviewBottomY(basePos), cylinder.getPreviewTopY(basePos));
                     case EllipsoidShape ellipsoid ->
@@ -125,11 +125,9 @@ public class WireframeRenderer {
         }
     }
 
-    private static void renderConeWireframe(VertexConsumer lines, Matrix4f matrix, int baseRadius, int height) {
+    private static void renderConeWireframe(VertexConsumer lines, Matrix4f matrix, int baseRadius, float bottomY, float topY) {
         int segments = 32;
         Vec3d lastPoint = null;
-        float bottomY = -height / 2f;
-        float topY = height / 2f;
         for (int i = 0; i <= segments; i++) {
             double angle = i * 2 * Math.PI / segments;
             float x = (float)(baseRadius * Math.cos(angle));

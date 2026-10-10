@@ -9,6 +9,7 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 圆锥体形状类
@@ -16,23 +17,29 @@ import java.util.List;
 public class ConeShape implements GeometryShape {
     private final int baseRadius;
     private final int height;
+    private final double[] layerRadiusSquared;
+    private Vec3d coneCenter;
     private BlockPos center;
 
     public ConeShape(int baseRadius, int height, BlockPos center) {
+        if (baseRadius <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Cone base radius and height must be positive");
+        }
         this.baseRadius = baseRadius;
         this.height = height;
         this.center = center;
+        this.coneCenter = Vec3d.ofCenter(center);
+        this.layerRadiusSquared = computeLayerRadiusSquared();
     }
 
     @Override
     public Box getBoundingBox(BlockPos basePos) {
+        Vec3d worldCenter = resolveWorldCenter(basePos);
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
         return new Box(
-            basePos.getX() - baseRadius,
-            basePos.getY() - height / 2,
-            basePos.getZ() - baseRadius,
-            basePos.getX() + baseRadius + 1,
-            basePos.getY() + height / 2 + 1,
-            basePos.getZ() + baseRadius + 1
+            worldCenter.x - baseRadius, minY, worldCenter.z - baseRadius,
+            worldCenter.x + baseRadius, maxY + 1, worldCenter.z + baseRadius
         );
     }
 
@@ -48,143 +55,100 @@ public class ConeShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        double dx = pos.x - center.getX();
-        double dz = pos.z - center.getZ();
-        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
-        
-        double y = pos.y - center.getY();
-        if (y < -height / 2 || y > height / 2) {
-            return false;
-        }
-        
-        // 计算在当前高度的半径
-        double radiusAtHeight = baseRadius * (1.0 - (y + height / 2) / height);
-        return distanceXZ <= radiusAtHeight;
+        return isInsideAt(pos, coneCenter, center);
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        double dx = pos.getX() - center.getX();
-        double dz = pos.getZ() - center.getZ();
-        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
-        
-        int y = pos.getY() - center.getY();
-        if (y < -height / 2 || y > height / 2) {
-            return false;
-        }
-        
-        // 计算在当前高度的半径
-        double radiusAtHeight = baseRadius * (1.0 - (y + height / 2.0) / height);
-        return distanceXZ <= radiusAtHeight;
+        return isInside(Vec3d.ofCenter(pos));
     }
 
     @Override
     public int getMinY(BlockPos basePos) {
-        return basePos.getY() - height / 2;
+        return computeMinY(basePos);
     }
 
     @Override
     public int getMaxY(BlockPos basePos) {
-        return basePos.getY() + height / 2;
+        return computeMaxY(basePos);
     }
 
     @Override
     public List<BlockPos> getBlocksInLayer(BlockPos basePos, int y) {
         List<BlockPos> positions = new ArrayList<>();
-        
-        // 垂直方向：检查Y坐标是否在高度范围内（世界坐标）
-        int relativeY = y - basePos.getY();
-        if (relativeY >= -height / 2 && relativeY <= height / 2) {
-            // 计算在当前高度的半径
-            double radiusAtHeight = baseRadius * (1.0 - (relativeY + height / 2.0) / height);
-            int radius = (int) Math.ceil(radiusAtHeight);
-            
-            for (int x = basePos.getX() - radius; x <= basePos.getX() + radius; x++) {
-                for (int z = basePos.getZ() - radius; z <= basePos.getZ() + radius; z++) {
-                    double dx = x - basePos.getX();
-                    double dz = z - basePos.getZ();
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= radiusAtHeight) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
+        if (y < minY || y > maxY) {
+            return positions;
+        }
+
+        int layerIndex = y - minY;
+        double radiusSquared = layerRadiusSquared[layerIndex];
+        if (radiusSquared <= 0) {
+            positions.add(new BlockPos(basePos.getX(), y, basePos.getZ()));
+            return positions;
+        }
+
+        int scanRadius = (int) Math.ceil(Math.sqrt(radiusSquared));
+        for (int x = basePos.getX() - scanRadius; x <= basePos.getX() + scanRadius; x++) {
+            for (int z = basePos.getZ() - scanRadius; z <= basePos.getZ() + scanRadius; z++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                if (isInside(pos)) {
+                    positions.add(pos);
                 }
             }
         }
-        
         return positions;
     }
 
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> positions = new ArrayList<>();
-        
-        int centerX = center.getX();
-        int centerY = center.getY();
-        int centerZ = center.getZ();
-        
-        int minY = centerY - height / 2;
-        int maxY = centerY + height / 2;
-        
+        int minY = getMinY(center);
+        int maxY = getMaxY(center);
         for (int y = minY; y <= maxY; y++) {
-            int relativeY = y - centerY; // [-h/2, +h/2]
-            double radiusAtHeight = baseRadius * (1.0 - (relativeY + height / 2.0) / height);
-            int radius = (int) Math.ceil(radiusAtHeight);
-            
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-                    double dx = x - centerX;
-                    double dz = z - centerZ;
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= radiusAtHeight) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+            positions.addAll(getBlocksInLayer(center, y));
         }
-        
         return positions;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> positions = new ArrayList<>();
-        BlockPos centerPos = BlockPos.ofFloored(center);
-        
-        int coneCenterY = this.center.getY();
-        int minY = coneCenterY - height / 2;
-        int maxY = coneCenterY + height / 2;
-        
-        for (int y = Math.max(minY, centerPos.getY() - maxDistance); y <= Math.min(maxY, centerPos.getY() + maxDistance); y++) {
-            int relativeY = y - coneCenterY;
-            double radiusAtHeight = baseRadius * (1.0 - (relativeY + height / 2.0) / height);
-            int searchRadius = (int) Math.min(radiusAtHeight, maxDistance);
-            
-            for (int x = this.center.getX() - searchRadius; x <= this.center.getX() + searchRadius; x++) {
-                for (int z = this.center.getZ() - searchRadius; z <= this.center.getZ() + searchRadius; z++) {
-                    double dx = x - this.center.getX();
-                    double dz = z - this.center.getZ();
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= searchRadius) {
-                        positions.add(new BlockPos(x, y, z));
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        Box coneBounds = getBoundingBox(center);
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(coneBounds.minX));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(coneBounds.maxX));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(coneBounds.minY));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(coneBounds.maxY));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(coneBounds.minZ));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(coneBounds.maxZ));
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
+                        positions.add(pos);
                     }
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return isInsideAt(Vec3d.ofCenter(pos), resolveWorldCenter(basePos), basePos);
     }
 
     @Override
-    public void setCenter(BlockPos center) {
-        this.center = center;
+    public void setCenter(BlockPos newCenter) {
+        this.center = newCenter;
+        this.coneCenter = Vec3d.ofCenter(newCenter);
     }
 
     @Override
@@ -194,7 +158,7 @@ public class ConeShape implements GeometryShape {
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlockPositions().iterator();
+        return new LayerBlockIterator(center, getMinY(center), getMaxY(center));
     }
 
     @Override
@@ -209,4 +173,106 @@ public class ConeShape implements GeometryShape {
     public int getHeight() {
         return height;
     }
-} 
+
+    public float getPreviewBottomY(BlockPos basePos) {
+        return computeMinY(basePos) - (basePos.getY() + 0.5f);
+    }
+
+    public float getPreviewTopY(BlockPos basePos) {
+        return computeMaxY(basePos) + 1 - (basePos.getY() + 0.5f);
+    }
+
+    private int computeMinY(BlockPos basePos) {
+        return basePos.getY() - (height - 1) / 2;
+    }
+
+    private int computeMaxY(BlockPos basePos) {
+        return computeMinY(basePos) + height - 1;
+    }
+
+    private double radiusAtLayer(int layerIndex) {
+        if (height == 1) {
+            return baseRadius;
+        }
+        double t = (double) layerIndex / (height - 1);
+        return baseRadius * (1.0 - t);
+    }
+
+    private double radiusAtY(Vec3d pos, BlockPos basePos) {
+        if (height == 1) {
+            return baseRadius;
+        }
+        double minCenterY = computeMinY(basePos) + 0.5;
+        double maxCenterY = computeMaxY(basePos) + 0.5;
+        double t = (pos.y - minCenterY) / (maxCenterY - minCenterY);
+        t = Math.max(0.0, Math.min(1.0, t));
+        return baseRadius * (1.0 - t);
+    }
+
+    private boolean isInsideAt(Vec3d pos, Vec3d axisCenter, BlockPos basePos) {
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
+        if (pos.y < minY || pos.y >= maxY + 1) {
+            return false;
+        }
+
+        double dx = pos.x - axisCenter.x;
+        double dz = pos.z - axisCenter.z;
+        double radiusAtY = radiusAtY(pos, basePos);
+        return dx * dx + dz * dz <= radiusAtY * radiusAtY;
+    }
+
+    private Vec3d resolveWorldCenter(BlockPos basePos) {
+        return coneCenter.add(
+            basePos.getX() - center.getX(),
+            basePos.getY() - center.getY(),
+            basePos.getZ() - center.getZ()
+        );
+    }
+
+    private double[] computeLayerRadiusSquared() {
+        double[] radiiSquared = new double[height];
+        for (int layerIndex = 0; layerIndex < height; layerIndex++) {
+            double radius = radiusAtLayer(layerIndex);
+            radiiSquared[layerIndex] = radius * radius;
+        }
+        return radiiSquared;
+    }
+
+    private final class LayerBlockIterator implements Iterator<BlockPos> {
+        private final BlockPos basePos;
+        private final int maxY;
+        private int currentY;
+        private Iterator<BlockPos> currentLayer = List.<BlockPos>of().iterator();
+
+        private LayerBlockIterator(BlockPos basePos, int minY, int maxY) {
+            this.basePos = basePos;
+            this.maxY = maxY;
+            this.currentY = minY - 1;
+            advanceLayer();
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (!currentLayer.hasNext() && currentY < maxY) {
+                advanceLayer();
+            }
+            return currentLayer.hasNext();
+        }
+
+        @Override
+        public BlockPos next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return currentLayer.next();
+        }
+
+        private void advanceLayer() {
+            currentY++;
+            if (currentY <= maxY) {
+                currentLayer = getBlocksInLayer(basePos, currentY).iterator();
+            }
+        }
+    }
+}
