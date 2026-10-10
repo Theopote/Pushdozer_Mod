@@ -9,30 +9,36 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * 圆柱体形状类
  */
 public class CylinderShape implements GeometryShape {
     private final int radius;
+    private final int radiusSquared;
     private final int height;
+    private final List<BlockPos> xzOffsets;
+    private Vec3d cylinderCenter;
     private BlockPos center;
 
     public CylinderShape(int radius, int height, BlockPos center) {
         this.radius = radius;
+        this.radiusSquared = radius * radius;
         this.height = height;
         this.center = center;
+        this.cylinderCenter = Vec3d.ofCenter(center);
+        this.xzOffsets = computeXzOffsets();
     }
 
     @Override
     public Box getBoundingBox(BlockPos basePos) {
+        Vec3d worldCenter = resolveWorldCenter(basePos);
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
         return new Box(
-            basePos.getX() - radius,
-            basePos.getY() - height / 2,
-            basePos.getZ() - radius,
-            basePos.getX() + radius + 1,
-            basePos.getY() + height / 2 + 1,
-            basePos.getZ() + radius + 1
+            worldCenter.x - radius, minY, worldCenter.z - radius,
+            worldCenter.x + radius, maxY + 1, worldCenter.z + radius
         );
     }
 
@@ -48,94 +54,74 @@ public class CylinderShape implements GeometryShape {
 
     @Override
     public boolean isInside(Vec3d pos) {
-        double dx = pos.x - center.getX();
-        double dz = pos.z - center.getZ();
-        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
-        
-        return distanceXZ <= radius && 
-               pos.y >= center.getY() - height / 2 && 
-               pos.y <= center.getY() + height / 2;
+        return isInsideAt(pos, cylinderCenter, center);
     }
 
     @Override
     public boolean isInside(BlockPos pos) {
-        double dx = pos.getX() - center.getX();
-        double dz = pos.getZ() - center.getZ();
-        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
-        
-        return distanceXZ <= radius && 
-               pos.getY() >= center.getY() - height / 2 && 
-               pos.getY() <= center.getY() + height / 2;
+        return isInside(Vec3d.ofCenter(pos));
     }
 
     @Override
     public int getMinY(BlockPos basePos) {
-        return basePos.getY() - height / 2;
+        return computeMinY(basePos);
     }
 
     @Override
     public int getMaxY(BlockPos basePos) {
-        return basePos.getY() + height / 2;
+        return computeMaxY(basePos);
     }
 
     @Override
     public List<BlockPos> getBlocksInLayer(BlockPos basePos, int y) {
         List<BlockPos> positions = new ArrayList<>();
-        
-        // 检查Y坐标是否在高度范围内（世界坐标）
-        if (y >= basePos.getY() - height / 2 && y <= basePos.getY() + height / 2) {
-            for (int x = basePos.getX() - radius; x <= basePos.getX() + radius; x++) {
-                for (int z = basePos.getZ() - radius; z <= basePos.getZ() + radius; z++) {
-                    double dx = x - basePos.getX();
-                    double dz = z - basePos.getZ();
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= radius) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+        if (y < computeMinY(basePos) || y > computeMaxY(basePos)) {
+            return positions;
         }
-        
+
+        for (BlockPos offset : xzOffsets) {
+            positions.add(new BlockPos(basePos.getX() + offset.getX(), y, basePos.getZ() + offset.getZ()));
+        }
         return positions;
     }
 
     @Override
-    public List<BlockPos> getBlocksInRadius(Vec3d center, int maxDistance) {
+    public List<BlockPos> getBlocksInRadius(Vec3d queryCenter, int maxDistance) {
         List<BlockPos> positions = new ArrayList<>();
-        BlockPos centerPos = BlockPos.ofFloored(center);
-        
-        int cylinderCenterY = this.center.getY();
-        int minY = cylinderCenterY - height / 2;
-        int maxY = cylinderCenterY + height / 2;
-        
-        int searchRadius = Math.min(radius, maxDistance);
-        
-        for (int y = Math.max(minY, centerPos.getY() - maxDistance); y <= Math.min(maxY, centerPos.getY() + maxDistance); y++) {
-            for (int x = this.center.getX() - searchRadius; x <= this.center.getX() + searchRadius; x++) {
-                for (int z = this.center.getZ() - searchRadius; z <= this.center.getZ() + searchRadius; z++) {
-                    double dx = x - this.center.getX();
-                    double dz = z - this.center.getZ();
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= searchRadius) {
-                        positions.add(new BlockPos(x, y, z));
+        BlockPos queryBlock = BlockPos.ofFloored(queryCenter);
+        double maxDistanceSquared = (double) maxDistance * maxDistance;
+
+        Box cylinderBounds = getBoundingBox(center);
+        int minX = Math.max(queryBlock.getX() - maxDistance, (int) Math.floor(cylinderBounds.minX));
+        int maxX = Math.min(queryBlock.getX() + maxDistance, (int) Math.ceil(cylinderBounds.maxX));
+        int minY = Math.max(queryBlock.getY() - maxDistance, (int) Math.floor(cylinderBounds.minY));
+        int maxY = Math.min(queryBlock.getY() + maxDistance, (int) Math.ceil(cylinderBounds.maxY));
+        int minZ = Math.max(queryBlock.getZ() - maxDistance, (int) Math.floor(cylinderBounds.minZ));
+        int maxZ = Math.min(queryBlock.getZ() + maxDistance, (int) Math.ceil(cylinderBounds.maxZ));
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (isInside(pos) && Vec3d.ofCenter(pos).squaredDistanceTo(queryCenter) <= maxDistanceSquared) {
+                        positions.add(pos);
                     }
                 }
             }
         }
-        
+
         return positions;
     }
 
     @Override
     public boolean isWithinBounds(BlockPos pos, BlockPos basePos) {
-        return isInside(pos);
+        return isInsideAt(Vec3d.ofCenter(pos), resolveWorldCenter(basePos), basePos);
     }
 
     @Override
-    public void setCenter(BlockPos center) {
-        this.center = center;
+    public void setCenter(BlockPos newCenter) {
+        this.center = newCenter;
+        this.cylinderCenter = Vec3d.ofCenter(newCenter);
     }
 
     @Override
@@ -145,7 +131,7 @@ public class CylinderShape implements GeometryShape {
 
     @Override
     public Iterator<BlockPos> getBlocksIterator() {
-        return getBlockPositions().iterator();
+        return new LayerBlockIterator(center, getMinY(center), getMaxY(center));
     }
 
     @Override
@@ -156,28 +142,11 @@ public class CylinderShape implements GeometryShape {
     @Override
     public List<BlockPos> getBlockPositions() {
         List<BlockPos> positions = new ArrayList<>();
-        
-        int centerX = center.getX();
-        int centerY = center.getY();
-        int centerZ = center.getZ();
-        
-        int minY = centerY - height / 2;
-        int maxY = centerY + height / 2;
-        
+        int minY = getMinY(center);
+        int maxY = getMaxY(center);
         for (int y = minY; y <= maxY; y++) {
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-                    double dx = x - centerX;
-                    double dz = z - centerZ;
-                    double distance = Math.sqrt(dx * dx + dz * dz);
-                    
-                    if (distance <= radius) {
-                        positions.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
+            positions.addAll(getBlocksInLayer(center, y));
         }
-        
         return positions;
     }
 
@@ -188,4 +157,88 @@ public class CylinderShape implements GeometryShape {
     public int getHeight() {
         return height;
     }
-} 
+
+    public float getPreviewBottomY(BlockPos basePos) {
+        return computeMinY(basePos) - (basePos.getY() + 0.5f);
+    }
+
+    public float getPreviewTopY(BlockPos basePos) {
+        return computeMaxY(basePos) + 1 - (basePos.getY() + 0.5f);
+    }
+
+    private int computeMinY(BlockPos basePos) {
+        return basePos.getY() - (height - 1) / 2;
+    }
+
+    private int computeMaxY(BlockPos basePos) {
+        return computeMinY(basePos) + height - 1;
+    }
+
+    private boolean isInsideAt(Vec3d pos, Vec3d axisCenter, BlockPos basePos) {
+        double dx = pos.x - axisCenter.x;
+        double dz = pos.z - axisCenter.z;
+        if (dx * dx + dz * dz > radiusSquared) {
+            return false;
+        }
+        int minY = computeMinY(basePos);
+        int maxY = computeMaxY(basePos);
+        return pos.y >= minY && pos.y < maxY + 1;
+    }
+
+    private Vec3d resolveWorldCenter(BlockPos basePos) {
+        return cylinderCenter.add(
+            basePos.getX() - center.getX(),
+            basePos.getY() - center.getY(),
+            basePos.getZ() - center.getZ()
+        );
+    }
+
+    private List<BlockPos> computeXzOffsets() {
+        List<BlockPos> offsets = new ArrayList<>();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                if (x * x + z * z <= radiusSquared) {
+                    offsets.add(new BlockPos(x, 0, z));
+                }
+            }
+        }
+        return List.copyOf(offsets);
+    }
+
+    private final class LayerBlockIterator implements Iterator<BlockPos> {
+        private final BlockPos basePos;
+        private final int maxY;
+        private int currentY;
+        private Iterator<BlockPos> currentLayer = List.<BlockPos>of().iterator();
+
+        private LayerBlockIterator(BlockPos basePos, int minY, int maxY) {
+            this.basePos = basePos;
+            this.maxY = maxY;
+            this.currentY = minY - 1;
+            advanceLayer();
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (!currentLayer.hasNext() && currentY < maxY) {
+                advanceLayer();
+            }
+            return currentLayer.hasNext();
+        }
+
+        @Override
+        public BlockPos next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            return currentLayer.next();
+        }
+
+        private void advanceLayer() {
+            currentY++;
+            if (currentY <= maxY) {
+                currentLayer = getBlocksInLayer(basePos, currentY).iterator();
+            }
+        }
+    }
+}
