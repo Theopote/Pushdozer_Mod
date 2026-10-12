@@ -1,10 +1,12 @@
 package com.pushdozer.items.handlers;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
 
 import com.pushdozer.PushdozerMod;
+import com.pushdozer.network.NetworkManager;
 import com.pushdozer.config.PushdozerConfig;
 import com.pushdozer.shapes.GeometryShape;
 import com.pushdozer.util.OperationPermissions;
@@ -133,6 +135,15 @@ public class ExcavationHandler implements TerrainToolHandler {
             boundaryExtension.newStates()
         );
         PushdozerMod.pushUndoAction(player, undoAction);
+
+        if (!Objects.requireNonNull(serverWorld.getServer()).isSingleplayer()) {
+            NetworkManager.broadcastTerrainOperation(
+                serverWorld,
+                "BREAK",
+                applied.positions(),
+                applied.appliedStates()
+            );
+        }
     }
 
     /**

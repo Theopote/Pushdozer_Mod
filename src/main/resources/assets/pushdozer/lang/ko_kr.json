@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "브러시 크기 %d이(가) 범위를 벗어났습니다 (%d–%d). 설정에서 조정하세요.",
   "pushdozer.message.operation_denied.region_busy": "대상 영역이 사용 중입니다. 현재 편집이 끝날 때까지 기다리세요.",
   "pushdozer.message.operation_denied.undo_conflict": "실행 취소/다시 실행을 적용할 수 없습니다: 영역 사용 중이거나 블록이 변경되었습니다.",
+  "pushdozer.message.undo_redo.partial.undo": "%1$s/%2$s개 블록 실행 취소됨 (일부 위치가 변경되었거나 사용 불가)",
+  "pushdozer.message.undo_redo.partial.redo": "%1$s/%2$s개 블록 다시 실행됨 (일부 위치가 변경되었거나 사용 불가)",
   "pushdozer.message.surface_convert.invalid_materials": "표면 변환 건너뜀: 구성에 유효한 대상 블록이 없습니다.",
   "pushdozer.config.surface_convert_distribution": "분포 모드: %s",
   "pushdozer.config.convert_artificial_surfaces": "인공 블록 허용: %s",

@@ -281,6 +281,234 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
+    @GameTest(maxTicks = 120, setupTicks = 20)
+
+    public void placementUndoRestoresPlacedBlocks(TestContext context) {
+
+        runWhenSchedulerIdle(context, 0, () -> {
+
+            ServerWorld world = context.getWorld();
+
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+
+            PushdozerConfig config = PushdozerGameTestSupport.createPlacementConfig();
+
+            List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
+
+            for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                PushdozerGameTestSupport.assertTrue(context,
+
+                    context.getBlockState(relative).isOf(Blocks.AIR),
+
+                    "Expected air before placement at " + relative
+
+                );
+
+                absoluteTargets.add(context.getAbsolutePos(relative));
+
+            }
+
+            new PlacementHandler().placeBlocksAt(player, world, config, absoluteTargets, Blocks.DIRT);
+
+            context.runAtTick(context.getTick() + 1, () -> {
+
+                for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                    PushdozerGameTestSupport.assertTrue(context,
+
+                        context.getBlockState(relative).isOf(Blocks.DIRT),
+
+                        "Expected dirt after placement at " + relative
+
+                    );
+
+                }
+
+                PushdozerGameTestSupport.assertTrue(context,
+
+                    PushdozerMod.getUndoStackSize(player) >= 1,
+
+                    "Expected undo entry after placement"
+
+                );
+
+                UndoRedoService.getInstance().undoLastAction(player, world);
+
+                context.runAtTick(context.getTick() + 1, () -> {
+
+                    for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                        PushdozerGameTestSupport.assertTrue(context,
+
+                            context.getBlockState(relative).isOf(Blocks.AIR),
+
+                            "Expected air restored after undo at " + relative
+
+                        );
+
+                    }
+
+                    context.complete();
+
+                });
+
+            });
+
+        });
+
+    }
+
+
+
+    @GameTest(maxTicks = 120, setupTicks = 20)
+
+    public void excavationRedoReappliesBreak(TestContext context) {
+
+        runWhenSchedulerIdle(context, 0, () -> {
+
+            ServerWorld world = context.getWorld();
+
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+
+            PushdozerConfig config = PushdozerGameTestSupport.createExcavationConfig(Blocks.STONE);
+
+            List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
+
+            for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                absoluteTargets.add(context.getAbsolutePos(relative));
+
+            }
+
+            new ExcavationHandler().excavateBlocksAt(player, world, config, absoluteTargets);
+
+            context.runAtTick(context.getTick() + 1, () -> {
+
+                UndoRedoService.getInstance().undoLastAction(player, world);
+
+                context.runAtTick(context.getTick() + 1, () -> {
+
+                    for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                        PushdozerGameTestSupport.assertTrue(context,
+
+                            context.getBlockState(relative).isOf(Blocks.STONE),
+
+                            "Expected stone restored after undo before redo at " + relative
+
+                        );
+
+                    }
+
+                    PushdozerGameTestSupport.runAfterUndoCooldown(context, () -> {
+
+                        UndoRedoService.getInstance().redoLastAction(player, world);
+
+                        context.runAtTick(context.getTick() + 1, () -> {
+
+                            for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                                PushdozerGameTestSupport.assertTrue(context,
+
+                                    context.getBlockState(relative).isOf(Blocks.AIR),
+
+                                    "Expected air after redo at " + relative
+
+                                );
+
+                            }
+
+                            context.complete();
+
+                        });
+
+                    });
+
+                });
+
+            });
+
+        });
+
+    }
+
+
+
+    @GameTest(maxTicks = 120, setupTicks = 20)
+
+    public void placementRedoReappliesPlacement(TestContext context) {
+
+        runWhenSchedulerIdle(context, 0, () -> {
+
+            ServerWorld world = context.getWorld();
+
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+
+            PushdozerConfig config = PushdozerGameTestSupport.createPlacementConfig();
+
+            List<BlockPos> absoluteTargets = new ArrayList<>(EXCAVATION_TARGETS.length);
+
+            for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                absoluteTargets.add(context.getAbsolutePos(relative));
+
+            }
+
+            new PlacementHandler().placeBlocksAt(player, world, config, absoluteTargets, Blocks.DIRT);
+
+            context.runAtTick(context.getTick() + 1, () -> {
+
+                UndoRedoService.getInstance().undoLastAction(player, world);
+
+                context.runAtTick(context.getTick() + 1, () -> {
+
+                    for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                        PushdozerGameTestSupport.assertTrue(context,
+
+                            context.getBlockState(relative).isOf(Blocks.AIR),
+
+                            "Expected air restored after undo before redo at " + relative
+
+                        );
+
+                    }
+
+                    PushdozerGameTestSupport.runAfterUndoCooldown(context, () -> {
+
+                        UndoRedoService.getInstance().redoLastAction(player, world);
+
+                        context.runAtTick(context.getTick() + 1, () -> {
+
+                            for (BlockPos relative : EXCAVATION_TARGETS) {
+
+                                PushdozerGameTestSupport.assertTrue(context,
+
+                                    context.getBlockState(relative).isOf(Blocks.DIRT),
+
+                                    "Expected dirt after redo at " + relative
+
+                                );
+
+                            }
+
+                            context.complete();
+
+                        });
+
+                    });
+
+                });
+
+            });
+
+        });
+
+    }
+
+
+
     private static class PacketRecordingUndoRedoManager extends UndoRedoManager {
 
         final AtomicInteger blockUpdatePackets = new AtomicInteger();
@@ -1234,6 +1462,22 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
             case "placementDoesNotTreatSolidSandAsReplaceable" ->
                     context.setBlockState(new BlockPos(1, 1, 1), Blocks.SAND.getDefaultState());
             case "excavationUndoRestoresBrokenBlocks" -> {
+
+                for (BlockPos target : EXCAVATION_TARGETS) {
+
+                    context.setBlockState(target, Blocks.STONE.getDefaultState());
+
+                }
+            }
+            case "placementUndoRestoresPlacedBlocks", "placementRedoReappliesPlacement" -> {
+
+                for (BlockPos target : EXCAVATION_TARGETS) {
+
+                    context.setBlockState(target, Blocks.AIR.getDefaultState());
+
+                }
+            }
+            case "excavationRedoReappliesBreak" -> {
 
                 for (BlockPos target : EXCAVATION_TARGETS) {
 

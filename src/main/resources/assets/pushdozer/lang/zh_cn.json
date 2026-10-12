@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "笔刷尺寸 %d 超出允许范围（%d–%d），请在配置中调整。",
   "pushdozer.message.operation_denied.region_busy": "目标区域正在处理中，请等待当前编辑完成。",
   "pushdozer.message.operation_denied.undo_conflict": "无法撤销/重做：区域繁忙或方块已被改变。",
+  "pushdozer.message.undo_redo.partial.undo": "已撤销 %1$s/%2$s 个方块（部分位置已被改变或不可用）",
+  "pushdozer.message.undo_redo.partial.redo": "已重做 %1$s/%2$s 个方块（部分位置已被改变或不可用）",
   "pushdozer.message.surface_convert.invalid_materials": "表层转换已跳过：配置中没有有效的目标方块。",
   "pushdozer.config.surface_convert_distribution": "分布模式：%s",
   "pushdozer.config.convert_artificial_surfaces": "允许转换人工方块：%s",

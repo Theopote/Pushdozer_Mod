@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "Размер кисти %d вне диапазона (%d–%d). Откройте настройки для изменения.",
   "pushdozer.message.operation_denied.region_busy": "Целевая область занята. Дождитесь завершения текущего редактирования.",
   "pushdozer.message.operation_denied.undo_conflict": "Не удалось отменить/повторить: область занята или блоки изменены.",
+  "pushdozer.message.undo_redo.partial.undo": "Отменено %1$s/%2$s блоков (некоторые позиции изменены или недоступны)",
+  "pushdozer.message.undo_redo.partial.redo": "Повторено %1$s/%2$s блоков (некоторые позиции изменены или недоступны)",
   "pushdozer.message.surface_convert.invalid_materials": "Преобразование поверхности пропущено: в конфигурации нет допустимых целевых блоков.",
   "pushdozer.config.surface_convert_distribution": "Распределение: %s",
   "pushdozer.config.convert_artificial_surfaces": "Разрешить искусственные поверхности: %s",

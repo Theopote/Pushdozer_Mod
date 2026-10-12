@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "Ukuran kuas %d di luar rentang (%d–%d). Buka konfigurasi untuk menyesuaikan.",
   "pushdozer.message.operation_denied.region_busy": "Area target sedang sibuk. Tunggu hingga pengeditan saat ini selesai.",
   "pushdozer.message.operation_denied.undo_conflict": "Tidak dapat membatalkan/mengulang: area sibuk atau blok berubah.",
+  "pushdozer.message.undo_redo.partial.undo": "Dibatalkan %1$s/%2$s blok (beberapa posisi berubah atau tidak tersedia)",
+  "pushdozer.message.undo_redo.partial.redo": "Diulang %1$s/%2$s blok (beberapa posisi berubah atau tidak tersedia)",
   "pushdozer.message.surface_convert.invalid_materials": "Konversi permukaan dilewati: tidak ada blok target valid dalam konfigurasi.",
   "pushdozer.config.surface_convert_distribution": "Distribusi: %s",
   "pushdozer.config.convert_artificial_surfaces": "Izinkan permukaan buatan: %s",

@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "Pinselgröße %d liegt außerhalb des Bereichs (%d–%d). Öffne die Konfiguration zum Anpassen.",
   "pushdozer.message.operation_denied.region_busy": "Zielbereich ist beschäftigt. Warte, bis die aktuelle Bearbeitung abgeschlossen ist.",
   "pushdozer.message.operation_denied.undo_conflict": "Rückgängig/Wiederholen konnte nicht angewendet werden: Bereich beschäftigt oder Blöcke geändert.",
+  "pushdozer.message.undo_redo.partial.undo": "Rückgängig gemacht: %1$s/%2$s Blöcke (einige Positionen wurden geändert oder sind nicht verfügbar)",
+  "pushdozer.message.undo_redo.partial.redo": "Wiederholt: %1$s/%2$s Blöcke (einige Positionen wurden geändert oder sind nicht verfügbar)",
   "pushdozer.message.surface_convert.invalid_materials": "Oberflächenkonvertierung übersprungen: keine gültigen Zielblöcke in der Konfiguration.",
   "pushdozer.config.surface_convert_distribution": "Verteilung: %s",
   "pushdozer.config.convert_artificial_surfaces": "Künstliche Oberflächen erlauben: %s",

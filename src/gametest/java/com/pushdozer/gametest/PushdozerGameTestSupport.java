@@ -38,6 +38,27 @@ final class PushdozerGameTestSupport {
         return config;
     }
 
+    static PushdozerConfig createPlacementConfig() {
+        PushdozerConfig config = new PushdozerConfig();
+        config.setHeightMode(PushdozerConfig.HeightMode.NO_LIMIT);
+        return config;
+    }
+
+    /**
+     * Waits for {@link com.pushdozer.operations.UndoRedoManager} cooldown before redo in GameTests.
+     */
+    static void runAfterUndoCooldown(TestContext context, Runnable action) {
+        context.runAtTick(context.getTick() + 1, () -> {
+            try {
+                Thread.sleep(350);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(ex);
+            }
+            action.run();
+        });
+    }
+
     static PushdozerConfig createShorelineConfig() {
         return createShorelineConfig(1, 1);
     }

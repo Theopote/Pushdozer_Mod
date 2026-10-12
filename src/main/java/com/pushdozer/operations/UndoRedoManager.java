@@ -210,6 +210,11 @@ public class UndoRedoManager {
                 Runnable afterPostProcess = () -> {
                     try {
                         syncUndoChangesToClient(serverWorld, player, applied.positions(), isUndo);
+                        int totalBlocks = positions.size();
+                        int appliedBlocks = applied.positions().size();
+                        if (appliedBlocks < totalBlocks) {
+                            TerrainOperationFeedback.notifyPartialUndoRedo(player, isUndo, appliedBlocks, totalBlocks);
+                        }
                         onFinished.accept(true);
                     } finally {
                         scheduler.release(serverWorld, operationId);

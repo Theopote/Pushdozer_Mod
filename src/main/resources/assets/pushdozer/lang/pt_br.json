@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "Tamanho do pincel %d está fora do intervalo (%d–%d). Abra a configuração para ajustar.",
   "pushdozer.message.operation_denied.region_busy": "A área alvo está ocupada. Aguarde a edição atual terminar.",
   "pushdozer.message.operation_denied.undo_conflict": "Não foi possível desfazer/refazer: área ocupada ou blocos alterados.",
+  "pushdozer.message.undo_redo.partial.undo": "Desfeito %1$s/%2$s blocos (algumas posições foram alteradas ou estão indisponíveis)",
+  "pushdozer.message.undo_redo.partial.redo": "Refeito %1$s/%2$s blocos (algumas posições foram alteradas ou estão indisponíveis)",
   "pushdozer.message.surface_convert.invalid_materials": "Conversão de superfície ignorada: nenhum bloco alvo válido na configuração.",
   "pushdozer.config.surface_convert_distribution": "Distribuição: %s",
   "pushdozer.config.convert_artificial_surfaces": "Permitir superfícies artificiais: %s",

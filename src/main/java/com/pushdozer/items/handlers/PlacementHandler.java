@@ -83,6 +83,65 @@ public class PlacementHandler implements TerrainToolHandler {
         return processBlockPlacement(shape, player, world, config);
     }
 
+    /**
+     * 在指定世界坐标执行铺设并记录撤销栈（供 Game Test 与确定性调用场景使用）。
+     */
+    public void placeBlocksAt(PlayerEntity player, ServerWorld world, PushdozerConfig config,
+                              List<BlockPos> worldPositions, Block fillBlock) {
+        if (!OperationPermissions.checkForTerrainOperation(player, world, config)) {
+            return;
+        }
+
+        Block resolvedFill = applyBlockReplacementRules(fillBlock);
+        BlockState fillState = resolvedFill.getDefaultState();
+        List<BlockPos> filtered = new ArrayList<>();
+        List<BlockState> newStates = new ArrayList<>();
+
+        for (BlockPos pos : worldPositions) {
+            BlockState state = world.getBlockState(pos);
+            if (isValidExplicitPlacementTarget(state, world, pos, player, config)) {
+                filtered.add(pos);
+                newStates.add(fillState);
+            }
+        }
+
+        if (!filtered.isEmpty()) {
+            if (!BlockOperation.applyPlacementChanges(world, filtered, newStates, applied ->
+                pushPlacementUndo(player, world, world, applied)
+            )) {
+                TerrainOperationFeedback.notifyRegionBusy(player);
+            }
+        }
+    }
+
+    private boolean isValidExplicitPlacementTarget(BlockState state, World world, BlockPos pos,
+                                                   PlayerEntity player, PushdozerConfig config) {
+        if (!isValidHeightForPlacement(pos, player, config)) {
+            return false;
+        }
+        if (intersectsPlayer(player, pos)) {
+            return false;
+        }
+        if (config.isBlockIgnored(state.getBlock())) {
+            return false;
+        }
+        return isAllowedBlock(state, world, pos);
+    }
+
+    private boolean isValidHeightForPlacement(BlockPos pos, PlayerEntity player, PushdozerConfig config) {
+        PushdozerConfig.HeightMode heightMode = config.getHeightMode();
+        if (heightMode == PushdozerConfig.HeightMode.NO_LIMIT) {
+            return true;
+        }
+        if (heightMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER) {
+            return pos.getY() <= player.getBlockY() - 1;
+        }
+        if (heightMode == PushdozerConfig.HeightMode.LOCKED_ONCE || heightMode == PushdozerConfig.HeightMode.CUSTOM) {
+            return pos.getY() <= config.getLockedHeight();
+        }
+        return true;
+    }
+
     private List<BlockPos> processBlockPlacement(GeometryShape shape, PlayerEntity player, World world,
                                                  PushdozerConfig config) {
         List<BlockPos> placedBlocks = new ArrayList<>();
@@ -93,38 +152,17 @@ public class PlacementHandler implements TerrainToolHandler {
         int minY = shape.getMinY(center);
         int maxY = shape.getMaxY(center);
 
-        boolean startedPlacing = false;
-
-        // 从上往下遍历每一层
+        // 遍历笔刷体积内每一层；空中与接触地形均可铺设，仅替换空气/装饰/非实心方块
         for (int y = maxY; y >= minY; y--) {
-            boolean layerHasNonAllowedBlocks = false;
-            // 检查当前层是否有非允许的方块
             for (BlockPos pos : shape.getBlocksInLayer(center, y)) {
-                if (!isAllowedBlock(world.getBlockState(pos), world, pos)) {
-                    layerHasNonAllowedBlocks = true;
-                    break;
+                if (isValidPlacementPosition(pos, world, shape, player, config)) {
+                    originalStates.add(world.getBlockState(pos));
+                    placedBlocks.add(pos);
+
+                    Block fillBlock = getFillBlock(pos, world, config);
+                    fillBlock = applyBlockReplacementRules(fillBlock);
+                    newStates.add(fillBlock.getDefaultState());
                 }
-            }
-
-            // 如果当前层有非允许的方块或已经开始放置，则处理当前层
-            if (layerHasNonAllowedBlocks || startedPlacing) {
-                startedPlacing = true;
-                for (BlockPos pos : shape.getBlocksInLayer(center, y)) {
-                    if (isValidPlacementPosition(pos, world, shape, player, config)) {
-                        originalStates.add(world.getBlockState(pos));
-                        placedBlocks.add(pos);
-
-                        Block fillBlock = getFillBlock(pos, world, config);
-                        
-                        // 应用方块替换规则
-                        fillBlock = applyBlockReplacementRules(fillBlock);
-                        
-                        BlockState newState = fillBlock.getDefaultState();
-                        newStates.add(newState);
-                    }
-                }
-
-                // 批量放置方块（先收集，最后统一跨 tick 应用）
             }
         }
 
@@ -280,20 +318,9 @@ public class PlacementHandler implements TerrainToolHandler {
 
         BlockState state = world.getBlockState(pos);
 
-        // 检查标高限制（铺设模式：只能在此标高以下铺设）
-        PushdozerConfig.HeightMode heightMode = config.getHeightMode();
-        if (heightMode == PushdozerConfig.HeightMode.FOLLOW_PLAYER) {
-            // 跟随玩家标高：只能在玩家当前高度-1及以下铺设
-            if (pos.getY() > player.getBlockY() - 1) {
-                return false;
-            }
-        } else if (heightMode == PushdozerConfig.HeightMode.LOCKED_ONCE || heightMode == PushdozerConfig.HeightMode.CUSTOM) {
-            // 锁定到玩家标高/自定义标高：只能在锁定高度及以下铺设
-            if (pos.getY() > config.getLockedHeight()) {
-                return false;
-            }
+        if (!isValidHeightForPlacement(pos, player, config)) {
+            return false;
         }
-        // NO_LIMIT模式不限制标高
 
         if (intersectsPlayer(player, pos)) {
             return false;

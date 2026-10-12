@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "La taille du pinceau %d est hors plage (%d–%d). Ouvrez la configuration pour ajuster.",
   "pushdozer.message.operation_denied.region_busy": "La zone cible est occupée. Attendez la fin de l'édition en cours.",
   "pushdozer.message.operation_denied.undo_conflict": "Impossible d'annuler/rétablir : zone occupée ou blocs modifiés.",
+  "pushdozer.message.undo_redo.partial.undo": "Annulé %1$s/%2$s blocs (certaines positions ont changé ou sont indisponibles)",
+  "pushdozer.message.undo_redo.partial.redo": "Rétabli %1$s/%2$s blocs (certaines positions ont changé ou sont indisponibles)",
   "pushdozer.message.surface_convert.invalid_materials": "Conversion de surface ignorée : aucun bloc cible valide dans la configuration.",
   "pushdozer.config.surface_convert_distribution": "Distribution : %s",
   "pushdozer.config.convert_artificial_surfaces": "Autoriser les surfaces artificielles : %s",

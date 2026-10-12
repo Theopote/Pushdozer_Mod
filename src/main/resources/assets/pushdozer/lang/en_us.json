@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "Brush size %d is out of range (%d–%d). Open config to adjust.",
   "pushdozer.message.operation_denied.region_busy": "Target area is busy. Wait for the current edit to finish.",
   "pushdozer.message.operation_denied.undo_conflict": "Undo/redo could not apply: area busy or blocks changed.",
+  "pushdozer.message.undo_redo.partial.undo": "Undid %1$s/%2$s blocks (some positions were changed or unavailable)",
+  "pushdozer.message.undo_redo.partial.redo": "Redid %1$s/%2$s blocks (some positions were changed or unavailable)",
   "pushdozer.message.surface_convert.invalid_materials": "Surface convert skipped: no valid target blocks in configuration.",
   "pushdozer.config.surface_convert_distribution": "Distribution: %s",
   "pushdozer.config.convert_artificial_surfaces": "Allow artificial surfaces: %s",

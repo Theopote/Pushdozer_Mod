@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "ブラシサイズ %d が範囲外です（%d–%d）。設定を開いて調整してください。",
   "pushdozer.message.operation_denied.region_busy": "対象エリアは処理中です。現在の編集が完了するまでお待ちください。",
   "pushdozer.message.operation_denied.undo_conflict": "元に戻す/やり直しを適用できません：エリアが使用中、またはブロックが変更されています。",
+  "pushdozer.message.undo_redo.partial.undo": "%1$s/%2$s ブロックを元に戻しました（一部の位置は変更済みまたは利用不可）",
+  "pushdozer.message.undo_redo.partial.redo": "%1$s/%2$s ブロックをやり直しました（一部の位置は変更済みまたは利用不可）",
   "pushdozer.message.surface_convert.invalid_materials": "地表変換をスキップしました：設定に有効な対象ブロックがありません。",
   "pushdozer.config.surface_convert_distribution": "分布モード：%s",
   "pushdozer.config.convert_artificial_surfaces": "人工ブロックを許可：%s",

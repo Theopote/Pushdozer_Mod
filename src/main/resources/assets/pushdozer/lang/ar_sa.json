@@ -67,6 +67,8 @@
   "pushdozer.message.operation_denied.brush_too_large": "حجم الفرشاة %d خارج النطاق (%d–%d). افتح الإعدادات للتعديل.",
   "pushdozer.message.operation_denied.region_busy": "المنطقة المستهدفة مشغولة. انتظر حتى ينتهي التحرير الحالي.",
   "pushdozer.message.operation_denied.undo_conflict": "تعذر التراجع/الإعادة: المنطقة مشغولة أو تغيّرت الكتل.",
+  "pushdozer.message.undo_redo.partial.undo": "تم التراجع عن %1$s/%2$s كتلة (بعض المواقع تغيّرت أو غير متاحة)",
+  "pushdozer.message.undo_redo.partial.redo": "تمت إعادة %1$s/%2$s كتلة (بعض المواقع تغيّرت أو غير متاحة)",
   "pushdozer.message.surface_convert.invalid_materials": "تم تخطي تحويل السطح: لا توجد كتل هدف صالحة في الإعدادات.",
   "pushdozer.config.surface_convert_distribution": "التوزيع: %s",
   "pushdozer.config.convert_artificial_surfaces": "السماح بالأسطح الاصطناعية: %s",

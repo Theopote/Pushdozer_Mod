@@ -6,11 +6,13 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UndoRedoManagerConflictTest extends PushdozerTestBase {
@@ -80,6 +84,13 @@ class UndoRedoManagerConflictTest extends PushdozerTestBase {
         manager.executeUndoRedoAction(action, player, world, true, ok -> finished.set(true));
 
         assertTrue(finished.get());
+
+        ArgumentCaptor<Text> messageCaptor = ArgumentCaptor.forClass(Text.class);
+        verify(player).sendMessage(messageCaptor.capture(), eq(true));
+        assertEquals(
+            Text.translatable("pushdozer.message.undo_redo.partial.undo", 1, 2).getString(),
+            messageCaptor.getValue().getString()
+        );
     }
 
     @Test

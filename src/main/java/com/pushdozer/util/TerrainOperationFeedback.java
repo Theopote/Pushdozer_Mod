@@ -29,6 +29,17 @@ public final class TerrainOperationFeedback {
         }
     }
 
+    public static void notifyPartialUndoRedo(PlayerEntity player, boolean isUndo, int applied, int total) {
+        LOGGER.debug("Partial {} for {}: {}/{} blocks applied",
+            isUndo ? "undo" : "redo", player.getName().getString(), applied, total);
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            String key = isUndo
+                ? "pushdozer.message.undo_redo.partial.undo"
+                : "pushdozer.message.undo_redo.partial.redo";
+            serverPlayer.sendMessage(Text.translatable(key, applied, total), true);
+        }
+    }
+
     public static void notifyInvalidSurfaceConvertConfig(PlayerEntity player) {
         LOGGER.debug("Surface convert skipped for {}: no valid target materials", player.getName().getString());
         if (player instanceof ServerPlayerEntity serverPlayer) {
