@@ -116,10 +116,9 @@ public class SurfaceConvertConfigPanel extends WorkModeConfigPanel {
     }
 
     private int addSurfaceConvertOptionWidgets(int contentLeft, int contentWidth, int currentY) {
-        distributionButton = CyclingButtonWidget.builder(
-                    PushdozerConfig.SurfaceConvertDistribution::getDisplayText,
-                    config.getSurfaceConvertDistribution())
+        distributionButton = CyclingButtonWidget.builder(PushdozerConfig.SurfaceConvertDistribution::getDisplayText)
                 .values(PushdozerConfig.SurfaceConvertDistribution.values())
+                .initially(config.getSurfaceConvertDistribution())
                 .build(contentLeft, currentY, contentWidth, WIDGET_HEIGHT,
                     Text.translatable("pushdozer.config.surface_convert_distribution",
                         config.getSurfaceConvertDistribution().getDisplayText()),

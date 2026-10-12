@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 public class PointCloudRenderer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("pushdozer");
-    private static final float LINE_WIDTH = 2.0f;
-
     /** 球体纬度分段数 */
     private static final int SPHERE_LATS = 32; // 增加分段数以提高点密度
 
@@ -61,8 +59,7 @@ public class PointCloudRenderer {
      * @param basePos 几何体的基准位置
      */
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, GeometryShape shape, BlockPos basePos) {
-        // 使用 RenderLayers.LINES 来获取线条渲染层
-        RenderLayer renderLayer = RenderLayers.LINES;
+        RenderLayer renderLayer = RenderLayer.getLines();
         
         try {
             // 使用现有的渲染层
@@ -417,12 +414,10 @@ public class PointCloudRenderer {
         // 绘制线段，添加法线信息
         buffer.vertex(matrix, (float) start.x, (float) start.y, (float) start.z)
                 .color(1.0f, 1.0f, 1.0f, 1.0f)
-                .normal(1.0f, 0.0f, 0.0f)
-                .lineWidth(LINE_WIDTH);
+                .normal(1.0f, 0.0f, 0.0f);
         buffer.vertex(matrix, (float) end.x, (float) end.y, (float) end.z)
                 .color(1.0f, 1.0f, 1.0f, 1.0f)
-                .normal(1.0f, 0.0f, 0.0f)
-                .lineWidth(LINE_WIDTH);
+                .normal(1.0f, 0.0f, 0.0f);
     }
 
     /**

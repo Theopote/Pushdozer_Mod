@@ -42,11 +42,9 @@ public class BatchPlantConfigPanel extends WorkModeConfigPanel {
 
     private void addPlantTypeButton(int yPos) {
         CyclingButtonWidget<PushdozerConfig.PlantType> plantTypeButton = CyclingButtonWidget
-                .builder(
-                        PushdozerConfig.PlantType::getDisplayText,
-                        config.getPlantType()
-                )
+                .builder(PushdozerConfig.PlantType::getDisplayText)
                 .values(PushdozerConfig.PlantType.values())
+                .initially(config.getPlantType())
                 .build(
                         panelLeft + WIDGET_MARGIN,
                         yPos,
@@ -75,11 +73,9 @@ public class BatchPlantConfigPanel extends WorkModeConfigPanel {
         switch (plantType) {
             case TREES -> {
                 CyclingButtonWidget<PushdozerConfig.TreeSpecies> treeSpeciesButton = CyclingButtonWidget
-                        .builder(
-                                PushdozerConfig.TreeSpecies::getDisplayText,
-                                config.getSelectedTree()
-                        )
+                        .builder(PushdozerConfig.TreeSpecies::getDisplayText)
                         .values(PushdozerConfig.TreeSpecies.values())
+                        .initially(config.getSelectedTree())
                         .build(
                                 panelLeft + WIDGET_MARGIN,
                                 yPos,
@@ -93,11 +89,9 @@ public class BatchPlantConfigPanel extends WorkModeConfigPanel {
             }
             case FLOWERS -> {
                 CyclingButtonWidget<PushdozerConfig.FlowerGroup> flowerGroupButton = CyclingButtonWidget
-                        .builder(
-                                PushdozerConfig.FlowerGroup::getDisplayText,
-                                config.getSelectedFlowerGroup()
-                        )
+                        .builder(PushdozerConfig.FlowerGroup::getDisplayText)
                         .values(PushdozerConfig.FlowerGroup.values())
+                        .initially(config.getSelectedFlowerGroup())
                         .build(
                                 panelLeft + WIDGET_MARGIN,
                                 yPos,

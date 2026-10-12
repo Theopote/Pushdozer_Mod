@@ -44,11 +44,9 @@ public class ShorelineProcessConfigPanel extends WorkModeConfigPanel {
 
         // 水岸类型选择按钮
         CyclingButtonWidget<PushdozerConfig.ShorelineType> shorelineTypeButton =
-                CyclingButtonWidget.builder(
-                                PushdozerConfig.ShorelineType::getDisplayText,
-                                config.getShorelineType()
-                        )
+                CyclingButtonWidget.builder(PushdozerConfig.ShorelineType::getDisplayText)
                         .values(PushdozerConfig.ShorelineType.values())
+                        .initially(config.getShorelineType())
                         .build(contentLeft, contentTop, contentWidth, WIDGET_HEIGHT,
                                 Text.translatable("pushdozer.config.shoreline_type"),
                                 (button, shorelineType) -> {

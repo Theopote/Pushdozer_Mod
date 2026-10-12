@@ -57,9 +57,6 @@ import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
 
 import net.minecraft.world.World;
-import org.jspecify.annotations.NonNull;
-
-
 import java.lang.reflect.Method;
 
 import java.util.ArrayList;
@@ -126,7 +123,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-        context.assertTrue(
+        PushdozerGameTestSupport.assertTrue(context,
 
             config.getRadius() == PushdozerConfig.MAX_BRUSH_RADIUS,
 
@@ -134,7 +131,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         );
 
-        context.assertTrue(
+        PushdozerGameTestSupport.assertTrue(context,
 
             config.getSphereRadius() == PushdozerConfig.MIN_BRUSH_RADIUS,
 
@@ -162,7 +159,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         BlockPos absolute = context.getAbsolutePos(sandPos);
 
-        context.assertFalse(
+        PushdozerGameTestSupport.assertFalse(context,
 
             handler.isAllowedBlock(context.getBlockState(sandPos), context.getWorld(), absolute),
 
@@ -182,7 +179,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         BlockPos target = new BlockPos(1, 1, 1);
 
-        context.assertTrue(context.getBlockState(target).isOf(Blocks.AIR), "Expected air before write");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(target).isOf(Blocks.AIR), "Expected air before write");
 
 
 
@@ -214,7 +211,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-        context.assertTrue(context.getBlockState(target).isOf(Blocks.STONE), "Expected stone after write");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(target).isOf(Blocks.STONE), "Expected stone after write");
 
         context.complete();
 
@@ -238,7 +235,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             for (BlockPos relative : EXCAVATION_TARGETS) {
 
-                context.assertTrue(context.getBlockState(relative).isOf(Blocks.STONE), "Expected stone before excavation");
+                PushdozerGameTestSupport.assertTrue(context,context.getBlockState(relative).isOf(Blocks.STONE), "Expected stone before excavation");
 
                 absoluteTargets.add(context.getAbsolutePos(relative));
 
@@ -250,11 +247,11 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                 for (BlockPos relative : EXCAVATION_TARGETS) {
 
-                    context.assertTrue(context.getBlockState(relative).isOf(Blocks.AIR), "Expected air after excavation");
+                    PushdozerGameTestSupport.assertTrue(context,context.getBlockState(relative).isOf(Blocks.AIR), "Expected air after excavation");
 
                 }
 
-                context.assertTrue(PushdozerMod.getUndoStackSize(player) >= 1, "Expected undo entry after excavation");
+                PushdozerGameTestSupport.assertTrue(context,PushdozerMod.getUndoStackSize(player) >= 1, "Expected undo entry after excavation");
 
                 UndoRedoService.getInstance().undoLastAction(player, world);
 
@@ -262,7 +259,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                     for (BlockPos relative : EXCAVATION_TARGETS) {
 
-                        context.assertTrue(
+                        PushdozerGameTestSupport.assertTrue(context,
 
                             context.getBlockState(relative).isOf(Blocks.STONE),
 
@@ -368,9 +365,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         context.runAtTick(context.getTick() + 2, () -> {
 
-            context.assertTrue(manager.blockUpdatePackets.get() > 0, "Expected BlockUpdate packets for small undo");
+            PushdozerGameTestSupport.assertTrue(context,manager.blockUpdatePackets.get() > 0, "Expected BlockUpdate packets for small undo");
 
-            context.assertTrue(manager.chunkDataPackets.get() == 0, "Expected no ChunkData packets for small undo");
+            PushdozerGameTestSupport.assertTrue(context,manager.chunkDataPackets.get() == 0, "Expected no ChunkData packets for small undo");
 
             context.complete();
 
@@ -434,11 +431,11 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         context.runAtTick(context.getTick() + 25, () -> {
 
-            context.assertTrue(manager.blockUpdatePackets.get() > 0,
+            PushdozerGameTestSupport.assertTrue(context,manager.blockUpdatePackets.get() > 0,
 
                 "Expected BlockUpdate packets for large undo");
 
-            context.assertTrue(manager.chunkDataPackets.get() == 0,
+            PushdozerGameTestSupport.assertTrue(context,manager.chunkDataPackets.get() == 0,
 
                 "Expected no ChunkData packets for unified undo sync");
 
@@ -466,17 +463,17 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             BlockPos anchor = context.getAbsolutePos(new BlockPos(1, 1, 1));
 
-            context.assertTrue(scheduler.tryAcquire(world, firstOperation, List.of(anchor)),
+            PushdozerGameTestSupport.assertTrue(context,scheduler.tryAcquire(world, firstOperation, List.of(anchor)),
 
                 "First operation should acquire chunk lock");
 
-            context.assertFalse(scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
+            PushdozerGameTestSupport.assertFalse(context,scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
 
                 "Same-chunk write should be rejected while lock is held");
 
             scheduler.release(world, firstOperation);
 
-            context.assertTrue(scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
+            PushdozerGameTestSupport.assertTrue(context,scheduler.tryAcquire(world, secondOperation, List.of(anchor)),
 
                 "Chunk lock should be available after release");
 
@@ -530,11 +527,11 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             context.runAtTick(context.getTick() + 1, () -> {
 
-                context.assertTrue(context.getBlockState(relative).isOf(Blocks.AIR),
+                PushdozerGameTestSupport.assertTrue(context,context.getBlockState(relative).isOf(Blocks.AIR),
 
                     "Undo from wrong dimension must not apply overworld changes");
 
-                context.assertTrue(PushdozerMod.getUndoStackSize(player) == 0,
+                PushdozerGameTestSupport.assertTrue(context,PushdozerMod.getUndoStackSize(player) == 0,
 
                     "Overworld undo stack must stay empty when history belongs to another dimension");
 
@@ -618,7 +615,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             context.runAtTick(context.getTick() + 20, () -> {
 
-                context.assertTrue(manager.getUndoStackSize(player) == 0,
+                PushdozerGameTestSupport.assertTrue(context,manager.getUndoStackSize(player) == 0,
 
                     "Large undo should consume the only stack entry once");
 
@@ -644,9 +641,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             BlockPos grassToDirt = new BlockPos(2, 1, 2);
 
-            context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
-
-            context.setBlockState(grassToDirt, Blocks.GRASS_BLOCK);
+            PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, grassToDirt, Blocks.GRASS_BLOCK);
 
             PushdozerConfig dirtConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
 
@@ -672,9 +667,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             BlockPos grassToDirt = new BlockPos(2, 1, 2);
 
-            context.setBlockState(new BlockPos(2, 0, 2), Blocks.STONE);
-
-            context.setBlockState(grassToDirt, Blocks.GRASS_BLOCK);
+            PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, grassToDirt, Blocks.GRASS_BLOCK);
 
             PushdozerConfig dirtConfig = PushdozerGameTestSupport.createSurfaceConvertConfig("minecraft:dirt");
 
@@ -686,9 +679,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                     BlockPos roof = new BlockPos(4, 2, 2);
 
-                    context.setBlockState(new BlockPos(4, 0, 2), Blocks.STONE);
-
-                    context.setBlockState(roofGround, Blocks.GRASS_BLOCK);
+                    PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, roofGround, Blocks.GRASS_BLOCK);
 
                     context.setBlockState(roof, Blocks.OAK_PLANKS);
 
@@ -698,7 +689,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                         state -> state.isOf(Blocks.SAND), "Natural ground below roof should convert", () -> {
 
-                            context.assertTrue(context.getBlockState(roof).isOf(Blocks.OAK_PLANKS),
+                            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(roof).isOf(Blocks.OAK_PLANKS),
 
                                 "Roof planks must stay intact");
 
@@ -706,9 +697,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                             BlockPos retainPlant = new BlockPos(2, 2, 4);
 
-                            context.setBlockState(new BlockPos(2, 0, 4), Blocks.STONE);
-
-                            context.setBlockState(retainGround, Blocks.GRASS_BLOCK);
+                            PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, retainGround, Blocks.GRASS_BLOCK);
 
                             context.setBlockState(retainPlant, Blocks.SHORT_GRASS);
 
@@ -716,7 +705,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                 Blocks.DIRT, state -> state.isOf(Blocks.DIRT), "Surface should convert to dirt", () -> {
 
-                                    context.assertTrue(context.getBlockState(retainPlant).isOf(Blocks.SHORT_GRASS),
+                                    PushdozerGameTestSupport.assertTrue(context,context.getBlockState(retainPlant).isOf(Blocks.SHORT_GRASS),
 
                                         "Short grass should survive on dirt");
 
@@ -724,9 +713,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                     BlockPos removePlant = new BlockPos(4, 2, 4);
 
-                                    context.setBlockState(new BlockPos(4, 0, 4), Blocks.STONE);
-
-                                    context.setBlockState(removeGround, Blocks.GRASS_BLOCK);
+                                    PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, removeGround, Blocks.GRASS_BLOCK);
 
                                     context.setBlockState(removePlant, Blocks.SHORT_GRASS);
 
@@ -740,11 +727,11 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                         state -> state.isOf(Blocks.STONE), "Surface should convert to stone", () -> {
 
-                                            context.assertFalse(context.getBlockState(removeGround).isOf(Blocks.GRASS_BLOCK),
+                                            PushdozerGameTestSupport.assertFalse(context,context.getBlockState(removeGround).isOf(Blocks.GRASS_BLOCK),
 
                                                 "Surface should no longer be grass after convert");
 
-                                            context.assertTrue(context.getBlockState(removePlant).isAir(),
+                                            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(removePlant).isAir(),
 
                                                 "Short grass should be removed when base becomes stone");
 
@@ -752,9 +739,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                             BlockPos undoPlant = new BlockPos(6, 2, 2);
 
-                                            context.setBlockState(new BlockPos(6, 0, 2), Blocks.STONE);
-
-                                            context.setBlockState(undoGround, Blocks.GRASS_BLOCK);
+                                            PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, undoGround, Blocks.GRASS_BLOCK);
 
                                             context.setBlockState(undoPlant, Blocks.SHORT_GRASS);
 
@@ -776,7 +761,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                         "Undo should restore grass block", 60, () -> {
 
-                                                            context.assertTrue(
+                                                            PushdozerGameTestSupport.assertTrue(context,
 
                                                                 context.getBlockState(undoPlant).isOf(Blocks.SHORT_GRASS),
 
@@ -784,7 +769,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                             BlockPos invalidGround = new BlockPos(6, 1, 4);
 
-                                                            context.setBlockState(invalidGround, Blocks.GRASS_BLOCK);
+                                                            PushdozerGameTestSupport.prepareSurfaceConvertColumn(context, invalidGround, Blocks.GRASS_BLOCK);
 
                                                             PushdozerConfig invalidConfig =
 
@@ -804,7 +789,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                                     world, player, invalidShape, absoluteInvalid, invalidConfig);
 
-                                                            context.assertTrue(
+                                                            PushdozerGameTestSupport.assertTrue(context,
 
                                                                 invalidResult.stage()
 
@@ -812,7 +797,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                                                                 "Invalid target config must be rejected before terrain apply");
 
-                                                            context.assertTrue(
+                                                            PushdozerGameTestSupport.assertTrue(context,
 
                                                                 context.getBlockState(invalidGround).isOf(Blocks.GRASS_BLOCK),
 
@@ -938,7 +923,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
                 if (regionBusyRetriesLeft <= 0) {
 
-                    context.assertTrue(false, message + " [terrain scheduler stayed busy]");
+                    PushdozerGameTestSupport.assertTrue(context,false, message + " [terrain scheduler stayed busy]");
 
                     return;
 
@@ -986,7 +971,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             }
 
-            context.assertTrue(result.success(), message + " [" + result.describeFailure()
+            PushdozerGameTestSupport.assertTrue(context,result.success(), message + " [" + result.describeFailure()
 
                 + ", checkRelative=" + checkPos
 
@@ -1020,7 +1005,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
             if (ticksRemaining <= 0) {
 
-                context.assertTrue(expected.test(context.getBlockState(relativeCenter)), message);
+                PushdozerGameTestSupport.assertTrue(context,expected.test(context.getBlockState(relativeCenter)), message);
 
                 return;
 
@@ -1062,7 +1047,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-        context.assertTrue(context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
 
             "4095-block post-process should complete without error");
 
@@ -1116,9 +1101,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-        context.assertTrue(context.getBlockState(lower).isAir(), "Lower half must roll back when upper is blocked");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(lower).isAir(), "Lower half must roll back when upper is blocked");
 
-        context.assertTrue(context.getBlockState(upper).isOf(Blocks.STONE), "Blocking stone must remain");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(upper).isOf(Blocks.STONE), "Blocking stone must remain");
 
         context.complete();
 
@@ -1174,9 +1159,9 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
 
 
-        context.assertTrue(context.getBlockState(lower).isOf(Blocks.SUNFLOWER), "Lower sunflower half expected");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(lower).isOf(Blocks.SUNFLOWER), "Lower sunflower half expected");
 
-        context.assertTrue(context.getBlockState(upper).isOf(Blocks.SUNFLOWER), "Upper sunflower half expected");
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(upper).isOf(Blocks.SUNFLOWER), "Upper sunflower half expected");
 
         context.complete();
 
@@ -1214,7 +1199,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
         context.runAtTick(context.getTick() + 5, () -> {
 
-            context.assertTrue(context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
+            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(new BlockPos(0, 1, 0)).isOf(Blocks.STONE),
 
                 "4096-block post-process should complete across scheduled ticks");
 
@@ -1228,7 +1213,7 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
     @Override
 
-    public void invokeTestMethod(@NonNull TestContext context, @NonNull Method method) throws ReflectiveOperationException {
+    public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
 
         prepareSharedTestArea(context, method);
 

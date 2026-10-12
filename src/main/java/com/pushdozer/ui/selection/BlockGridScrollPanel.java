@@ -88,7 +88,7 @@ public class BlockGridScrollPanel extends ButtonWidget {
     }
 
     @Override
-    protected void drawIcon(DrawContext context, int mouseX, int mouseY, float delta) {
+    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         int visibleRows = visibleRows();
         int backgroundWidth = gridWidth();
         int backgroundHeight = visibleRows * rowStride() - SelectionScreenStyle.BLOCK_SPACING;

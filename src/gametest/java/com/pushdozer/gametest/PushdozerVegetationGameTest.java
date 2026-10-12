@@ -23,8 +23,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
-import org.jspecify.annotations.NonNull;
-
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,7 +52,7 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             BlockPos absoluteWheat = context.getAbsolutePos(wheat);
             Map<BlockPos, BlockOperation.BlockChange> changes = applyBoneMealGrowth(world, absoluteWheat, 2);
 
-            context.assertTrue(!changes.isEmpty(), "Bone meal should change at least one block");
+            PushdozerGameTestSupport.assertTrue(context,!changes.isEmpty(), "Bone meal should change at least one block");
 
             UndoAction undoAction = new UndoAction(
                 UndoAction.ActionType.BONE_MEAL,
@@ -171,13 +169,13 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
                     context.getAbsolutePos(lower), PushdozerConfig.PlantType.CUSTOM)),
                 result);
 
-            context.assertFalse(result.getTallPlantPairs().isEmpty(),
+            PushdozerGameTestSupport.assertFalse(context,result.getTallPlantPairs().isEmpty(),
                 "Batch plant should place a tall flower with both halves recorded");
-            context.assertTrue(result.getTotalCount() >= 2,
+            PushdozerGameTestSupport.assertTrue(context,result.getTotalCount() >= 2,
                 "Batch plant should record both tall flower halves");
 
             var operation = VegetationOperation.tryBegin(world, result.getAllPositions());
-            context.assertTrue(operation.isPresent(), "Batch plant apply should acquire vegetation lock");
+            PushdozerGameTestSupport.assertTrue(context,operation.isPresent(), "Batch plant apply should acquire vegetation lock");
             try {
                 BlockOperation.applyTerrainPhaseWithToken(
                     operation.get().token(),
@@ -201,9 +199,9 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             UndoRedoService.getInstance().undoLastAction(player, world);
 
             BlockPos chosenUpper = lower.up();
-            context.assertTrue(context.getBlockState(lower).isAir(), "Undo should restore lower air");
-            context.assertTrue(context.getBlockState(chosenUpper).isAir(), "Undo should restore upper air");
-            context.assertTrue(context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
+            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(lower).isAir(), "Undo should restore lower air");
+            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(chosenUpper).isAir(), "Undo should restore upper air");
+            PushdozerGameTestSupport.assertTrue(context,context.getBlockState(ground).isOf(Blocks.GRASS_BLOCK),
                 "Undo should restore grass ground");
             context.complete();
         });
@@ -217,10 +215,10 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             Set<BlockPos> lockArea = BoneMealHandler.collectLockPositions(List.of(anchor));
 
             var first = VegetationOperation.tryBegin(world, lockArea);
-            context.assertTrue(first.isPresent(), "First vegetation operation should acquire lock");
+            PushdozerGameTestSupport.assertTrue(context,first.isPresent(), "First vegetation operation should acquire lock");
 
             var second = VegetationOperation.tryBegin(world, lockArea);
-            context.assertTrue(second.isEmpty(), "Overlapping vegetation operation must be rejected");
+            PushdozerGameTestSupport.assertTrue(context,second.isEmpty(), "Overlapping vegetation operation must be rejected");
 
             first.get().release();
             context.complete();
@@ -228,7 +226,7 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
     }
 
     @Override
-    public void invokeTestMethod(@NonNull TestContext context, @NonNull Method method) throws ReflectiveOperationException {
+    public void invokeTestMethod(TestContext context, Method method) throws ReflectiveOperationException {
         PushdozerGameTestSupport.invokeAfterSetup(context, this, method);
     }
 
@@ -242,7 +240,7 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             return;
         }
         if (attemptsLeft <= 0) {
-            context.assertTrue(hasTreeBlocks(world, before.keySet(), before),
+            PushdozerGameTestSupport.assertTrue(context,hasTreeBlocks(world, before.keySet(), before),
                 "Bone meal should grow sapling into a tree");
             return;
         }
@@ -325,7 +323,7 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             return;
         }
         if (ticksRemaining <= 0) {
-            context.assertTrue(expected.test(context.getBlockState(relativePos)), message);
+            PushdozerGameTestSupport.assertTrue(context,expected.test(context.getBlockState(relativePos)), message);
             return;
         }
         context.runAtTick(context.getTick() + 1, () ->
@@ -339,7 +337,7 @@ public class PushdozerVegetationGameTest implements CustomTestMethodInvoker {
             return;
         }
         if (ticksRemaining <= 0) {
-            context.assertTrue(condition.getAsBoolean(), message);
+            PushdozerGameTestSupport.assertTrue(context,condition.getAsBoolean(), message);
             return;
         }
         context.runAtTick(context.getTick() + 1, () ->

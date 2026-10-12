@@ -13,6 +13,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.test.TestContext;
+import net.minecraft.text.Text;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -20,6 +21,14 @@ import java.util.UUID;
 
 final class PushdozerGameTestSupport {
     private PushdozerGameTestSupport() {
+    }
+
+    static void assertTrue(TestContext context, boolean condition, String message) {
+        context.assertTrue(condition, Text.literal(message));
+    }
+
+    static void assertFalse(TestContext context, boolean condition, String message) {
+        context.assertFalse(condition, Text.literal(message));
     }
 
     static PushdozerConfig createExcavationConfig(Block... breakableBlocks) {
@@ -78,6 +87,14 @@ final class PushdozerGameTestSupport {
         return config;
     }
 
+    static void prepareSurfaceConvertColumn(TestContext context, BlockPos groundPos, Block groundBlock) {
+        for (int y = groundPos.getY(); y <= groundPos.getY() + 8; y++) {
+            context.setBlockState(new BlockPos(groundPos.getX(), y, groundPos.getZ()), Blocks.AIR);
+        }
+        context.setBlockState(new BlockPos(groundPos.getX(), groundPos.getY() - 1, groundPos.getZ()), Blocks.STONE);
+        context.setBlockState(groundPos, groundBlock);
+    }
+
     /**
      * Creates a unique mock {@link ServerPlayerEntity} for GameTest.
      * <p>
@@ -126,13 +143,13 @@ final class PushdozerGameTestSupport {
         BlockPos absoluteSurface = context.getAbsolutePos(relativeSurface);
         BlockPos columnKey = new BlockPos(absoluteCenter.getX(), 0, absoluteCenter.getZ());
 
-        context.assertTrue(
+        assertTrue(context,
             SurfaceConvertHandler.collectBrushColumns(shape).contains(columnKey),
             "Surface convert brush must include target XZ column " + columnKey);
 
         boolean shapeCoversColumn = shape.getBlockPositions().stream()
             .anyMatch(pos -> pos.getX() == absoluteCenter.getX() && pos.getZ() == absoluteCenter.getZ());
-        context.assertTrue(shapeCoversColumn,
+        assertTrue(context,shapeCoversColumn,
             "Shape block positions must cover target column at " + absoluteCenter);
 
         BlockPos resolved = SurfaceConvertHandler.resolveConvertibleSurface(
@@ -141,16 +158,16 @@ final class PushdozerGameTestSupport {
             shape.getMaxY(absoluteCenter),
             config.getSurfaceConvertMaxBelowSurfaceDepth(),
             config.isConvertArtificialSurfaces());
-        context.assertTrue(resolved != null && resolved.equals(absoluteSurface),
+        assertTrue(context,resolved != null && resolved.equals(absoluteSurface),
             "resolveConvertibleSurface should resolve surface at " + absoluteSurface + " but got " + resolved);
 
         SurfaceConvertMaterialSelector.SelectionContext materials = SurfaceConvertMaterialSelector.prepare(config);
-        context.assertFalse(materials.isEmpty(), "SurfaceConvertMaterialSelector must resolve configured materials");
+        assertFalse(context,materials.isEmpty(), "SurfaceConvertMaterialSelector must resolve configured materials");
         Block selectedTarget = SurfaceConvertMaterialSelector.selectBlock(materials, columnKey);
-        context.assertTrue(selectedTarget == expectedTarget,
+        assertTrue(context,selectedTarget == expectedTarget,
             "SurfaceConvertMaterialSelector should return " + expectedTarget + " but got " + selectedTarget);
 
-        context.assertFalse(context.getBlockState(relativeSurface).isOf(expectedTarget),
+        assertFalse(context,context.getBlockState(relativeSurface).isOf(expectedTarget),
             "Surface should differ from target block before convert");
     }
 }

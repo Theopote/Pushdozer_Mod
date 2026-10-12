@@ -33,7 +33,7 @@ public class PushdozerShorelineGameTest {
 
         runShoreline(world, config, shape, center);
 
-        context.assertTrue(context.getBlockState(archaeology).isOf(Blocks.SUSPICIOUS_SAND),
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(archaeology).isOf(Blocks.SUSPICIOUS_SAND),
             "Archaeology blocks inside brush must not be replaced by shoreline material pass");
         context.complete();
     }
@@ -53,7 +53,7 @@ public class PushdozerShorelineGameTest {
 
         runShoreline(world, config, shape, center);
 
-        context.assertTrue(context.getBlockState(outside).isOf(Blocks.GRASS_BLOCK),
+        PushdozerGameTestSupport.assertTrue(context,context.getBlockState(outside).isOf(Blocks.GRASS_BLOCK),
             "Land outside brush bounds must stay unchanged");
         context.complete();
     }
