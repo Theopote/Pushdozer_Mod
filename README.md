@@ -30,17 +30,20 @@
 
 | 组件 | 版本 |
 |------|------|
-| Minecraft | 1.21.11 |
-| Fabric Loader | ≥ 0.18.2 |
-| Fabric API | 见 `gradle.properties` |
-| Java | 21 |
-| 可选 | ModMenu |
+| Minecraft | 1.21.10 |
+| Fabric Loader | ≥ 0.19.5 |
+| Fabric API | 0.138.4+1.21.10 |
+| Java（运行游戏） | 21 |
+| ModMenu（可选） | ≥ 16.0.1 |
+
+当前模组版本：**1.1.2**。完整依赖版本见 [`gradle.properties`](gradle.properties)。
 
 ## 安装
 
-1. 安装 [Fabric Loader](https://fabricmc.net/use/) 与 Fabric API
-2. 从 [Modrinth](https://modrinth.com/mod/pushdozer) 或 [GitHub Releases](https://github.com/Theopote/Pushdozer_Mod/releases) 下载 JAR
+1. 安装 Minecraft **1.21.10**、[Fabric Loader](https://fabricmc.net/use/) **≥ 0.19.5** 与 [Fabric API](https://modrinth.com/mod/fabric-api) **0.138.4+1.21.10**
+2. 从 [Modrinth](https://modrinth.com/mod/pushdozer) 或 [GitHub Releases](https://github.com/Theopote/Pushdozer_Mod/releases) 下载对应 1.21.10 版本的 JAR
 3. 放入 `.minecraft/mods`，启动游戏
+4. （可选）安装 [ModMenu](https://modrinth.com/mod/modmenu) **16.0.1**，在模组列表中快速打开 Pushdozer 配置
 
 ## 快速上手
 
@@ -54,7 +57,7 @@
 ## 构建与开发
 
 ```bash
-# 构建
+# 构建（含单元测试与 GameTest）
 ./gradlew build          # Windows: gradlew.bat build
 
 # 开发运行
@@ -63,7 +66,18 @@
 ./gradlew runGametest
 ```
 
-环境要求 JDK 21。贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+环境要求：
+
+- **JDK 25**：运行 Gradle 与 Fabric Loom 1.18（构建工具链要求）
+- **JDK 21**：模组与 Minecraft 运行时目标版本（Loom 会自动配置）
+
+若系统默认 Java 低于 25，可指定 Gradle 使用的 JDK，例如：
+
+```bash
+./gradlew build -Dorg.gradle.java.home="/path/to/jdk-25"
+```
+
+贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ### 代码结构
 
