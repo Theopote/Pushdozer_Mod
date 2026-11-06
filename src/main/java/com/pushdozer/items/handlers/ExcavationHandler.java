@@ -165,7 +165,7 @@ public class ExcavationHandler implements TerrainToolHandler {
             return false;
         }
 
-        return !(block.getHardness() < 0);
+        return true;
     }
 
     /**

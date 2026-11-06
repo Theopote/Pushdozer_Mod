@@ -279,6 +279,35 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
 
     }
 
+    @GameTest(maxTicks = 120, setupTicks = 20)
+    public void excavationBreaksNegativeHardnessBlocks(TestContext context) {
+        runWhenSchedulerIdle(context, 0, () -> {
+            ServerWorld world = context.getWorld();
+            ServerPlayerEntity player = PushdozerGameTestSupport.createMockServerPlayer(context);
+            PushdozerConfig config = PushdozerGameTestSupport.createExcavationConfig(
+                Blocks.BEDROCK,
+                Blocks.END_PORTAL_FRAME
+            );
+            BlockPos bedrockPos = new BlockPos(1, 1, 1);
+            BlockPos framePos = new BlockPos(2, 1, 1);
+            context.setBlockState(bedrockPos, Blocks.BEDROCK);
+            context.setBlockState(framePos, Blocks.END_PORTAL_FRAME);
+
+            new ExcavationHandler().excavateBlocksAt(player, world, config, List.of(
+                context.getAbsolutePos(bedrockPos),
+                context.getAbsolutePos(framePos)
+            ));
+
+            context.runAtTick(context.getTick() + 1, () -> {
+                PushdozerGameTestSupport.assertTrue(context, context.getBlockState(bedrockPos).isOf(Blocks.AIR),
+                    "Expected excavation to remove bedrock");
+                PushdozerGameTestSupport.assertTrue(context, context.getBlockState(framePos).isOf(Blocks.AIR),
+                    "Expected excavation to remove end portal frame");
+                context.complete();
+            });
+        });
+    }
+
 
 
     @GameTest(maxTicks = 120, setupTicks = 20)
@@ -1504,5 +1533,4 @@ public class PushdozerGameTest implements CustomTestMethodInvoker {
     }
 
 }
-
 
