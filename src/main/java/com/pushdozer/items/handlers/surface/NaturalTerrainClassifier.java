@@ -63,26 +63,7 @@ public final class NaturalTerrainClassifier {
             || block == Blocks.POLISHED_BLACKSTONE_BRICKS
             || block == Blocks.DEEPSLATE_BRICKS
             || block == Blocks.MUD_BRICKS
-            || block == Blocks.QUARTZ_BRICKS
-            || block == Blocks.WHITE_CONCRETE
-            || block == Blocks.ORANGE_CONCRETE
-            || block == Blocks.MAGENTA_CONCRETE
-            || block == Blocks.LIGHT_BLUE_CONCRETE
-            || block == Blocks.YELLOW_CONCRETE
-            || block == Blocks.LIME_CONCRETE
-            || block == Blocks.PINK_CONCRETE
-            || block == Blocks.GRAY_CONCRETE
-            || block == Blocks.LIGHT_GRAY_CONCRETE
-            || block == Blocks.CYAN_CONCRETE
-            || block == Blocks.PURPLE_CONCRETE
-            || block == Blocks.BLUE_CONCRETE
-            || block == Blocks.BROWN_CONCRETE
-            || block == Blocks.GREEN_CONCRETE
-            || block == Blocks.RED_CONCRETE
-            || block == Blocks.BLACK_CONCRETE
-            || isColoredConcretePowder(block)
-            || isColoredGlazedTerracotta(block)
-            || isColoredTerracotta(block);
+            || block == Blocks.QUARTZ_BRICKS;
     }
 
     public static boolean isNaturalConvertibleSource(BlockState state) {
@@ -179,60 +160,4 @@ public final class NaturalTerrainClassifier {
         return id.contains("glass");
     }
 
-    private static boolean isColoredTerracotta(Block block) {
-        return block == Blocks.WHITE_TERRACOTTA
-            || block == Blocks.ORANGE_TERRACOTTA
-            || block == Blocks.MAGENTA_TERRACOTTA
-            || block == Blocks.LIGHT_BLUE_TERRACOTTA
-            || block == Blocks.YELLOW_TERRACOTTA
-            || block == Blocks.LIME_TERRACOTTA
-            || block == Blocks.PINK_TERRACOTTA
-            || block == Blocks.GRAY_TERRACOTTA
-            || block == Blocks.LIGHT_GRAY_TERRACOTTA
-            || block == Blocks.CYAN_TERRACOTTA
-            || block == Blocks.PURPLE_TERRACOTTA
-            || block == Blocks.BLUE_TERRACOTTA
-            || block == Blocks.BROWN_TERRACOTTA
-            || block == Blocks.GREEN_TERRACOTTA
-            || block == Blocks.RED_TERRACOTTA
-            || block == Blocks.BLACK_TERRACOTTA;
-    }
-
-    private static boolean isColoredGlazedTerracotta(Block block) {
-        return block == Blocks.WHITE_GLAZED_TERRACOTTA
-            || block == Blocks.ORANGE_GLAZED_TERRACOTTA
-            || block == Blocks.MAGENTA_GLAZED_TERRACOTTA
-            || block == Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA
-            || block == Blocks.YELLOW_GLAZED_TERRACOTTA
-            || block == Blocks.LIME_GLAZED_TERRACOTTA
-            || block == Blocks.PINK_GLAZED_TERRACOTTA
-            || block == Blocks.GRAY_GLAZED_TERRACOTTA
-            || block == Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA
-            || block == Blocks.CYAN_GLAZED_TERRACOTTA
-            || block == Blocks.PURPLE_GLAZED_TERRACOTTA
-            || block == Blocks.BLUE_GLAZED_TERRACOTTA
-            || block == Blocks.BROWN_GLAZED_TERRACOTTA
-            || block == Blocks.GREEN_GLAZED_TERRACOTTA
-            || block == Blocks.RED_GLAZED_TERRACOTTA
-            || block == Blocks.BLACK_GLAZED_TERRACOTTA;
-    }
-
-    private static boolean isColoredConcretePowder(Block block) {
-        return block == Blocks.WHITE_CONCRETE_POWDER
-            || block == Blocks.ORANGE_CONCRETE_POWDER
-            || block == Blocks.MAGENTA_CONCRETE_POWDER
-            || block == Blocks.LIGHT_BLUE_CONCRETE_POWDER
-            || block == Blocks.YELLOW_CONCRETE_POWDER
-            || block == Blocks.LIME_CONCRETE_POWDER
-            || block == Blocks.PINK_CONCRETE_POWDER
-            || block == Blocks.GRAY_CONCRETE_POWDER
-            || block == Blocks.LIGHT_GRAY_CONCRETE_POWDER
-            || block == Blocks.CYAN_CONCRETE_POWDER
-            || block == Blocks.PURPLE_CONCRETE_POWDER
-            || block == Blocks.BLUE_CONCRETE_POWDER
-            || block == Blocks.BROWN_CONCRETE_POWDER
-            || block == Blocks.GREEN_CONCRETE_POWDER
-            || block == Blocks.RED_CONCRETE_POWDER
-            || block == Blocks.BLACK_CONCRETE_POWDER;
-    }
 }

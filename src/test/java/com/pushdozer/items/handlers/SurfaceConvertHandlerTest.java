@@ -51,6 +51,33 @@ class SurfaceConvertHandlerTest extends PushdozerTestBase {
     }
 
     @Test
+    void naturalClassifier_artificialSurfaceToggleAllowsColoredBuildingBlocksButProtectsShulkerBoxes() {
+        for (Block block : List.of(
+            Blocks.RED_CONCRETE_POWDER,
+            Blocks.RED_CONCRETE,
+            Blocks.YELLOW_CONCRETE,
+            Blocks.RED_TERRACOTTA
+        )) {
+            BlockState state = explicitState(block);
+            when(state.getCollisionShape(any(), any()))
+                .thenReturn(Blocks.STONE.getDefaultState().getCollisionShape(null, BlockPos.ORIGIN));
+            assertFalse(NaturalTerrainClassifier.isProtectedSource(state), block.toString());
+            assertFalse(NaturalTerrainClassifier.isConvertibleSource(state, false), block.toString());
+            assertTrue(NaturalTerrainClassifier.isConvertibleSource(state, true), block.toString());
+        }
+
+        BlockState shulkerBox = explicitState(Blocks.MAGENTA_SHULKER_BOX);
+        when(shulkerBox.hasBlockEntity()).thenReturn(true);
+        when(shulkerBox.isIn(BlockTags.SHULKER_BOXES)).thenReturn(true);
+        assertTrue(NaturalTerrainClassifier.isProtectedSource(shulkerBox));
+        assertFalse(NaturalTerrainClassifier.isConvertibleSource(shulkerBox, true));
+
+        Block shulkerBoxBlock = Mockito.mock(Block.class);
+        when(shulkerBoxBlock.getDefaultState()).thenReturn(shulkerBox);
+        assertFalse(NaturalTerrainClassifier.isValidTargetBlock(shulkerBoxBlock));
+    }
+
+    @Test
     void targetValidation_rejectsDoorsAndAcceptsGrassBlock() {
         Block doorBlock = Mockito.mock(Block.class);
         BlockState doorState = taggedState(doorBlock, BlockTags.DOORS);
